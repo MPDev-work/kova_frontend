@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { catalogApi } from '../services/api';
-import { ProductCard } from '../components/ProductCard';
-import { ProductGridSkeleton } from '../components/Skeleton';
-import type { Product } from '../types/marketplace';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { catalogApi } from '../../services/api';
+import { ProductCard } from '../../components/ProductCard';
+import { ProductGridSkeleton } from '../../components/Skeleton';
+import type { Product } from '../../types/marketplace';
 
 const PRICE_RANGES = [
   { id: 'any', label: 'Any Price', min: undefined, max: undefined },

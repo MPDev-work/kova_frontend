@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { ApiError, checkoutApi } from '../services/api';
-import { formatRiel } from '../utils/currency';
-import { VerifiedBadge } from '../components/VerifiedBadge';
-import { KhqrModal } from '../components/KhqrModal';
-import { CambodiaLocationSelector } from '../components/CambodiaLocationSelector';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { ApiError, checkoutApi } from '../../services/api';
+import { formatRiel } from '../../utils/currency';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { KhqrModal } from '../../components/KhqrModal';
+import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
 import type {
   Address,
   ChildOrderRecord,
   ShippingMethod,
-} from '../types/marketplace';
+} from '../../types/marketplace';
 
 export function CheckoutPage() {
   const {

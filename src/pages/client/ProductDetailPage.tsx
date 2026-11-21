@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { catalogApi, customerApi } from '../services/api';
-import { formatKhr, formatShortDate } from '../utils/currency';
-import { ProductCard } from '../components/ProductCard';
-import { ProductDetailSkeleton } from '../components/Skeleton';
-import { VerifiedBadge } from '../components/VerifiedBadge';
-import type { Product, ReviewItem } from '../types/marketplace';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { catalogApi, customerApi } from '../../services/api';
+import { formatKhr, formatShortDate } from '../../utils/currency';
+import { ProductCard } from '../../components/ProductCard';
+import { ProductDetailSkeleton } from '../../components/Skeleton';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
+import type { Product, ReviewItem } from '../../types/marketplace';
 
 export function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();

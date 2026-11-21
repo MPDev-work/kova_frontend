@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { ProductCard } from '../components/ProductCard';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { ProductCard } from '../../components/ProductCard';
 import {
   HomeBannerDeckSkeleton,
   HomeCategoryListSkeleton,
@@ -10,8 +10,8 @@ import {
   ProductGridSkeleton,
   SkeletonImage,
   StoreCardGridSkeleton,
-} from '../components/Skeleton';
-import { VerifiedBadge } from '../components/VerifiedBadge';
+} from '../../components/Skeleton';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
 
 const GUESS_TABS = [
   'All Products',

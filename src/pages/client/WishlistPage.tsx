@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { ProductCard } from '../components/ProductCard';
-import { ProductGridSkeleton } from '../components/Skeleton';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { ProductCard } from '../../components/ProductCard';
+import { ProductGridSkeleton } from '../../components/Skeleton';
 
 export function WishlistPage() {
   const { bootstrapping, isSignedIn, wishlist } = useStore();

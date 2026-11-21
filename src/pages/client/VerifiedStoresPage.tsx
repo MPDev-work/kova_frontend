@@ -1,14 +1,14 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { ProductCard } from '../components/ProductCard';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { ProductCard } from '../../components/ProductCard';
 import {
   Skeleton,
   SkeletonImage,
   VerifiedStoreShowcaseSkeleton,
-} from '../components/Skeleton';
-import { VerifiedBadge } from '../components/VerifiedBadge';
+} from '../../components/Skeleton';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
 
 export function VerifiedStoresPage() {
   const { bootstrapping, stores, brands, products } = useStore();

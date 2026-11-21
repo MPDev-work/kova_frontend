@@ -319,7 +319,9 @@ export function SellerLayout() {
       {/* Persistent Left Seller Sidebar (exact Figma Seller · 01 rail) */}
       <aside
         className={`${
-          sidebarOpen ? 'w-[252px] px-[14px]' : 'w-0 px-0 overflow-hidden border-r-0'
+          sidebarOpen
+            ? 'w-[252px] px-[14px]'
+            : 'w-0 px-0 overflow-hidden border-r-0'
         } hidden lg:flex flex-col justify-between bg-white border-r border-[#ececec] py-[16px] sticky top-0 h-screen shrink-0 transition-all duration-200`}
       >
         <div className="flex flex-col gap-3.5 overflow-y-auto no-scrollbar">
@@ -459,7 +461,10 @@ export function SellerLayout() {
               className="hidden sm:flex items-center gap-1.5 text-[13px] font-medium text-[#767676] truncate"
             >
               {crumbs.map((c, idx) => (
-                <span key={c} className="inline-flex items-center gap-1.5 truncate">
+                <span
+                  key={c}
+                  className="inline-flex items-center gap-1.5 truncate"
+                >
                   {idx > 0 && <span className="text-[#c5c5c5]">/</span>}
                   <span
                     className={

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useStore } from '../context/StoreContext';
-import { ApiError, customerApi } from '../services/api';
-import { CambodiaLocationSelector } from '../components/CambodiaLocationSelector';
-import type { StoreApplication } from '../types/marketplace';
+import { useStore } from '../../context/StoreContext';
+import { ApiError, customerApi } from '../../services/api';
+import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
+import type { StoreApplication } from '../../types/marketplace';
 
 export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
   const {

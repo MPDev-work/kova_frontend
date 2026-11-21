@@ -12,22 +12,22 @@ import { StoreProvider, useStore } from './context/StoreContext';
 import { getUserDashboardPath } from './utils/authRedirect';
 import { Layout } from './components/Layout';
 import { CustomerSettingsLayout } from './components/CustomerSettingsLayout';
-import { HomePage } from './pages/HomePage';
-import { CatalogPage } from './pages/CatalogPage';
-import { PromotionPage } from './pages/PromotionPage';
-import { FreeDeliveryPage } from './pages/FreeDeliveryPage';
-import { ProductDetailPage } from './pages/ProductDetailPage';
-import { VerifiedStoresPage } from './pages/VerifiedStoresPage';
-import { StorefrontPage } from './pages/StorefrontPage';
-import { CartPage } from './pages/CartPage';
-import { CheckoutPage } from './pages/CheckoutPage';
-import { WishlistPage } from './pages/WishlistPage';
-import { NotificationsPage } from './pages/NotificationsPage';
+import { HomePage } from './pages/client/HomePage';
+import { CatalogPage } from './pages/client/CatalogPage';
+import { PromotionPage } from './pages/client/PromotionPage';
+import { FreeDeliveryPage } from './pages/client/FreeDeliveryPage';
+import { ProductDetailPage } from './pages/client/ProductDetailPage';
+import { VerifiedStoresPage } from './pages/client/VerifiedStoresPage';
+import { StorefrontPage } from './pages/client/StorefrontPage';
+import { CartPage } from './pages/client/CartPage';
+import { CheckoutPage } from './pages/client/CheckoutPage';
+import { WishlistPage } from './pages/client/WishlistPage';
+import { NotificationsPage } from './pages/client/NotificationsPage';
 import {
   CancelOrderPage,
   MyOrdersPage,
   OrderDetailsPage,
-} from './pages/OrdersPage';
+} from './pages/client/OrdersPage';
 import {
   AccountSecurityPage,
   AddAddressPage,
@@ -41,19 +41,19 @@ import {
   PrivacySettingsPage,
   RecentlyViewedPage,
   WriteReviewPage,
-} from './pages/AccountPages';
+} from './pages/client/AccountPages';
 import {
   ContactSupportPage,
   HelpCenterPage,
   SupportTicketsPage,
   TicketDetailPage,
-} from './pages/SupportPages';
+} from './pages/client/SupportPages';
 import {
   LoginPage,
   RegisterPage,
   VerificationFlowPage,
-} from './pages/AuthPages';
-import { AboutPage } from './pages/AboutPage';
+} from './pages/client/AuthPages';
+import { AboutPage } from './pages/client/AboutPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import {
   AdminOverviewPage,

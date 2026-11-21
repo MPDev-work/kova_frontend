@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { formatRiel } from '../utils/currency';
-import { CartSkeleton } from '../components/Skeleton';
-import { VerifiedBadge } from '../components/VerifiedBadge';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { formatRiel } from '../../utils/currency';
+import { CartSkeleton } from '../../components/Skeleton';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
 
 export function CartPage() {
   const {

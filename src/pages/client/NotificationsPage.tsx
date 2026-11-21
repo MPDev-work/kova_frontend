@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { formatShortDate } from '../utils/currency';
-import { NotificationsSkeleton } from '../components/Skeleton';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { formatShortDate } from '../../utils/currency';
+import { NotificationsSkeleton } from '../../components/Skeleton';
 
 export function NotificationsPage() {
   const { bootstrapping, isSignedIn, orders } = useStore();

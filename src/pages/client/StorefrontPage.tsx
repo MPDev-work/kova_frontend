@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { catalogApi } from '../services/api';
-import { ProductCard } from '../components/ProductCard';
-import { StorefrontSkeleton } from '../components/Skeleton';
-import { VerifiedBadge } from '../components/VerifiedBadge';
-import type { Product, Store } from '../types/marketplace';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { catalogApi } from '../../services/api';
+import { ProductCard } from '../../components/ProductCard';
+import { StorefrontSkeleton } from '../../components/Skeleton';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
+import type { Product, Store } from '../../types/marketplace';
 
 export function StorefrontPage() {
   const { slug } = useParams<{ slug: string }>();

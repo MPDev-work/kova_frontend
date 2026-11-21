@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { FigmaIcon } from '../components/FigmaIcon';
-import { useStore } from '../context/StoreContext';
-import { ProductCard } from '../components/ProductCard';
+import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
+import { ProductCard } from '../../components/ProductCard';
 import {
   ProductGridSkeleton,
   Skeleton,
   SkeletonImage,
-} from '../components/Skeleton';
+} from '../../components/Skeleton';
 
 export function PromotionPage() {
   const { bootstrapping, products, promotions, applyCoupon, appliedCoupon } =

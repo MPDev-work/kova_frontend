@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useStore } from '../context/StoreContext';
-import { ApiError, authApi } from '../services/api';
-import { getUserDashboardPath } from '../utils/authRedirect';
-import { KovaLogo } from '../components/KovaLogo';
+import { useStore } from '../../context/StoreContext';
+import { ApiError, authApi } from '../../services/api';
+import { getUserDashboardPath } from '../../utils/authRedirect';
+import { KovaLogo } from '../../components/KovaLogo';
 
 function AuthBrandPanel() {
   const { settings } = useStore();

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useStore } from '../context/StoreContext';
-import { ApiError, customerApi } from '../services/api';
-import { formatShortDate } from '../utils/currency';
-import type { SupportTicket } from '../types/marketplace';
+import { useStore } from '../../context/StoreContext';
+import { ApiError, customerApi } from '../../services/api';
+import { formatShortDate } from '../../utils/currency';
+import type { SupportTicket } from '../../types/marketplace';
 
 const FAQS = [
   {
