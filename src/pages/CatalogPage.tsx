@@ -59,6 +59,7 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
           category: selectedCategory || undefined,
           brand: selectedBrand || undefined,
           has_discount: mode === 'promotion' || undefined,
+          free_shipping: mode === 'free-delivery' || undefined,
           verified_only: onlyVerified || undefined,
           in_stock: onlyInStock || undefined,
           min_price: range?.min,

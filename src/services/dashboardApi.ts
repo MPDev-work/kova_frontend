@@ -538,7 +538,7 @@ export interface SellerProductItem {
   name: string;
   slug: string;
   sku: string;
-  category_id: number;
+  category_id?: number | null;
   brand_id?: number | null;
   description?: string | null;
   short_description?: string | null;
@@ -548,6 +548,7 @@ export interface SellerProductItem {
   low_stock_threshold?: number;
   status: 'draft' | 'published' | 'archived';
   is_featured?: boolean;
+  free_shipping?: boolean;
   created_at: string;
   primary_image?: { image_url: string } | null;
   images?: { id?: number; media_id?: number | null; image_url: string; is_primary?: boolean; sort_order?: number }[];
@@ -645,6 +646,8 @@ export interface SellerBakongStatus {
     merchant_name: string;
     merchant_city?: string | null;
     merchant_category_code?: string | null;
+    has_token?: boolean;
+    token_masked?: string | null;
     token_expires_at?: string | null;
     last_checked_at?: string | null;
   } | null;
@@ -720,7 +723,7 @@ export const storeOwnerApi = {
   async createProduct(payload: {
     name: string;
     sku: string;
-    category_id: number;
+    category_id?: number | null;
     brand_id?: number | null;
     description?: string | null;
     short_description?: string | null;
@@ -730,6 +733,7 @@ export const storeOwnerApi = {
     low_stock_threshold?: number;
     status: 'draft' | 'published' | 'archived';
     is_featured?: boolean;
+    free_shipping?: boolean;
     images?: { image_url: string; media_id?: number | null; sort_order: number; is_primary: boolean }[];
   }) {
     return apiRequest<SellerProductItem>('/store-owner/products', {
@@ -743,7 +747,7 @@ export const storeOwnerApi = {
     payload: {
       name?: string;
       sku?: string;
-      category_id?: number;
+      category_id?: number | null;
       brand_id?: number | null;
       description?: string | null;
       short_description?: string | null;
@@ -753,6 +757,14 @@ export const storeOwnerApi = {
       low_stock_threshold?: number;
       status?: 'draft' | 'published' | 'archived';
       is_featured?: boolean;
+      free_shipping?: boolean;
+      images?: {
+        id?: number;
+        image_url: string;
+        media_id?: number | null;
+        sort_order: number;
+        is_primary: boolean;
+      }[];
     },
   ) {
     return apiRequest<SellerProductItem>(`/store-owner/products/${id}`, {
@@ -909,7 +921,7 @@ export const storeOwnerApi = {
   async connectBakong(payload: {
     bakong_account_id: string;
     registered_email: string;
-    api_token: string;
+    api_token?: string;
     merchant_name: string;
     merchant_city?: string;
     merchant_category_code?: string;

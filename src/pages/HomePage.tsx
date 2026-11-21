@@ -189,10 +189,14 @@ export function HomePage() {
                 </Link>
                 <div className="min-w-0 leading-[1.35]">
                   <p className="text-[15px] font-bold text-black truncate">
-                    {isSignedIn && user ? `Hi, ${user.name}` : 'Welcome to Kova'}
+                    {isSignedIn && user
+                      ? `Hi, ${user.name}`
+                      : 'Welcome to Kova'}
                   </p>
                   <p className="text-[12px] font-medium text-[#767676] truncate">
-                    {isSignedIn && user ? user.email : 'Sign in to manage orders'}
+                    {isSignedIn && user
+                      ? user.email
+                      : 'Sign in to manage orders'}
                   </p>
                 </div>
               </div>
@@ -202,7 +206,11 @@ export function HomePage() {
                   {[
                     { count: toPay, label: 'To Pay', to: '/account/orders' },
                     { count: toShip, label: 'To Ship', to: '/account/orders' },
-                    { count: toReceive, label: 'Receive', to: '/account/orders' },
+                    {
+                      count: toReceive,
+                      label: 'Receive',
+                      to: '/account/orders',
+                    },
                     { count: completed, label: 'Done', to: '/account/orders' },
                   ].map((s) => (
                     <Link
@@ -239,7 +247,9 @@ export function HomePage() {
               {/* Active Promotion Card from DB */}
               <div className="kova-gradient rounded-[14px] px-3.5 py-3 flex flex-col gap-1.5">
                 <p className="text-[13px] font-bold text-white leading-[1.35]">
-                  {promotions[0] ? promotions[0].name : 'KHQR & Bakong Checkout'}
+                  {promotions[0]
+                    ? promotions[0].name
+                    : 'KHQR & Bakong Checkout'}
                 </p>
                 <p className="text-[11.5px] text-[#fff0e6] leading-[1.35]">
                   {promotions[0]
@@ -256,7 +266,9 @@ export function HomePage() {
 
               {/* Latest Products Preview */}
               <div className="flex flex-col gap-2 mt-auto">
-                <p className="text-[12.5px] font-bold text-black">Latest items</p>
+                <p className="text-[12.5px] font-bold text-black">
+                  Latest items
+                </p>
                 {products.length === 0 ? (
                   <p className="text-[12px] text-[#767676] py-4 text-center bg-[#f7f7f7] rounded-[12px]">
                     No products published yet.
@@ -277,7 +289,10 @@ export function HomePage() {
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                             />
                           ) : (
-                            <FigmaIcon name="package" className="w-5 h-5 text-[#979797]" />
+                            <FigmaIcon
+                              name="package"
+                              className="w-5 h-5 text-[#979797]"
+                            />
                           )}
                         </div>
                         <span className="text-[12px] font-bold text-[#ff6e20]">
@@ -295,7 +310,7 @@ export function HomePage() {
 
       {/* 2. Flash Sale / Discounted Products (only if discounted products exist) */}
       {flashProducts.length > 0 && (
-        <section className="bg-white border-[1.5px] border-[#ff6e20] rounded-[22px] p-3.5 pb-4 flex flex-col gap-3">
+        <section className="bg-white border-[1.5px] border-[#ff6e20] rounded-[28px] p-2.5 flex flex-col gap-3">
           <div className="kova-gradient rounded-[16px] px-4 lg:px-[18px] py-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-[18px] sm:text-[20px] font-bold text-white leading-[1.35]">
               KOVA PROMOTIONS
@@ -348,7 +363,7 @@ export function HomePage() {
               <Link
                 key={store.id}
                 to={`/store/${store.slug}`}
-                className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 rounded-[20px] p-2.5 pb-3 flex flex-col gap-2 transition-all hover:shadow-md"
+                className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 rounded-[24px] p-2.5 pb-3 flex flex-col gap-2 transition-all hover:shadow-md"
               >
                 <div className="h-[150px] w-full rounded-[14px] overflow-hidden bg-[#f7f7f7] flex items-center justify-center">
                   {store.banner || store.logo ? (
@@ -358,7 +373,10 @@ export function HomePage() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <FigmaIcon name="home" className="w-10 h-10 text-[#979797]" />
+                    <FigmaIcon
+                      name="home"
+                      className="w-10 h-10 text-[#979797]"
+                    />
                   )}
                 </div>
                 <div className="flex items-center justify-between gap-2 px-0.5">

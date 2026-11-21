@@ -25,6 +25,7 @@ export function CheckoutPage() {
     couponDiscount,
     khrRate,
     submitCheckout,
+    cancelOrder,
     refreshOrders,
     showToast,
   } = useStore();
@@ -56,6 +57,7 @@ export function CheckoutPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [khqrOrders, setKhqrOrders] = useState<ChildOrderRecord[]>([]);
   const [khqrOpen, setKhqrOpen] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(
     null,
   );
@@ -98,14 +100,85 @@ export function CheckoutPage() {
     };
   }, [cart.stores]);
 
+  const computeShippingOption = (
+    method: ShippingMethod,
+    storeSubtotal: number,
+    allItemsFreeShipping = false,
+  ) => {
+    const thresholdRaw = Number(method.free_shipping_threshold ?? 0);
+    const threshold = thresholdRaw > 0 ? thresholdRaw : null;
+
+    if (method.calculation_type === 'free') {
+      return {
+        fee: 0,
+        baseFee: 0,
+        threshold: null,
+        isFreeByThreshold: false,
+        isFreeByProduct: false,
+      };
+    }
+
+    const provinceName = activeAddress?.province?.trim().toLowerCase();
+    const regionRate = provinceName
+      ? method.rates?.find(
+          (r) => r.province && r.province.trim().toLowerCase() === provinceName,
+        )
+      : undefined;
+
+    const baseFee = Number(
+      regionRate?.rate ??
+        regionRate?.base_fee ??
+        method.base_cost ??
+        method.base_fee ??
+        0,
+    );
+
+    if (allItemsFreeShipping) {
+      return {
+        fee: 0,
+        baseFee,
+        threshold,
+        isFreeByThreshold: false,
+        isFreeByProduct: true,
+      };
+    }
+
+    if (threshold !== null && storeSubtotal >= threshold) {
+      return {
+        fee: 0,
+        baseFee,
+        threshold,
+        isFreeByThreshold: true,
+        isFreeByProduct: false,
+      };
+    }
+
+    return {
+      fee: baseFee,
+      baseFee,
+      threshold,
+      isFreeByThreshold: false,
+      isFreeByProduct: false,
+    };
+  };
+
   const subtotal = cart.total_amount;
   const estimatedShipping = cart.stores.reduce((sum, g) => {
+    const allItemsFree =
+      g.all_free_shipping ??
+      (g.items.length > 0 && g.items.every((i) => Boolean(i.free_shipping)));
+    if (allItemsFree) return sum;
     const methods = shippingMethodsByStore[g.store.id] || [];
-    const chosen = methods.find(
-      (m) => m.id === selectedMethodByStore[g.store.id],
+    const chosen =
+      methods.find((m) => m.id === selectedMethodByStore[g.store.id]) ||
+      methods[0];
+    if (!chosen) return sum;
+    const { fee } = computeShippingOption(
+      chosen,
+      Number(g.store_subtotal || 0),
+      allItemsFree,
     );
-    const rate = chosen?.rates?.[0]?.base_fee ?? chosen?.base_fee ?? 0;
-    return sum + Number(rate || 0);
+    return sum + fee;
   }, 0);
   const total = Math.max(0, subtotal + estimatedShipping - couponDiscount);
 
@@ -162,6 +235,7 @@ export function CheckoutPage() {
       const payableChildren = order.children.filter((c) =>
         Boolean(c.khqr?.khqr_payload),
       );
+      setCreatedOrderId(order.id);
       setCreatedOrderNumber(order.order_number);
       if (payableChildren.length > 0) {
         setKhqrOrders(payableChildren);
@@ -250,7 +324,7 @@ export function CheckoutPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-[#ececec] rounded-full px-5 py-2.5 flex items-center gap-3 text-[13px]">
+        {/* <div className="bg-white border border-[#ececec] rounded-full px-5 py-2.5 flex items-center gap-3 text-[13px]">
           <span className="bg-[#ffefe6] text-[#ff6e20] font-bold px-3 py-1 rounded-full">
             Step {khqrOpen ? '3' : '2'} of 3
           </span>
@@ -259,7 +333,7 @@ export function CheckoutPage() {
               ? 'Bakong KHQR Payment'
               : 'Shipping Address & Delivery Selection'}
           </span>
-        </div>
+        </div> */}
       </div>
 
       {checkoutError && (
@@ -463,7 +537,10 @@ export function CheckoutPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <FigmaIcon name="home" className="w-5 h-5 text-[#ff6e20]" />
+                          <FigmaIcon
+                            name="home"
+                            className="w-5 h-5 text-[#ff6e20]"
+                          />
                         )}
                       </span>
                       <div className="min-w-0">
@@ -502,7 +579,10 @@ export function CheckoutPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <FigmaIcon name="package" className="w-6 h-6 text-[#979797]" />
+                            <FigmaIcon
+                              name="package"
+                              className="w-6 h-6 text-[#979797]"
+                            />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -526,9 +606,30 @@ export function CheckoutPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                       {methods.map((m) => {
                         const active = chosenId === m.id;
-                        const fee = Number(
-                          m.rates?.[0]?.base_fee ?? m.base_fee ?? 0,
+                        const allItemsFree =
+                          group.all_free_shipping ??
+                          (group.items.length > 0 &&
+                            group.items.every((i) => Boolean(i.free_shipping)));
+                        const {
+                          fee,
+                          baseFee,
+                          threshold,
+                          isFreeByThreshold,
+                          isFreeByProduct,
+                        } = computeShippingOption(
+                          m,
+                          Number(group.store_subtotal || 0),
+                          allItemsFree,
                         );
+                        const remainingForFree =
+                          threshold !== null &&
+                          !isFreeByThreshold &&
+                          !isFreeByProduct
+                            ? Math.max(
+                                0,
+                                threshold - Number(group.store_subtotal || 0),
+                              )
+                            : 0;
                         return (
                           <button
                             key={m.id}
@@ -553,14 +654,45 @@ export function CheckoutPage() {
                               >
                                 {m.name}
                               </span>
-                              <span className="text-[13.5px] font-bold text-black shrink-0">
-                                {fee > 0 ? `$${fee.toFixed(2)}` : 'Free'}
+                              <span className="text-[13.5px] font-bold shrink-0 flex items-center gap-1.5">
+                                {(isFreeByThreshold || isFreeByProduct) &&
+                                  baseFee > 0 && (
+                                    <span className="text-[12px] font-normal text-[#979797] line-through">
+                                      ${baseFee.toFixed(2)}
+                                    </span>
+                                  )}
+                                <span
+                                  className={
+                                    fee === 0 ? 'text-[#029500]' : 'text-black'
+                                  }
+                                >
+                                  {fee > 0 ? `$${fee.toFixed(2)}` : 'Free'}
+                                </span>
                               </span>
                             </div>
                             {(m.estimated_delivery_days || m.description) && (
                               <span className="text-[12px] text-[#767676]">
                                 {m.estimated_delivery_days || m.description}
                               </span>
+                            )}
+                            {isFreeByProduct ? (
+                              <span className="text-[11.5px] font-medium text-[#029500]">
+                                Free shipping included on your items
+                              </span>
+                            ) : (
+                              threshold !== null && (
+                                <span
+                                  className={`text-[11.5px] font-medium ${
+                                    isFreeByThreshold
+                                      ? 'text-[#029500]'
+                                      : 'text-[#8a8a8a]'
+                                  }`}
+                                >
+                                  {isFreeByThreshold
+                                    ? `Free delivery unlocked (over $${threshold.toFixed(2)})`
+                                    : `Free delivery over $${threshold.toFixed(2)} (add $${remainingForFree.toFixed(2)} more)`}
+                                </span>
+                              )
                             )}
                           </button>
                         );
@@ -579,7 +711,7 @@ export function CheckoutPage() {
 
         {/* Right: Order Summary + Fixed-Bottom Action Component (sticky bottom-5) */}
         <aside className="flex flex-col justify-between gap-4">
-          <div className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-5 sticky top-[116px]">
+          <div className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-5 top-[116px]">
             <div className="flex items-center justify-between">
               <h2 className="text-[20px] font-semibold text-black">
                 Order summary
@@ -677,7 +809,7 @@ export function CheckoutPage() {
                   Bakong KHQR Payment
                 </p>
                 <p className="text-[11.5px] text-[#767676]">
-                  Live QR generated by Bakong SDK
+                  Secure payment with KHQR
                 </p>
               </div>
               <span className="bg-[#E1232E] text-white text-[11px] font-bold px-2.5 py-1 rounded-[6px] tracking-wide">
@@ -709,6 +841,45 @@ export function CheckoutPage() {
       <KhqrModal
         open={khqrOpen}
         storeOrders={khqrOrders}
+        allowBackdropClose={false}
+        onCancel={async () => {
+          if (createdOrderId) {
+            try {
+              await cancelOrder(
+                createdOrderId,
+                'Payment cancelled by customer at checkout',
+                true,
+              );
+              setKhqrOpen(false);
+              setKhqrOrders([]);
+              setCreatedOrderId(null);
+              setCreatedOrderNumber(null);
+              navigate('/cart');
+              return;
+            } catch (err) {
+              showToast(
+                err instanceof ApiError
+                  ? err.message
+                  : 'Unable to cancel payment.',
+              );
+            }
+          }
+          setKhqrOpen(false);
+          navigate('/cart');
+        }}
+        onTimeout={() => {
+          setKhqrOpen(false);
+          showToast(
+            'Payment timed out. Your order has been saved as awaiting payment.',
+          );
+          void refreshOrders().finally(() => {
+            navigate(
+              createdOrderNumber
+                ? `/account/orders/${createdOrderNumber}`
+                : '/account/orders',
+            );
+          });
+        }}
         onClose={() => {
           setKhqrOpen(false);
           void refreshOrders();

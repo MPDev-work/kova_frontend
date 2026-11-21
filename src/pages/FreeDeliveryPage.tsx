@@ -18,14 +18,22 @@ export function FreeDeliveryPage() {
     (p) => p.discount_type === 'free_shipping',
   );
 
+  const freeDeliveryProducts = useMemo(
+    () =>
+      products.filter((p) => Boolean(p.has_free_delivery || p.free_shipping)),
+    [products],
+  );
+
   const filteredProducts = useMemo(() => {
-    if (activeCategory === 'all') return products;
+    if (activeCategory === 'all') return freeDeliveryProducts;
     if (activeCategory === 'under15')
-      return products.filter((p) => p.price < 15);
+      return freeDeliveryProducts.filter((p) => p.price < 15);
     if (activeCategory === 'verified')
-      return products.filter((p) => p.store_verified);
-    return products.filter((p) => p.category_slug === activeCategory);
-  }, [products, activeCategory]);
+      return freeDeliveryProducts.filter((p) => p.store_verified);
+    return freeDeliveryProducts.filter(
+      (p) => p.category_slug === activeCategory,
+    );
+  }, [freeDeliveryProducts, activeCategory]);
 
   return (
     <div className="bg-[#f7f7f7] min-h-screen w-full">
@@ -98,10 +106,10 @@ export function FreeDeliveryPage() {
           <div className="bg-white border border-[#ececec] rounded-[20px] py-14 px-6 flex flex-col items-center text-center gap-3">
             <FigmaIcon name="truck" className="w-8 h-8 text-[#979797]" />
             <p className="text-[16px] font-semibold text-black">
-              No products available in this filter yet
+              No free delivery products available yet
             </p>
             <p className="text-[13.5px] text-[#767676]">
-              Listings from approved stores will appear here automatically.
+              Only products with Free Delivery enabled or eligible for free store delivery appear here.
             </p>
           </div>
         ) : (

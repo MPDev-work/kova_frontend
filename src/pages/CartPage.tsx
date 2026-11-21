@@ -119,7 +119,10 @@ export function CartPage() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <FigmaIcon name="home" className="w-5 h-5 text-[#ff6e20]" />
+                        <FigmaIcon
+                          name="home"
+                          className="w-5 h-5 text-[#ff6e20]"
+                        />
                       )}
                     </span>
                     <div className="min-w-0">
@@ -141,95 +144,102 @@ export function CartPage() {
                   </Link>
                 </div>
 
-                {group.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col sm:flex-row gap-5 items-start pb-5 border-b border-[#ececec] last:border-b-0 last:pb-0"
-                  >
-                    <Link
-                      to={`/product/${item.product_slug}`}
-                      className="w-[100px] h-[100px] sm:w-[116px] sm:h-[116px] rounded-[16px] overflow-hidden shrink-0 border border-[#ececec] bg-[#f7f7f7] flex items-center justify-center"
+                <div className="flex flex-col gap-5">
+                  {group.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col sm:flex-row gap-5 items-start pb-5 border-b border-[#ececec] last:border-b-0 last:pb-0"
                     >
-                      {item.product_image ? (
-                        <img
-                          src={item.product_image}
-                          alt={item.product_name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <FigmaIcon name="package" className="w-8 h-8 text-[#979797]" />
-                      )}
-                    </Link>
-
-                    <div className="flex-1 flex flex-col gap-2 min-w-0">
                       <Link
                         to={`/product/${item.product_slug}`}
-                        className="text-[16.5px] font-medium text-black hover:text-[#ff6e20] leading-[1.4]"
+                        className="w-[100px] h-[100px] sm:w-[116px] sm:h-[116px] rounded-[16px] overflow-hidden shrink-0 border border-[#ececec] bg-[#f7f7f7] flex items-center justify-center"
                       >
-                        {item.product_name}
-                      </Link>
-                      <div className="flex items-center gap-1.5 text-[12px] text-[#767676]">
-                        {group.store.logo && (
+                        {item.product_image ? (
                           <img
-                            src={group.store.logo}
-                            alt=""
-                            className="w-4 h-4 rounded-full object-cover border border-[#ececec]"
+                            src={item.product_image}
+                            alt={item.product_name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <FigmaIcon
+                            name="package"
+                            className="w-8 h-8 text-[#979797]"
                           />
                         )}
-                        <span>{group.store.name}</span>
-                        {isVerified && <VerifiedBadge size="xs" />}
+                      </Link>
+
+                      <div className="flex-1 flex flex-col gap-1 min-w-0">
+                        <Link
+                          to={`/product/${item.product_slug}`}
+                          className="text-[16.5px] font-medium text-black hover:text-[#ff6e20] leading-[1.4]"
+                        >
+                          {item.product_name}
+                        </Link>
+                        <div className="flex items-center gap-1.5 text-[12px] text-[#767676]">
+                          {group.store.logo && (
+                            <img
+                              src={group.store.logo}
+                              alt=""
+                              className="w-4 h-4 rounded-full object-cover border border-[#ececec]"
+                            />
+                          )}
+                          <span>{group.store.name}</span>
+                          {isVerified && <VerifiedBadge size="xs" />}
+                        </div>
+                        {item.variant_name && (
+                          <p className="text-[13px] text-[#767676]">
+                            Variant: {item.variant_name}
+                          </p>
+                        )}
+                        {item.free_shipping && (
+                          <p className="text-[12px] font-medium text-[#029500]">
+                            Free delivery
+                          </p>
+                        )}
+                        <div className="flex items-center gap-6 text-[12.5px] pt-1">
+                          <button
+                            type="button"
+                            onClick={() => void removeFromCart(item.id)}
+                            className="text-[#e5322d] hover:underline font-medium"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
-                      {item.variant_name && (
-                        <p className="text-[13px] text-[#767676]">
-                          Variant: {item.variant_name}
+
+                      <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4">
+                        <div className="bg-white border border-[#ececec] rounded-[25px] px-4 py-2 flex items-center gap-4 text-[14px] font-semibold text-black">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void updateCartQty(item.id, item.quantity - 1)
+                            }
+                            className="hover:text-[#ff6e20]"
+                          >
+                            −
+                          </button>
+                          <span className="tabular-nums w-4 text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void updateCartQty(item.id, item.quantity + 1)
+                            }
+                            className="hover:text-[#ff6e20]"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <p className="text-[18px] font-semibold text-[#ff6e20]">
+                          ${item.subtotal.toFixed(2)}
                         </p>
-                      )}
-                      <p className="text-[12px] text-[#029500]">
-                        {item.stock_available} in stock
-                      </p>
-                      <div className="flex items-center gap-6 text-[12.5px] pt-1">
-                        <button
-                          type="button"
-                          onClick={() => void removeFromCart(item.id)}
-                          className="text-[#e5322d] hover:underline font-medium"
-                        >
-                          Remove
-                        </button>
                       </div>
                     </div>
+                  ))}
+                </div>
 
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4">
-                      <div className="bg-white border border-[#ececec] rounded-[25px] px-4 py-2 flex items-center gap-4 text-[14px] font-semibold text-black">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void updateCartQty(item.id, item.quantity - 1)
-                          }
-                          className="hover:text-[#ff6e20]"
-                        >
-                          −
-                        </button>
-                        <span className="tabular-nums w-4 text-center">
-                          {item.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void updateCartQty(item.id, item.quantity + 1)
-                          }
-                          className="hover:text-[#ff6e20]"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <p className="text-[18px] font-semibold text-[#ff6e20]">
-                        ${item.subtotal.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                <div className="pt-3 border-t border-[#ececec] flex items-center justify-between text-[14px]">
+                <div className="pt-4 border-t border-[#ececec] flex items-center justify-between text-[14px]">
                   <span className="text-[#767676]">Store subtotal</span>
                   <span className="font-semibold text-black">
                     ${group.store_subtotal.toFixed(2)}
@@ -239,12 +249,12 @@ export function CartPage() {
             );
           })}
 
-          <Link
+          {/* <Link
             to="/products"
             className="self-start bg-white border border-[#ececec] hover:border-[#ff6e20] text-[14px] font-semibold text-black px-5 py-3 rounded-[25px] transition-colors"
           >
             Continue shopping
-          </Link>
+          </Link> */}
         </div>
 
         {/* Right: Order Summary */}

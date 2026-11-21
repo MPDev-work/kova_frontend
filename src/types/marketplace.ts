@@ -78,6 +78,8 @@ export interface Product {
   stock_quantity: number;
   in_stock: boolean;
   is_featured: boolean;
+  free_shipping: boolean;
+  has_free_delivery: boolean;
   image: string | null;
   gallery: string[];
   store_id: number;
@@ -108,6 +110,7 @@ export interface CartItem {
   quantity: number;
   subtotal: number;
   stock_available: number;
+  free_shipping?: boolean;
 }
 
 export interface CartStoreGroup {
@@ -119,6 +122,7 @@ export interface CartStoreGroup {
   };
   items: CartItem[];
   store_subtotal: number;
+  all_free_shipping?: boolean;
 }
 
 export interface CartSummary {
@@ -130,8 +134,10 @@ export interface CartSummary {
 
 export interface ShippingRate {
   id: number;
-  base_fee: number;
-  free_shipping_threshold?: number | null;
+  province?: string;
+  rate?: number | string;
+  base_fee?: number | string;
+  free_shipping_threshold?: number | string | null;
   estimated_days?: string | null;
 }
 
@@ -140,8 +146,12 @@ export interface ShippingMethod {
   store_id: number;
   name: string;
   description?: string | null;
+  calculation_type?: 'fixed' | 'weight_based' | 'free' | 'distance_based';
+  base_cost?: number | string;
+  cost_per_kg?: number | string | null;
+  free_shipping_threshold?: number | string | null;
   estimated_delivery_days?: string | null;
-  base_fee?: number;
+  base_fee?: number | string;
   rates?: ShippingRate[];
 }
 

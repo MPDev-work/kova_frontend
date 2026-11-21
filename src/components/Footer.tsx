@@ -59,11 +59,11 @@ export function Footer() {
         </div>
 
         {/* Footer Links Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:flex lg:justify-between lg:items-start gap-8 items-start">
           {/* Brand Column */}
           <div className="lg:col-span-4 flex flex-col gap-4">
             <KovaLogo />
-            <p className="text-[14px] text-[#767676] leading-[1.4] max-w-[340px]">
+            <p className="text-[14px] text-[#767676] leading-[1.4] max-w-[300px]">
               Kova Global Store &amp; Logistics — shop thousands of verified
               Cambodian and global stores, delivered to your door.
             </p>
@@ -75,7 +75,7 @@ export function Footer() {
               <FigmaIcon name="mail" className="w-4 h-4 text-[#ff6e20]" />
               <span>support@kova.com.kh</span>
             </div>
-            <div className="flex items-center gap-2.5 text-[13px] text-black">
+            <div className="max-w-[300px] flex items-center gap-2.5 text-[13px] text-black">
               <FigmaIcon name="map-pin" className="w-4 h-4 text-[#ff6e20]" />
               <span>No. 21, St. 214, Boeung Raing, Daun Penh, Phnom Penh</span>
             </div>

@@ -96,8 +96,15 @@
 @media (prefers-reduced-motion: reduce) {
   .marquee-track-left,
   .marquee-track-right,
-  .kova-skeleton {
-    animation: none;
+  .kova-skeleton,
+  .khqr-success-ring,
+  .khqr-success-ring-delay,
+  .khqr-success-circle,
+  .khqr-success-check,
+  .khqr-success-spark,
+  .khqr-fade-up,
+  .khqr-redirect-bar {
+    animation: none !important;
   }
 }
 
@@ -114,4 +121,109 @@
   background: linear-gradient(90deg, #ececec 25%, #f6f6f6 50%, #ececec 75%);
   background-size: 200% 100%;
   animation: kova-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes khqr-ring-expand {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+@keyframes khqr-circle-pop {
+  0% {
+    transform: scale(0.35);
+    opacity: 0;
+  }
+  65% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes khqr-check-draw {
+  0% {
+    stroke-dashoffset: 64;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes khqr-spark-burst {
+  0% {
+    transform: rotate(var(--spark-angle)) translateY(0) scale(0.3);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--spark-angle)) translateY(-56px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes khqr-fade-up {
+  0% {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes khqr-progress-fill {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+.khqr-success-ring {
+  animation: khqr-ring-expand 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.khqr-success-ring-delay {
+  animation: khqr-ring-expand 1.3s cubic-bezier(0.16, 1, 0.3, 1) 0.18s forwards;
+}
+
+.khqr-success-circle {
+  animation: khqr-circle-pop 0.52s cubic-bezier(0.22, 1.32, 0.36, 1) forwards;
+}
+
+.khqr-success-check {
+  stroke-dasharray: 64;
+  stroke-dashoffset: 0;
+  animation: khqr-check-draw 0.48s cubic-bezier(0.65, 0, 0.35, 1) 0.24s both;
+}
+
+.khqr-success-spark {
+  animation: khqr-spark-burst 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+}
+
+.khqr-fade-up {
+  animation: khqr-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.khqr-redirect-bar {
+  transform-origin: left center;
+  animation: khqr-progress-fill 2.1s linear 0.15s both;
 }

@@ -12,6 +12,7 @@ import { formatShortDate } from '../utils/currency';
 import { ProductCard } from '../components/ProductCard';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { CambodiaLocationSelector } from '../components/CambodiaLocationSelector';
+import { ToggleSwitch } from '../components/ToggleSwitch';
 
 // My Profile (with real Cloudinary avatar upload + real API update)
 export function MyProfilePage() {
@@ -378,15 +379,21 @@ export function AddAddressPage() {
             className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#ff6e20]"
           />
         </label>
-        <label className="sm:col-span-2 flex items-center gap-2 text-[13px] text-[#767676]">
-          <input
-            type="checkbox"
+        <div className="sm:col-span-2 flex items-center justify-between gap-3 pt-2 border-t border-[#f1f1f1]">
+          <div>
+            <p className="text-[13px] font-semibold text-black">
+              Default delivery address
+            </p>
+            <p className="text-[12px] text-[#767676]">
+              Automatically pre-select this address at checkout.
+            </p>
+          </div>
+          <ToggleSwitch
             checked={isDefault}
-            onChange={(e) => setIsDefault(e.target.checked)}
-            className="accent-[#ff6e20]"
+            onChange={setIsDefault}
+            ariaLabel="Set as my default delivery address"
           />
-          Set as my default delivery address
-        </label>
+        </div>
         <div className="sm:col-span-2 flex gap-2.5 pt-1">
           <Link
             to="/account/addresses"
@@ -494,15 +501,21 @@ function EditAddressForm({ address }: { address: Address }) {
           className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#ff6e20]"
         />
       </label>
-      <label className="sm:col-span-2 flex items-center gap-2 text-[13px] text-[#767676]">
-        <input
-          type="checkbox"
+      <div className="sm:col-span-2 flex items-center justify-between gap-3 pt-2 border-t border-[#f1f1f1]">
+        <div>
+          <p className="text-[13px] font-semibold text-black">
+            Default delivery address
+          </p>
+          <p className="text-[12px] text-[#767676]">
+            Automatically pre-select this address at checkout.
+          </p>
+        </div>
+        <ToggleSwitch
           checked={isDefault}
-          onChange={(e) => setIsDefault(e.target.checked)}
-          className="accent-[#ff6e20]"
+          onChange={setIsDefault}
+          ariaLabel="Set as my default delivery address"
         />
-        Set as my default delivery address
-      </label>
+      </div>
       <div className="sm:col-span-2 flex gap-2.5 pt-1">
         <Link
           to="/account/addresses"
@@ -844,9 +857,9 @@ export function NotificationPrefsPage() {
 
       <div className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]">
         {items.map((item) => (
-          <label
+          <div
             key={item.key}
-            className="flex items-center justify-between gap-4 pb-4 border-b border-[#ececec] last:border-b-0 last:pb-0 cursor-pointer"
+            className="flex items-center justify-between gap-4 pb-4 border-b border-[#ececec] last:border-b-0 last:pb-0"
           >
             <div>
               <p className="text-[14px] font-semibold text-black">
@@ -854,15 +867,12 @@ export function NotificationPrefsPage() {
               </p>
               <p className="text-[12.5px] text-[#767676]">{item.desc}</p>
             </div>
-            <input
-              type="checkbox"
+            <ToggleSwitch
               checked={notifPrefs[item.key]}
-              onChange={(e) =>
-                updateNotifPrefs({ [item.key]: e.target.checked })
-              }
-              className="w-5 h-5 accent-[#ff6e20]"
+              onChange={(next) => updateNotifPrefs({ [item.key]: next })}
+              ariaLabel={item.label}
             />
-          </label>
+          </div>
         ))}
       </div>
     </div>
@@ -899,9 +909,9 @@ export function PrivacySettingsPage() {
             desc: 'Keep your recently viewed items list in this browser.',
           },
         ].map((item) => (
-          <label
+          <div
             key={item.key}
-            className="flex items-center justify-between gap-4 pb-4 border-b border-[#ececec] last:border-b-0 last:pb-0 cursor-pointer"
+            className="flex items-center justify-between gap-4 pb-4 border-b border-[#ececec] last:border-b-0 last:pb-0"
           >
             <div>
               <p className="text-[14px] font-semibold text-black">
@@ -909,15 +919,12 @@ export function PrivacySettingsPage() {
               </p>
               <p className="text-[12.5px] text-[#767676]">{item.desc}</p>
             </div>
-            <input
-              type="checkbox"
+            <ToggleSwitch
               checked={privacyPrefs[item.key]}
-              onChange={(e) =>
-                updatePrivacyPrefs({ [item.key]: e.target.checked })
-              }
-              className="w-5 h-5 accent-[#ff6e20]"
+              onChange={(next) => updatePrivacyPrefs({ [item.key]: next })}
+              ariaLabel={item.label}
             />
-          </label>
+          </div>
         ))}
       </div>
     </div>

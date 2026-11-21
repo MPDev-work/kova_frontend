@@ -69,7 +69,7 @@ export function StorefrontPage() {
 
   return (
     <div className="kova-container px-2.5 lg:px-[10px] pt-[14px] pb-10 flex flex-col gap-4">
-      <section className="bg-white border border-[#ececec] rounded-[22px] p-3.5 pb-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] rounded-[28px] px-2.5 pt-2.5 pb-4 flex flex-col gap-3">
         <div className="h-[200px] sm:h-[280px] w-full rounded-[18px] overflow-hidden bg-[#f7f7f7] flex items-center justify-center">
           {store.banner ? (
             <img
@@ -82,7 +82,7 @@ export function StorefrontPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 px-1">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
             <span className="w-14 h-14 rounded-full border border-[#ececec] bg-white overflow-hidden shrink-0 flex items-center justify-center">
               {store.logo ? (

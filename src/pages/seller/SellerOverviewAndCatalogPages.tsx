@@ -24,6 +24,7 @@ import {
   type TrendSeriesPoint,
 } from '../../components/DashboardPrimitives';
 import { FigmaIcon } from '../../components/FigmaIcon';
+import { ToggleSwitch } from '../../components/ToggleSwitch';
 import {
   DashboardKpiSkeleton,
   DashboardTableSkeleton,
@@ -991,7 +992,7 @@ export function SellerProductFormPage() {
   const [loading, setLoading] = useState(isEdit);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
-  const [categoryId, setCategoryId] = useState<number>(categories[0]?.id || 0);
+  const [categoryId, setCategoryId] = useState<string>('');
   const [brandId, setBrandId] = useState<string>('');
   const [regularPrice, setRegularPrice] = useState('');
   const [discountPrice, setDiscountPrice] = useState('');
@@ -1001,10 +1002,16 @@ export function SellerProductFormPage() {
     'published',
   );
   const [isFeatured, setIsFeatured] = useState(false);
+  const [freeShipping, setFreeShipping] = useState(false);
   const [shortDescription, setShortDescription] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState<
-    { image_url: string; media_id?: number | null; is_primary: boolean }[]
+    {
+      id?: number;
+      image_url: string;
+      media_id?: number | null;
+      is_primary: boolean;
+    }[]
   >([]);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1018,7 +1025,7 @@ export function SellerProductFormPage() {
         if (!active) return;
         setName(p.name);
         setSku(p.sku);
-        setCategoryId(p.category_id);
+        setCategoryId(p.category_id ? String(p.category_id) : '');
         setBrandId(p.brand_id ? String(p.brand_id) : '');
         setRegularPrice(String(p.regular_price));
         setDiscountPrice(p.discount_price ? String(p.discount_price) : '');
@@ -1026,13 +1033,17 @@ export function SellerProductFormPage() {
         setLowStockThreshold(String(p.low_stock_threshold ?? 5));
         setStatus(p.status);
         setIsFeatured(Boolean(p.is_featured));
+        setFreeShipping(Boolean(p.free_shipping));
         setShortDescription(p.short_description || '');
         setDescription(p.description || '');
+        const rawImages = p.images || [];
+        const hasPrimary = rawImages.some((img) => Boolean(img.is_primary));
         setImages(
-          (p.images || []).map((img, i) => ({
+          rawImages.map((img, i) => ({
+            id: img.id,
             image_url: img.image_url,
             media_id: img.media_id ?? null,
-            is_primary: Boolean(img.is_primary || i === 0),
+            is_primary: hasPrimary ? Boolean(img.is_primary) : i === 0,
           })),
         );
       })
@@ -1052,18 +1063,28 @@ export function SellerProductFormPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    const remainingSlots = Math.max(0, 8 - images.length);
+    if (remainingSlots === 0) {
+      showToast('Maximum of 8 product images allowed.');
+      e.target.value = '';
+      return;
+    }
+    const filesToUpload = files.slice(0, remainingSlots);
     setUploadingImg(true);
     try {
-      for (const file of files) {
+      for (const file of filesToUpload) {
         const media = await storeOwnerApi.uploadProductImage(file);
-        setImages((prev) => [
-          ...prev,
-          {
-            image_url: media.secure_url,
-            media_id: media.id,
-            is_primary: prev.length === 0,
-          },
-        ]);
+        setImages((prev) => {
+          const hasPrimary = prev.some((item) => item.is_primary);
+          return [
+            ...prev,
+            {
+              image_url: media.secure_url,
+              media_id: media.id,
+              is_primary: !hasPrimary && prev.length === 0,
+            },
+          ];
+        });
       }
       showToast('Image uploaded successfully.');
     } catch (err) {
@@ -1076,24 +1097,45 @@ export function SellerProductFormPage() {
     }
   };
 
+  const handleSetPrimaryImage = (idx: number) => {
+    setImages((prev) =>
+      prev.map((item, i) => ({
+        ...item,
+        is_primary: i === idx,
+      })),
+    );
+  };
+
+  const handleRemoveImage = (idx: number) => {
+    setImages((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      if (next.length > 0 && !next.some((item) => item.is_primary)) {
+        return next.map((item, i) => ({ ...item, is_primary: i === 0 }));
+      }
+      return next;
+    });
+  };
+
   const submitProduct = async (
     forcedStatus?: 'draft' | 'published' | 'archived',
   ) => {
-    const effectiveCategory = categoryId || categories[0]?.id;
-    if (!effectiveCategory) {
-      showToast(
-        'A global category is required. Ask Root Admin to add a category first.',
-      );
-      return;
-    }
     if (!name.trim() || !sku.trim() || !regularPrice) {
       showToast('Please fill in Product name, SKU, and Regular price.');
       return;
     }
 
     const finalStatus = forcedStatus ?? status;
+    const effectiveCategory = categoryId ? Number(categoryId) : null;
     setSaving(true);
     try {
+      const normalizedImages = images.map((img, idx) => ({
+        id: img.id,
+        image_url: img.image_url,
+        media_id: img.media_id ?? null,
+        sort_order: idx,
+        is_primary: img.is_primary,
+      }));
+
       if (isEdit && productId) {
         await storeOwnerApi.updateProduct(Number(productId), {
           name: name.trim(),
@@ -1106,8 +1148,10 @@ export function SellerProductFormPage() {
           low_stock_threshold: Number(lowStockThreshold) || 5,
           status: finalStatus,
           is_featured: isFeatured,
+          free_shipping: freeShipping,
           short_description: shortDescription.trim() || null,
           description: description.trim() || null,
+          images: normalizedImages,
         });
         showToast('Product updated.');
       } else {
@@ -1122,14 +1166,10 @@ export function SellerProductFormPage() {
           low_stock_threshold: Number(lowStockThreshold) || 5,
           status: finalStatus,
           is_featured: isFeatured,
+          free_shipping: freeShipping,
           short_description: shortDescription.trim() || null,
           description: description.trim() || null,
-          images: images.map((img, idx) => ({
-            image_url: img.image_url,
-            media_id: img.media_id ?? null,
-            sort_order: idx,
-            is_primary: img.is_primary,
-          })),
+          images: normalizedImages,
         });
         showToast(
           finalStatus === 'draft' ? 'Saved as draft.' : 'Product published.',
@@ -1257,63 +1297,64 @@ export function SellerProductFormPage() {
 
           {/* Card 2: Product Media (Exact Figma orange dashed upload box) */}
           <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
-            <div>
-              <h2 className="text-[15.5px] font-bold text-black">
-                Product media
-              </h2>
-              <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                {isEdit
-                  ? 'Product gallery images currently attached to this listing.'
-                  : 'Upload up to 8 images (PNG, JPG, WebP).'}
-              </p>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-[15.5px] font-bold text-black">
+                  Product media
+                </h2>
+                <p className="text-[12px] text-[#8a8a8a] mt-0.5">
+                  Upload up to 8 images (PNG, JPG, WebP) and choose a primary cover image.
+                </p>
+              </div>
+              <span className="text-[11.5px] font-semibold text-[#8a8a8a] tabular-nums">
+                {images.length} / 8
+              </span>
             </div>
             <div className="flex flex-wrap items-stretch gap-3">
               {images.map((img, idx) => (
                 <div
-                  key={img.image_url}
-                  className={`relative border rounded-[14px] p-1.5 w-[106px] flex flex-col gap-1 ${
+                  key={`${img.id ?? 'new'}-${img.image_url}-${idx}`}
+                  className={`relative border rounded-[14px] p-1.5 w-[114px] flex flex-col gap-1.5 ${
                     img.is_primary
                       ? 'border-[#ff6e20] bg-[#fff8f4]'
                       : 'border-[#ececec] bg-white'
                   }`}
                 >
+                  {img.is_primary && (
+                    <span className="absolute top-2.5 left-2.5 bg-[#ff6e20] text-white text-[9.5px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                      Primary
+                    </span>
+                  )}
                   <img
                     src={img.image_url}
                     alt=""
-                    className="w-full h-[86px] object-cover rounded-[10px]"
+                    className="w-full h-[88px] object-cover rounded-[10px]"
                   />
-                  {!isEdit && (
-                    <div className="flex items-center justify-between text-[10.5px] px-0.5">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setImages((prev) =>
-                            prev.map((item, i) => ({
-                              ...item,
-                              is_primary: i === idx,
-                            })),
-                          )
-                        }
-                        className="font-semibold text-[#ff6e20]"
-                      >
-                        {img.is_primary ? 'Main' : 'Set main'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setImages((prev) => prev.filter((_, i) => i !== idx))
-                        }
-                        className="text-[#e5322d] font-semibold"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between text-[10.5px] px-0.5 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSetPrimaryImage(idx)}
+                      className={`font-semibold transition-colors ${
+                        img.is_primary
+                          ? 'text-[#ff6e20]'
+                          : 'text-[#555555] hover:text-[#ff6e20]'
+                      }`}
+                    >
+                      {img.is_primary ? 'Main' : 'Set main'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(idx)}
+                      className="text-[#e5322d] hover:underline font-semibold"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
 
-              {!isEdit && (
-                <label className="flex-1 min-w-[220px] min-h-[106px] border border-dashed border-[#ff6e20]/70 bg-[#fffaf7] hover:bg-[#ffefe6]/60 transition-colors rounded-[14px] px-4 py-5 flex flex-col items-center justify-center gap-1 cursor-pointer text-center">
+              {images.length < 8 && (
+                <label className="flex-1 min-w-[220px] min-h-[114px] border border-dashed border-[#ff6e20]/70 bg-[#fffaf7] hover:bg-[#ffefe6]/60 transition-colors rounded-[14px] px-4 py-5 flex flex-col items-center justify-center gap-1 cursor-pointer text-center">
                   <FigmaIcon name="upload" className="w-5 h-5 text-[#ff6e20]" />
                   <span className="text-[13px] font-semibold text-[#ff6e20]">
                     {uploadingImg ? 'Uploading images...' : 'Upload images'}
@@ -1324,6 +1365,7 @@ export function SellerProductFormPage() {
                   <input
                     type="file"
                     multiple
+                    disabled={uploadingImg}
                     accept="image/png,image/jpeg,image/webp"
                     onChange={handleImageUpload}
                     className="hidden"
@@ -1459,34 +1501,58 @@ export function SellerProductFormPage() {
             <div className="pt-0.5">
               <StatusPill label="Track inventory enabled" tone="green" />
             </div>
-            <label className="flex items-center gap-2.5 text-[12.5px] font-medium text-[#333333] pt-1">
-              <input
-                type="checkbox"
+            <div className="pt-2.5 mt-1 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[12.5px] font-semibold text-black">
+                  Feature on my storefront
+                </p>
+                <p className="text-[11px] text-[#8a8a8a] leading-snug mt-0.5">
+                  Highlight this product in your store&apos;s featured section.
+                </p>
+              </div>
+              <ToggleSwitch
                 checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
-                className="accent-[#ff6e20]"
+                onChange={setIsFeatured}
+                ariaLabel="Toggle feature on my storefront"
               />
-              Feature on my storefront
-            </label>
+            </div>
+
+            <div className="pt-2.5 mt-1 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[12.5px] font-semibold text-black">
+                  Free shipping
+                </p>
+                <p className="text-[11px] text-[#8a8a8a] leading-snug mt-0.5">
+                  Offer free delivery for this product regardless of minimum order amount.
+                </p>
+              </div>
+              <ToggleSwitch
+                checked={freeShipping}
+                onChange={setFreeShipping}
+                ariaLabel="Toggle free shipping"
+              />
+            </div>
           </section>
 
           <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
-            <h2 className="text-[15.5px] font-bold text-black">Organization</h2>
+            <div>
+              <h2 className="text-[15.5px] font-bold text-black">Organization</h2>
+              <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
+                Optional — leave blank if not applicable.
+              </p>
+            </div>
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold text-black">
-                Category
+                Category (optional)
               </span>
               <select
-                required
-                value={categoryId || categories[0]?.id || ''}
-                onChange={(e) => setCategoryId(Number(e.target.value))}
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
                 className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
               >
-                {categories.length === 0 && (
-                  <option value="">No categories yet</option>
-                )}
+                <option value="">No category</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.id} value={String(c.id)}>
                     {c.name}
                   </option>
                 ))}
@@ -1504,7 +1570,7 @@ export function SellerProductFormPage() {
               >
                 <option value="">No brand</option>
                 {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
+                  <option key={b.id} value={String(b.id)}>
                     {b.name}
                   </option>
                 ))}

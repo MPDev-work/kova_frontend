@@ -26,6 +26,7 @@ import {
   type KpiCardItem,
 } from '../../components/DashboardPrimitives';
 import { FigmaIcon } from '../../components/FigmaIcon';
+import { ToggleSwitch } from '../../components/ToggleSwitch';
 import {
   DashboardKpiSkeleton,
   DashboardTableSkeleton,
@@ -430,26 +431,14 @@ export function AdminUsersPage() {
                 ].map((r) => {
                   const checked = draftRoles.includes(r.slug);
                   return (
-                    <label
+                    <div
                       key={r.slug}
-                      className={`flex items-start gap-3 border rounded-[14px] p-3.5 cursor-pointer transition-colors ${
+                      className={`flex items-center justify-between gap-3 border rounded-[14px] p-3.5 transition-colors ${
                         checked
                           ? 'border-[#ff6e20] bg-[#fff9f5]'
                           : 'border-[#ececec] hover:border-[#cccccc]'
                       }`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() =>
-                          setDraftRoles((prev) =>
-                            prev.includes(r.slug)
-                              ? prev.filter((x) => x !== r.slug)
-                              : [...prev, r.slug],
-                          )
-                        }
-                        className="mt-1 accent-[#ff6e20]"
-                      />
                       <div>
                         <p className="text-[13px] font-semibold text-black">
                           {r.title}
@@ -458,7 +447,18 @@ export function AdminUsersPage() {
                           {r.desc}
                         </p>
                       </div>
-                    </label>
+                      <ToggleSwitch
+                        checked={checked}
+                        onChange={() =>
+                          setDraftRoles((prev) =>
+                            prev.includes(r.slug)
+                              ? prev.filter((x) => x !== r.slug)
+                              : [...prev, r.slug],
+                          )
+                        }
+                        ariaLabel={`Toggle ${r.title} role`}
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -1023,15 +1023,21 @@ export function AdminCatalogPage() {
               className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] p-3 text-[13.5px] outline-none"
             />
           </label>
-          <label className="flex items-center gap-2.5 text-[13px] font-medium text-black">
-            <input
-              type="checkbox"
+          <div className="pt-2 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[13px] font-semibold text-black">
+                Visible on Kova Marketplace
+              </p>
+              <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
+                Show this category to buyers and sellers across the platform.
+              </p>
+            </div>
+            <ToggleSwitch
               checked={catActive}
-              onChange={(e) => setCatActive(e.target.checked)}
-              className="accent-[#ff6e20]"
+              onChange={setCatActive}
+              ariaLabel="Visible on Kova Marketplace"
             />
-            Visible on Kova Marketplace
-          </label>
+          </div>
         </form>
       </SlideOverDrawer>
 
@@ -1142,15 +1148,21 @@ export function AdminCatalogPage() {
               </div>
             )}
           </div>
-          <label className="flex items-center gap-2.5 text-[13px] font-medium text-black">
-            <input
-              type="checkbox"
+          <div className="pt-2 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[13px] font-semibold text-black">
+                Active brand
+              </p>
+              <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
+                Allow sellers to tag products under this brand.
+              </p>
+            </div>
+            <ToggleSwitch
               checked={brandActive}
-              onChange={(e) => setBrandActive(e.target.checked)}
-              className="accent-[#ff6e20]"
+              onChange={setBrandActive}
+              ariaLabel="Active brand"
             />
-            Active brand
-          </label>
+          </div>
         </form>
       </SlideOverDrawer>
     </div>

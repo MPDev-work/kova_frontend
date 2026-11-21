@@ -19,10 +19,55 @@ const STATUS_FILTERS = [
 ] as const;
 
 export function MyOrdersPage() {
-  const { orders, refreshOrders, khrRate } = useStore();
+  const { orders, refreshOrders, khrRate, showToast } = useStore();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
   const [khqrOrders, setKhqrOrders] = useState<ChildOrderRecord[]>([]);
+  const [loadingKhqrOrderId, setLoadingKhqrOrderId] = useState<number | null>(
+    null,
+  );
+  const [activeKhqrOrderId, setActiveKhqrOrderId] = useState<number | null>(
+    null,
+  );
+  const [cancelledKhqrOrderIds, setCancelledKhqrOrderIds] = useState<
+    Record<number, boolean>
+  >({});
+
+  const handleResumeKhqr = async (order: OrderRecord) => {
+    setLoadingKhqrOrderId(order.id);
+    try {
+      const shouldRestartTimeout = Boolean(cancelledKhqrOrderIds[order.id]);
+      const freshOrder = await orderApi.getOrderKhqr(
+        order.id,
+        shouldRestartTimeout,
+      );
+      if (shouldRestartTimeout) {
+        setCancelledKhqrOrderIds((prev) => {
+          const next = { ...prev };
+          delete next[order.id];
+          return next;
+        });
+      }
+      const payable = freshOrder.children.filter(
+        (c) => c.khqr?.khqr_payload && c.khqr.payment_status !== 'successful',
+      );
+      if (payable.length > 0) {
+        setActiveKhqrOrderId(order.id);
+        setKhqrOrders(payable);
+      } else {
+        showToast('No pending KHQR payment found for this order.');
+        void refreshOrders();
+      }
+    } catch (err) {
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to load Bakong KHQR payment.',
+      );
+    } finally {
+      setLoadingKhqrOrderId(null);
+    }
+  };
 
   useEffect(() => {
     void refreshOrders();
@@ -145,9 +190,18 @@ export function MyOrdersPage() {
                   <div
                     className={`text-[12.5px] font-semibold capitalize ${statusColor(order.status)}`}
                   >
-                    <p>{order.status}</p>
+                    <p>
+                      {order.status === 'pending' &&
+                      order.payment_status === 'pending'
+                        ? 'Awaiting payment'
+                        : order.status}
+                    </p>
                     <p className="opacity-80 font-medium">
-                      Payment: {order.payment_status}
+                      Payment:{' '}
+                      {order.status === 'pending' &&
+                      order.payment_status === 'pending'
+                        ? 'pending'
+                        : order.payment_status}
                     </p>
                   </div>
                   <div>
@@ -159,15 +213,21 @@ export function MyOrdersPage() {
                     </p>
                   </div>
                   <div className="flex md:justify-end gap-2">
-                    {pendingKhqr.length > 0 && order.status !== 'cancelled' && (
-                      <button
-                        type="button"
-                        onClick={() => setKhqrOrders(pendingKhqr)}
-                        className="bg-[#E1232E] hover:bg-[#c51b25] text-white text-[12px] font-semibold px-3.5 py-2 rounded-full"
-                      >
-                        Pay KHQR
-                      </button>
-                    )}
+                    {order.status === 'pending' &&
+                      order.payment_status !== 'paid' &&
+                      (pendingKhqr.length > 0 ||
+                        order.payment_method === 'bakong_khqr') && (
+                        <button
+                          type="button"
+                          disabled={loadingKhqrOrderId === order.id}
+                          onClick={() => void handleResumeKhqr(order)}
+                          className="bg-[#E1232E] hover:bg-[#c51b25] disabled:opacity-60 text-white text-[12px] font-semibold px-3.5 py-2 rounded-full"
+                        >
+                          {loadingKhqrOrderId === order.id
+                            ? 'Loading...'
+                            : 'Pay KHQR'}
+                        </button>
+                      )}
                     <Link
                       to={`/account/orders/${order.order_number}`}
                       className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-3.5 py-2 rounded-full"
@@ -185,17 +245,33 @@ export function MyOrdersPage() {
       <KhqrModal
         open={khqrOrders.length > 0}
         storeOrders={khqrOrders}
-        onClose={() => {
+        onCancel={() => {
+          if (activeKhqrOrderId !== null) {
+            setCancelledKhqrOrderIds((prev) => ({
+              ...prev,
+              [activeKhqrOrderId]: true,
+            }));
+          }
+          setActiveKhqrOrderId(null);
           setKhqrOrders([]);
           void refreshOrders();
         }}
+        onClose={() => {
+          setActiveKhqrOrderId(null);
+          setKhqrOrders([]);
+          void refreshOrders();
+        }}
+        onTimeout={() => {
+          setActiveKhqrOrderId(null);
+          setKhqrOrders([]);
+          showToast('Payment timed out. Your order remains awaiting payment.');
+          void refreshOrders();
+        }}
         onAllPaid={() => {
+          setActiveKhqrOrderId(null);
           setKhqrOrders([]);
           showToast('Payment confirmed! Your order is now processing.');
           void refreshOrders();
-          if (orderId) {
-            void orderApi.getOrder(orderId).then((fresh) => setOrder(fresh));
-          }
         }}
       />
     </div>
@@ -208,6 +284,37 @@ export function OrderDetailsPage() {
   const [order, setOrder] = useState<OrderRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [khqrOrders, setKhqrOrders] = useState<ChildOrderRecord[]>([]);
+  const [loadingKhqr, setLoadingKhqr] = useState(false);
+  const [restartTimeoutOnReopen, setRestartTimeoutOnReopen] = useState(false);
+
+  const handleOpenKhqr = async () => {
+    if (!order) return;
+    setLoadingKhqr(true);
+    try {
+      const freshOrder = await orderApi.getOrderKhqr(
+        order.id,
+        restartTimeoutOnReopen,
+      );
+      if (restartTimeoutOnReopen) setRestartTimeoutOnReopen(false);
+      setOrder(freshOrder);
+      const payable = freshOrder.children.filter(
+        (c) => c.khqr?.khqr_payload && c.khqr.payment_status !== 'successful',
+      );
+      if (payable.length > 0) {
+        setKhqrOrders(payable);
+      } else {
+        showToast('No pending KHQR payment found for this order.');
+      }
+    } catch (err) {
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to load Bakong KHQR payment.',
+      );
+    } finally {
+      setLoadingKhqr(false);
+    }
+  };
 
   useEffect(() => {
     if (!orderId) return;
@@ -263,7 +370,10 @@ export function OrderDetailsPage() {
             Order #{order.order_number}
           </h1>
           <p className="text-[12.5px] text-[#767676] mt-0.5 capitalize">
-            Placed {formatShortDate(order.created_at)} · Status: {order.status}{' '}
+            Placed {formatShortDate(order.created_at)} · Status:{' '}
+            {order.status === 'pending' && order.payment_status === 'pending'
+              ? 'Awaiting payment'
+              : order.status}{' '}
             · Payment: {order.payment_status}
           </p>
         </div>
@@ -274,15 +384,19 @@ export function OrderDetailsPage() {
           >
             Back
           </Link>
-          {pendingKhqr.length > 0 && order.status !== 'cancelled' && (
-            <button
-              type="button"
-              onClick={() => setKhqrOrders(pendingKhqr)}
-              className="bg-[#E1232E] hover:bg-[#c51b25] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full"
-            >
-              Pay with KHQR
-            </button>
-          )}
+          {order.status === 'pending' &&
+            order.payment_status !== 'paid' &&
+            (pendingKhqr.length > 0 ||
+              order.payment_method === 'bakong_khqr') && (
+              <button
+                type="button"
+                disabled={loadingKhqr}
+                onClick={() => void handleOpenKhqr()}
+                className="bg-[#E1232E] hover:bg-[#c51b25] disabled:opacity-60 text-white text-[12.5px] font-semibold px-4 py-2 rounded-full"
+              >
+                {loadingKhqr ? 'Loading KHQR...' : 'Pay with KHQR'}
+              </button>
+            )}
         </div>
       </div>
 
@@ -432,11 +546,26 @@ export function OrderDetailsPage() {
       <KhqrModal
         open={khqrOrders.length > 0}
         storeOrders={khqrOrders}
+        onCancel={() => {
+          setRestartTimeoutOnReopen(true);
+          setKhqrOrders([]);
+          void refreshOrders();
+        }}
         onClose={() => {
           setKhqrOrders([]);
           void refreshOrders();
         }}
+        onTimeout={() => {
+          setRestartTimeoutOnReopen(true);
+          setKhqrOrders([]);
+          showToast('Payment timed out. Your order remains awaiting payment.');
+          void refreshOrders();
+          if (orderId) {
+            void orderApi.getOrder(orderId).then((fresh) => setOrder(fresh));
+          }
+        }}
         onAllPaid={() => {
+          setRestartTimeoutOnReopen(false);
           setKhqrOrders([]);
           showToast('Payment confirmed! Your order is now processing.');
           void refreshOrders();

@@ -1010,10 +1010,11 @@ export function SellerShippingPage() {
                 type="number"
                 step="0.01"
                 min={0}
-                value={freeThreshold}
+                disabled={calcType === 'free'}
+                value={calcType === 'free' ? '' : freeThreshold}
                 onChange={(e) => setFreeThreshold(e.target.value)}
-                placeholder="Optional"
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+                placeholder={calcType === 'free' ? 'Always free' : 'Optional'}
+                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none disabled:bg-[#f7f7f7]"
               />
             </label>
           </div>
@@ -1504,15 +1505,24 @@ export function SellerBakongPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await storeOwnerApi.connectBakong({
+      const payload: {
+        bakong_account_id: string;
+        registered_email: string;
+        api_token?: string;
+        merchant_name: string;
+        merchant_city?: string;
+      } = {
         bakong_account_id: accountId.trim(),
         registered_email: registeredEmail.trim(),
-        api_token: apiToken.trim(),
         merchant_name: merchantName.trim(),
         merchant_city: merchantCity.trim() || 'Phnom Penh',
-      });
+      };
+      if (apiToken.trim()) {
+        payload.api_token = apiToken.trim();
+      }
+      const res = await storeOwnerApi.connectBakong(payload);
       setApiToken('');
-      showToast(res.message || 'Bakong merchant connected.');
+      showToast(res.message || 'Bakong credentials saved in database.');
       await loadBakong();
     } catch (err) {
       showToast(
@@ -1687,16 +1697,27 @@ export function SellerBakongPage() {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5 sm:col-span-2">
-                  <span className="text-[12px] font-semibold text-black">
-                    Bakong Open API JWT token
-                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-semibold text-black">
+                      Bakong Open API JWT token
+                    </span>
+                    {status?.account?.has_token && (
+                      <span className="text-[11px] font-semibold text-[#029500] font-mono">
+                        Saved in DB: {status.account.token_masked || 'Stored'}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="password"
-                    required
-                    minLength={10}
+                    required={!status?.account?.has_token}
+                    minLength={status?.account?.has_token ? undefined : 10}
                     value={apiToken}
                     onChange={(e) => setApiToken(e.target.value)}
-                    placeholder="Paste NBC Bakong Open API JWT token"
+                    placeholder={
+                      status?.account?.has_token
+                        ? 'Stored securely in database — leave blank to keep saved token'
+                        : 'Paste NBC Bakong Open API JWT token'
+                    }
                     className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
                   />
                 </label>

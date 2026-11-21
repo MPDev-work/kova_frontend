@@ -132,7 +132,10 @@ export function HomeCategoryListSkeleton() {
   return (
     <div aria-hidden="true" className="flex flex-col gap-2.5 flex-1 pt-1">
       {widths.map((w, idx) => (
-        <div key={idx} className="flex items-center justify-between gap-3 py-0.5">
+        <div
+          key={idx}
+          className="flex items-center justify-between gap-3 py-0.5"
+        >
           <Skeleton className={`h-3.5 ${w} rounded-full`} />
           <Skeleton className="h-3 w-3 rounded-full shrink-0" />
         </div>
@@ -184,7 +187,7 @@ export function StoreCardGridSkeleton({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, idx) => (
         <div
           key={idx}
-          className="bg-white border border-[#ececec] rounded-[20px] p-2.5 pb-3 flex flex-col gap-2.5"
+          className="bg-white border border-[#ececec] rounded-[24px] p-2.5 pb-3 flex flex-col gap-2.5"
         >
           <Skeleton className="h-[150px] w-full rounded-[14px]" />
           <div className="flex items-center justify-between gap-2 px-0.5">
@@ -197,7 +200,11 @@ export function StoreCardGridSkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
-export function VerifiedStoreShowcaseSkeleton({ count = 2 }: { count?: number }) {
+export function VerifiedStoreShowcaseSkeleton({
+  count = 2,
+}: {
+  count?: number;
+}) {
   return (
     <div aria-hidden="true" className="flex flex-col gap-6 pt-1">
       {Array.from({ length: count }).map((_, idx) => (

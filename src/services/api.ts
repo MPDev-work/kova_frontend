@@ -226,6 +226,8 @@ export function normalizeProduct(raw: any): Product {
     stock_quantity: stock,
     in_stock: stock > 0,
     is_featured: Boolean(raw.is_featured),
+    free_shipping: Boolean(raw.free_shipping),
+    has_free_delivery: Boolean(raw.has_free_delivery ?? raw.free_shipping),
     image: primaryImg,
     gallery: galleryUrls,
     store_id: Number(raw.store_id ?? raw.store?.id ?? 0),
@@ -458,6 +460,7 @@ export const catalogApi = {
     store_id?: number;
     featured?: boolean;
     has_discount?: boolean;
+    free_shipping?: boolean;
     verified_only?: boolean;
     in_stock?: boolean;
     min_price?: number;
@@ -637,11 +640,29 @@ export const orderApi = {
     return normalizeOrder(res.data);
   },
 
-  async cancelOrder(orderId: number, reason: string) {
-    return apiRequest<null>(`/orders/${orderId}/cancel`, {
+  async cancelOrder(
+    orderId: number,
+    reason: string,
+    restoreToCart = false,
+  ) {
+    return apiRequest<{ cart?: CartSummary } | null>(
+      `/orders/${orderId}/cancel`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          reason,
+          restore_to_cart: restoreToCart,
+        }),
+      },
+    );
+  },
+
+  async getOrderKhqr(orderNumberOrId: string | number, refresh = false) {
+    const res = await apiRequest<unknown>(`/orders/${orderNumberOrId}/khqr`, {
       method: 'POST',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ refresh }),
     });
+    return normalizeOrder(res.data);
   },
 };
 

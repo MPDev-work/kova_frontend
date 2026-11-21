@@ -45,7 +45,10 @@ export function ProductCard({ product }: ProductCardProps) {
               : 'bg-white/85 text-[#767676] opacity-0 group-hover:opacity-100 hover:text-[#ff6e20]'
           }`}
         >
-          <FigmaIcon name={isSaved ? 'heart-filled' : 'heart'} className="w-4 h-4" />
+          <FigmaIcon
+            name={isSaved ? 'heart-filled' : 'heart'}
+            className="w-4 h-4"
+          />
         </button>
 
         {/* Discount Badge */}
@@ -55,8 +58,16 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
+        {/* Free Delivery Badge (bottom-left corner) */}
+        {(product.has_free_delivery || product.free_shipping) && (
+          <div className="absolute bottom-0 left-0 z-10 bg-green-600 rounded-tr-[14px] px-2.5 py-1 flex items-center gap-1 leading-none shadow-sm">
+            <span className="text-[11.5px] text-[#ffe169]">Free</span>
+            <span className="text-[11.5px] text-white">Delivery</span>
+          </div>
+        )}
+
         {!product.in_stock && (
-          <div className="absolute bottom-2 left-2 bg-black/75 text-white text-[10.5px] font-semibold px-2.5 py-0.5 rounded-full">
+          <div className="absolute bottom-2 right-2 bg-black/75 text-white text-[10.5px] font-semibold px-2.5 py-0.5 rounded-full">
             Out of stock
           </div>
         )}

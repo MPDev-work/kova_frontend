@@ -12,6 +12,7 @@ import type { Product, ReviewItem } from '../types/marketplace';
 export function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const [product, setProduct] = useState<Product | null>(null);
+  const [moreFromStore, setMoreFromStore] = useState<Product[]>([]);
   const [related, setRelated] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,17 +24,26 @@ export function ProductDetailPage() {
     const load = async () => {
       setLoading(true);
       setNotFound(false);
+      setMoreFromStore([]);
       try {
         const prod = await catalogApi.getProduct(slug);
         if (!active) return;
         setProduct(prod);
-        const [relRes, revRes] = await Promise.allSettled([
+        const [relRes, revRes, storeRes] = await Promise.allSettled([
           catalogApi.getRelatedProducts(prod.id, 5),
           customerApi.getProductReviews(prod.id),
+          prod.store_slug || prod.store_id
+            ? catalogApi.getStoreProducts(prod.store_slug || prod.store_id, 6)
+            : Promise.resolve({ store: null, products: [] as Product[] }),
         ]);
         if (!active) return;
         if (relRes.status === 'fulfilled') setRelated(relRes.value);
         if (revRes.status === 'fulfilled') setReviews(revRes.value.reviews);
+        if (storeRes.status === 'fulfilled') {
+          setMoreFromStore(
+            storeRes.value.products.filter((p) => p.id !== prod.id).slice(0, 4),
+          );
+        }
       } catch {
         if (active) setNotFound(true);
       } finally {
@@ -84,6 +94,7 @@ export function ProductDetailPage() {
     <ProductDetailContent
       key={product.id}
       product={product}
+      moreFromStore={moreFromStore}
       related={related}
       reviews={reviews}
     />
@@ -92,10 +103,12 @@ export function ProductDetailPage() {
 
 function ProductDetailContent({
   product,
+  moreFromStore,
   related,
   reviews,
 }: {
   product: Product;
+  moreFromStore: Product[];
   related: Product[];
   reviews: ReviewItem[];
 }) {
@@ -114,9 +127,7 @@ function ProductDetailContent({
     product.variants[0]?.id ?? null,
   );
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'details' | 'specs' | 'reviews'>(
-    'details',
-  );
+  const [activeTab, setActiveTab] = useState<'specs' | 'reviews'>('specs');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -180,7 +191,13 @@ function ProductDetailContent({
       </div>
 
       {/* Buy Box */}
-      <section className="bg-white border border-[#ececec] rounded-[22px] p-5 grid grid-cols-1 lg:grid-cols-[430px_minmax(0,1fr)] gap-[22px] items-start">
+      <section
+        className={`bg-white border border-[#ececec] rounded-[22px] p-5 grid grid-cols-1 gap-[22px] items-start ${
+          moreFromStore.length > 0
+            ? 'lg:grid-cols-[400px_minmax(0,1fr)] xl:grid-cols-[410px_minmax(0,1fr)_306px]'
+            : 'lg:grid-cols-[430px_minmax(0,1fr)]'
+        }`}
+      >
         {/* Photo Gallery */}
         <div className="flex flex-col gap-2.5 w-full">
           <div className="w-full h-[360px] sm:h-[420px] rounded-[20px] overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center">
@@ -246,12 +263,20 @@ function ProductDetailContent({
         {/* Details & Actions */}
         <div className="flex flex-col gap-4 min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-[12px]">
-            <span className="bg-[#ffefe6] text-[#ff6e20] font-semibold px-3 py-1 rounded-full">
-              {product.category_name}
-            </span>
+            {product.category_id && (
+              <span className="bg-[#ffefe6] text-[#ff6e20] font-semibold px-3 py-1 rounded-full">
+                {product.category_name}
+              </span>
+            )}
             {product.brand_name && (
               <span className="bg-[#f7f7f7] text-black font-medium px-3 py-1 rounded-full">
                 {product.brand_name}
+              </span>
+            )}
+            {(product.has_free_delivery || product.free_shipping) && (
+              <span className="bg-[#029500] px-3 py-1 rounded-full inline-flex items-center gap-1">
+                <span className="text-[#ffe169]">Free</span>
+                <span className="text-white">Delivery</span>
               </span>
             )}
           </div>
@@ -285,6 +310,15 @@ function ProductDetailContent({
                 : ''}
             </p>
           </div>
+
+          {/* Product Description (below price card, above variants & quantity) */}
+          {product.description?.trim() && (
+            <div className="bg-[#f9f9f9] border border-[#f0f0f0] rounded-[16px] px-4 py-3.5">
+              <p className="text-[13.5px] text-[#555555] leading-[1.65] whitespace-pre-line">
+                {product.description.trim()}
+              </p>
+            </div>
+          )}
 
           {/* Variants */}
           {product.variants.length > 0 && (
@@ -368,13 +402,53 @@ function ProductDetailContent({
             </button>
           </div>
         </div>
+
+        {/* More from Store Sidebar Card (max 4 products) */}
+        {moreFromStore.length > 0 && (
+          <aside className="bg-[#f2f2f7] rounded-[22px] p-2.5 flex flex-col gap-3 w-full lg:col-span-2 xl:col-span-1">
+            <h2 className="text-[16px] font-bold text-black px-0.5 leading-snug truncate">
+              More from {product.store_name}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2.5">
+              {moreFromStore.slice(0, 4).map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/product/${item.slug}`}
+                  className="bg-white h-[86px] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] p-1 rounded-[16px] flex items-center gap-3.5 transition-all group"
+                >
+                  <div className="w-[80px] h-[80px] rounded-[14px] overflow-hidden bg-[#f7f7f7] shrink-0 flex items-center justify-center">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform"
+                      />
+                    ) : (
+                      <FigmaIcon
+                        name="package"
+                        className="w-6 h-6 text-[#979797]"
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 flex flex-col gap-1 p-3">
+                    <p className="text-[13.5px] font-medium text-black leading-[1.35] line-clamp-2 group-hover:text-[#ff6e20] transition-colors">
+                      {item.name}
+                    </p>
+                    <p className="text-[16px] font-bold text-[#ff6e20] leading-none tabular-nums">
+                      ${item.price.toFixed(2)}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </aside>
+        )}
       </section>
 
-      {/* Tabs */}
+      {/* Tabs: Specifications & Customer Reviews */}
       <section className="bg-white border border-[#ececec] rounded-[20px] px-5 py-5 flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { id: 'details' as const, label: 'Product Details' },
             { id: 'specs' as const, label: 'Specifications' },
             {
               id: 'reviews' as const,
@@ -396,36 +470,41 @@ function ProductDetailContent({
           ))}
         </div>
 
-        {activeTab === 'details' && (
-          <div className="max-w-[820px]">
-            <p className="text-[14.5px] text-[#767676] leading-[1.65] whitespace-pre-line">
-              {product.description ||
-                product.short_description ||
-                'No description provided.'}
-            </p>
-          </div>
-        )}
-
         {activeTab === 'specs' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-[860px]">
-            {Object.keys(product.specifications).length === 0 ? (
-              <p className="text-[13.5px] text-[#767676]">
-                No specifications listed.
-              </p>
+          <div className="flex flex-col gap-4 max-w-[860px]">
+            {product.short_description?.trim() && (
+              <div className="bg-[#fff9f5] border border-[#ffefe6] rounded-[14px] px-4 py-3.5 flex flex-col gap-1">
+                <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#ff6e20]">
+                  Short summary
+                </span>
+                <p className="text-[14px] text-[#222222] leading-[1.6] whitespace-pre-line">
+                  {product.short_description.trim()}
+                </p>
+              </div>
+            )}
+
+            {Object.keys(product.specifications).length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Object.entries(product.specifications).map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="bg-[#f7f7f7] rounded-[14px] px-4 py-3 flex items-center justify-between gap-4"
+                  >
+                    <span className="text-[13px] font-medium text-[#767676]">
+                      {k}
+                    </span>
+                    <span className="text-[13.5px] font-semibold text-black text-right">
+                      {v}
+                    </span>
+                  </div>
+                ))}
+              </div>
             ) : (
-              Object.entries(product.specifications).map(([k, v]) => (
-                <div
-                  key={k}
-                  className="bg-[#f7f7f7] rounded-[14px] px-4 py-3 flex items-center justify-between gap-4"
-                >
-                  <span className="text-[13px] font-medium text-[#767676]">
-                    {k}
-                  </span>
-                  <span className="text-[13.5px] font-semibold text-black text-right">
-                    {v}
-                  </span>
-                </div>
-              ))
+              !product.short_description?.trim() && (
+                <p className="text-[13.5px] text-[#767676]">
+                  No specifications listed.
+                </p>
+              )
             )}
           </div>
         )}

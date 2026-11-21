@@ -134,7 +134,11 @@ interface StoreContextValue {
     shipping_methods?: Record<number, number>;
     notes?: string;
   }) => Promise<OrderRecord>;
-  cancelOrder: (orderId: number, reason: string) => Promise<void>;
+  cancelOrder: (
+    orderId: number,
+    reason: string,
+    restoreToCart?: boolean,
+  ) => Promise<void>;
 
   // Addresses, Reviews & Tickets
   addresses: Address[];
@@ -712,8 +716,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return order;
   };
 
-  const cancelOrder = async (orderId: number, reason: string) => {
-    await orderApi.cancelOrder(orderId, reason);
+  const cancelOrder = async (
+    orderId: number,
+    reason: string,
+    restoreToCart = false,
+  ) => {
+    const res = await orderApi.cancelOrder(orderId, reason, restoreToCart);
+    if (restoreToCart) {
+      if (res.data?.cart) {
+        setCart(res.data.cart);
+      } else {
+        await refreshCart();
+      }
+      await refreshOrders();
+      showToast('Payment cancelled. Your items have been moved back to your cart.');
+      return;
+    }
     await refreshOrders();
     showToast('Order cancelled.');
   };
