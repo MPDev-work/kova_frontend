@@ -1,0 +1,535 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { FigmaIcon } from '../components/FigmaIcon';
+import { useStore } from '../context/StoreContext';
+import { ApiError, orderApi } from '../services/api';
+import { formatRiel, formatShortDate } from '../utils/currency';
+import { VerifiedBadge } from '../components/VerifiedBadge';
+import { KhqrModal } from '../components/KhqrModal';
+import type { ChildOrderRecord, OrderRecord } from '../types/marketplace';
+
+const STATUS_FILTERS = [
+  'all',
+  'pending',
+  'confirmed',
+  'processing',
+  'shipped',
+  'delivered',
+  'cancelled',
+] as const;
+
+export function MyOrdersPage() {
+  const { orders, refreshOrders, khrRate } = useStore();
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [query, setQuery] = useState('');
+  const [khqrOrders, setKhqrOrders] = useState<ChildOrderRecord[]>([]);
+
+  useEffect(() => {
+    void refreshOrders();
+  }, [refreshOrders]);
+
+  const filtered = useMemo(() => {
+    return orders.filter((o) => {
+      if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+      if (query.trim()) {
+        const q = query.toLowerCase();
+        return (
+          o.order_number.toLowerCase().includes(q) ||
+          o.children.some((c) => c.store?.name.toLowerCase().includes(q)) ||
+          o.children.some((c) =>
+            c.items.some((i) => i.product_name.toLowerCase().includes(q)),
+          )
+        );
+      }
+      return true;
+    });
+  }, [orders, statusFilter, query]);
+
+  const statusColor = (status: string) => {
+    if (status === 'pending') return 'text-[#ff6e20]';
+    if (status === 'cancelled') return 'text-[#e5322d]';
+    return 'text-[#029500]';
+  };
+
+  return (
+    <div className="flex flex-col gap-[18px]">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[22px] font-bold text-black leading-[1.35]">
+            Order history
+          </h1>
+          <p className="text-[12.5px] text-[#767676] mt-0.5">
+            View orders, check Bakong KHQR payment status, and manage
+            cancellations.
+          </p>
+        </div>
+        <Link
+          to="/products"
+          className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
+        >
+          Continue shopping
+        </Link>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium">
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setStatusFilter(f)}
+            className={`px-3.5 py-1.5 rounded-full capitalize transition-colors ${
+              statusFilter === f
+                ? 'bg-[#ff6e20] text-white font-semibold'
+                : 'bg-white border border-[#ececec] text-[#767676] hover:text-black'
+            }`}
+          >
+            {f === 'all' ? 'All orders' : f}
+          </button>
+        ))}
+      </div>
+
+      <div>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by order number, store, or product..."
+          className="bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-4 py-2.5 text-[13px] text-black outline-none w-full max-w-[460px]"
+        />
+      </div>
+
+      <section className="bg-white border border-[#ececec] rounded-[16px] p-5 flex flex-col gap-3.5">
+        <h2 className="text-[16px] font-semibold text-black">
+          Orders ({filtered.length})
+        </h2>
+
+        {filtered.length === 0 ? (
+          <div className="py-10 text-center flex flex-col items-center gap-2">
+            <FigmaIcon name="package" className="w-8 h-8 text-[#979797]" />
+            <p className="text-[14.5px] font-semibold text-black">
+              No orders yet
+            </p>
+            <p className="text-[13px] text-[#767676]">
+              Orders placed at checkout will appear here automatically.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {filtered.map((order, idx) => {
+              const pendingKhqr = order.children.filter(
+                (c) =>
+                  c.khqr?.khqr_payload &&
+                  c.khqr.payment_status !== 'successful',
+              );
+              return (
+                <div
+                  key={order.id}
+                  className={`rounded-[14px] p-4 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)_150px_110px_160px] gap-3 items-center ${
+                    idx % 2 === 0
+                      ? 'bg-[#f7f7f7]'
+                      : 'bg-white border border-[#ececec]'
+                  }`}
+                >
+                  <p className="text-[13.5px] font-semibold text-black">
+                    #{order.order_number}
+                  </p>
+                  <div className="text-[12.5px] text-[#767676] min-w-0">
+                    <p>{formatShortDate(order.created_at)}</p>
+                    <p className="truncate">
+                      {order.children
+                        .map((c) => c.store?.name || 'Store')
+                        .join(' + ')}
+                    </p>
+                  </div>
+                  <div
+                    className={`text-[12.5px] font-semibold capitalize ${statusColor(order.status)}`}
+                  >
+                    <p>{order.status}</p>
+                    <p className="opacity-80 font-medium">
+                      Payment: {order.payment_status}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[14.5px] font-bold text-[#ff6e20]">
+                      ${order.total_amount.toFixed(2)}
+                    </p>
+                    <p className="text-[11px] text-[#767676]">
+                      {formatRiel(order.total_amount, khrRate)}
+                    </p>
+                  </div>
+                  <div className="flex md:justify-end gap-2">
+                    {pendingKhqr.length > 0 && order.status !== 'cancelled' && (
+                      <button
+                        type="button"
+                        onClick={() => setKhqrOrders(pendingKhqr)}
+                        className="bg-[#E1232E] hover:bg-[#c51b25] text-white text-[12px] font-semibold px-3.5 py-2 rounded-full"
+                      >
+                        Pay KHQR
+                      </button>
+                    )}
+                    <Link
+                      to={`/account/orders/${order.order_number}`}
+                      className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-3.5 py-2 rounded-full"
+                    >
+                      Details
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <KhqrModal
+        open={khqrOrders.length > 0}
+        storeOrders={khqrOrders}
+        onClose={() => {
+          setKhqrOrders([]);
+          void refreshOrders();
+        }}
+        onAllPaid={() => {
+          setKhqrOrders([]);
+          showToast('Payment confirmed! Your order is now processing.');
+          void refreshOrders();
+          if (orderId) {
+            void orderApi.getOrder(orderId).then((fresh) => setOrder(fresh));
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+export function OrderDetailsPage() {
+  const { orderId } = useParams<{ orderId: string }>();
+  const { khrRate, refreshOrders, showToast } = useStore();
+  const [order, setOrder] = useState<OrderRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [khqrOrders, setKhqrOrders] = useState<ChildOrderRecord[]>([]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    let active = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await orderApi.getOrder(orderId);
+        if (active) setOrder(data);
+      } catch {
+        if (active) setOrder(null);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [orderId]);
+
+  if (loading) {
+    return (
+      <div className="py-10 text-center text-[14px] text-[#767676]">
+        Loading order details...
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="bg-white border border-[#ececec] rounded-[16px] p-8 text-center flex flex-col items-center gap-3">
+        <p className="text-[16px] font-semibold text-black">Order not found</p>
+        <Link
+          to="/account/orders"
+          className="bg-[#ff6e20] text-white text-[13px] font-semibold px-5 py-2.5 rounded-full"
+        >
+          Back to orders
+        </Link>
+      </div>
+    );
+  }
+
+  const pendingKhqr = order.children.filter(
+    (c) => c.khqr?.khqr_payload && c.khqr.payment_status !== 'successful',
+  );
+
+  return (
+    <div className="flex flex-col gap-[18px]">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[22px] font-bold text-black">
+            Order #{order.order_number}
+          </h1>
+          <p className="text-[12.5px] text-[#767676] mt-0.5 capitalize">
+            Placed {formatShortDate(order.created_at)} · Status: {order.status}{' '}
+            · Payment: {order.payment_status}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/account/orders"
+            className="bg-white border border-[#ececec] hover:border-black text-black text-[12.5px] font-semibold px-4 py-2 rounded-full"
+          >
+            Back
+          </Link>
+          {pendingKhqr.length > 0 && order.status !== 'cancelled' && (
+            <button
+              type="button"
+              onClick={() => setKhqrOrders(pendingKhqr)}
+              className="bg-[#E1232E] hover:bg-[#c51b25] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full"
+            >
+              Pay with KHQR
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
+        <div className="flex flex-col gap-4">
+          {order.children.map((pkg, idx) => (
+            <div
+              key={pkg.id}
+              className="bg-white border border-[#ececec] rounded-[16px] p-5 flex flex-col gap-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#ececec]">
+                <div className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-full border border-[#ececec] bg-white overflow-hidden shrink-0 flex items-center justify-center">
+                    {pkg.store?.logo ? (
+                      <img
+                        src={pkg.store.logo}
+                        alt={pkg.store.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FigmaIcon name="home" className="w-4 h-4 text-[#ff6e20]" />
+                    )}
+                  </span>
+                  <div>
+                    <p className="text-[15px] font-semibold text-black flex items-center gap-1.5">
+                      <span>
+                        Package {idx + 1} · {pkg.store?.name || 'Store'}
+                      </span>
+                      {pkg.store?.is_verified && <VerifiedBadge size="xs" />}
+                    </p>
+                    <p className="text-[12px] text-[#767676]">
+                      {pkg.shipping_method_name || 'Standard shipping'}
+                      {pkg.tracking_number
+                        ? ` · Tracking ${pkg.tracking_number}`
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-[#ffefe6] text-[#ff6e20] text-[11.5px] font-semibold px-3 py-1 rounded-full capitalize">
+                    {pkg.status}
+                  </span>
+                  {pkg.store && (
+                    <Link
+                      to={`/store/${pkg.store.slug}`}
+                      className="text-[12px] font-semibold text-[#ff6e20] hover:underline"
+                    >
+                      View store
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              {pkg.items.map((item) => (
+                <div key={item.id} className="flex items-center gap-3.5">
+                  <div className="w-[64px] h-[64px] rounded-[12px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.product_name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FigmaIcon name="package" className="w-6 h-6 text-[#979797]" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium text-black">
+                      {item.product_name}
+                    </p>
+                    <p className="text-[12px] text-[#767676]">
+                      Qty {item.quantity} · ${item.unit_price.toFixed(2)} each
+                    </p>
+                  </div>
+                  <p className="text-[15px] font-semibold text-[#ff6e20]">
+                    ${item.total.toFixed(2)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <aside className="bg-white border border-[#ececec] rounded-[16px] p-5 flex flex-col gap-5">
+          <div>
+            <h3 className="text-[15px] font-semibold text-black mb-1.5">
+              Delivery address
+            </h3>
+            <p className="text-[13.5px] font-medium text-black">
+              {order.shipping_address.full_name}
+            </p>
+            <p className="text-[12.5px] text-[#767676]">
+              {[
+                order.shipping_address.address_line_1,
+                order.shipping_address.commune,
+                order.shipping_address.district,
+                order.shipping_address.province,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+            </p>
+            <p className="text-[12.5px] text-[#767676]">
+              {order.shipping_address.phone}
+            </p>
+          </div>
+
+          <div className="border-t border-[#ececec] pt-4 flex flex-col gap-2 text-[13px]">
+            <h3 className="text-[15px] font-semibold text-black mb-1">
+              Payment summary
+            </h3>
+            <div className="flex justify-between">
+              <span className="text-[#767676]">Subtotal</span>
+              <span>${order.subtotal_amount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#767676]">Shipping</span>
+              <span>${order.shipping_amount.toFixed(2)}</span>
+            </div>
+            {order.discount_amount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-[#767676]">Discount</span>
+                <span className="text-[#029500]">
+                  −${order.discount_amount.toFixed(2)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between pt-2 border-t border-[#ececec] font-bold text-[15px]">
+              <span>Total</span>
+              <span className="text-[#ff6e20]">
+                ${order.total_amount.toFixed(2)} (
+                {formatRiel(order.total_amount, khrRate)})
+              </span>
+            </div>
+          </div>
+
+          {order.status === 'pending' && order.payment_status === 'pending' && (
+            <Link
+              to={`/account/orders/${order.id}/cancel`}
+              className="w-full text-center bg-white border border-[#ececec] hover:border-[#e5322d] hover:text-[#e5322d] text-[13px] font-semibold py-2.5 rounded-full"
+            >
+              Cancel order
+            </Link>
+          )}
+        </aside>
+      </div>
+
+      <KhqrModal
+        open={khqrOrders.length > 0}
+        storeOrders={khqrOrders}
+        onClose={() => {
+          setKhqrOrders([]);
+          void refreshOrders();
+        }}
+        onAllPaid={() => {
+          setKhqrOrders([]);
+          showToast('Payment confirmed! Your order is now processing.');
+          void refreshOrders();
+          if (orderId) {
+            void orderApi.getOrder(orderId).then((fresh) => setOrder(fresh));
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+export function CancelOrderPage() {
+  const { orderId } = useParams<{ orderId: string }>();
+  const { cancelOrder, showToast } = useStore();
+  const navigate = useNavigate();
+
+  const [reason, setReason] = useState('Changed my mind');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleCancel = async () => {
+    const id = Number(orderId);
+    if (!id) return;
+    setSubmitting(true);
+    try {
+      await cancelOrder(id, reason);
+      navigate('/account/orders');
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to cancel order.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="max-w-[700px] flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-[22px] font-bold text-black">Cancel order</h1>
+        <Link
+          to="/account/orders"
+          className="bg-white border border-[#ececec] text-black text-[12.5px] font-semibold px-4 py-2 rounded-full"
+        >
+          Back
+        </Link>
+      </div>
+
+      <div className="bg-white border border-[#ececec] rounded-[16px] p-6 flex flex-col gap-4">
+        <p className="text-[13.5px] text-[#767676]">
+          Select a cancellation reason. Pending orders are cancelled immediately
+          and inventory is restored.
+        </p>
+
+        <div className="flex flex-col gap-2">
+          {[
+            'Changed my mind',
+            'Need to update delivery address',
+            'Ordered wrong variant or quantity',
+            'Found a better price',
+          ].map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setReason(r)}
+              className={`text-left px-4 py-3 rounded-[12px] text-[13.5px] transition-all ${
+                reason === r
+                  ? 'bg-[#ffefe6] border border-[#ff6e20] text-[#ff6e20] font-semibold'
+                  : 'bg-[#f7f7f7] text-black hover:bg-[#ffefe6]/60'
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2.5 pt-2">
+          <Link
+            to="/account/orders"
+            className="bg-white border border-[#ececec] text-black text-[13px] font-semibold px-5 py-2.5 rounded-full"
+          >
+            Keep order
+          </Link>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => void handleCancel()}
+            className="bg-[#e5322d] hover:bg-[#c82520] disabled:opacity-60 text-white text-[13px] font-semibold px-6 py-2.5 rounded-full"
+          >
+            {submitting ? 'Cancelling...' : 'Confirm cancellation'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
