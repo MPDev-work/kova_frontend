@@ -128,7 +128,7 @@ export function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[25px] px-4 py-3.5 text-[14px] outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[14px] outline-none"
               />
             </label>
 
@@ -142,7 +142,7 @@ export function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[25px] px-4 py-3.5 text-[14px] outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[14px] outline-none"
               />
             </label>
 
@@ -258,7 +258,7 @@ export function RegisterPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
-                className="border border-[#ececec] rounded-[25px] px-4 py-3 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -269,7 +269,7 @@ export function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="border border-[#ececec] rounded-[25px] px-4 py-3 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -281,7 +281,7 @@ export function RegisterPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+855 ..."
-                className="border border-[#ececec] rounded-[25px] px-4 py-3 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -293,7 +293,7 @@ export function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 8 characters"
-                className="border border-[#ececec] rounded-[25px] px-4 py-3 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -305,7 +305,7 @@ export function RegisterPage() {
                 value={passwordConfirmation}
                 onChange={(e) => setPasswordConfirmation(e.target.value)}
                 placeholder="Re-enter your password"
-                className="border border-[#ececec] rounded-[25px] px-4 py-3 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
             <button
@@ -402,7 +402,7 @@ export function VerificationFlowPage({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email address"
-              className="border border-[#ececec] rounded-[25px] px-4 py-3.5 text-[14px] outline-none focus:border-[#ff6e20]"
+              className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
             />
           ) : (
             <>
@@ -415,7 +415,7 @@ export function VerificationFlowPage({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="New password (min 8 characters)"
-                className="border border-[#ececec] rounded-[25px] px-4 py-3.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
               <input
                 type="password"
@@ -424,7 +424,7 @@ export function VerificationFlowPage({
                 value={passwordConfirmation}
                 onChange={(e) => setPasswordConfirmation(e.target.value)}
                 placeholder="Confirm new password"
-                className="border border-[#ececec] rounded-[25px] px-4 py-3.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </>
           )}

@@ -7,6 +7,8 @@ import { formatKhr, formatShortDate } from '../../utils/currency';
 import { ProductCard } from '../../components/ProductCard';
 import { ProductDetailSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { savePendingChatCard } from '../../utils/chatContextCard';
+import { saveCheckoutSelection } from '../../utils/checkoutSelection';
 import type { Product, ReviewItem } from '../../types/marketplace';
 
 export function ProductDetailPage() {
@@ -143,13 +145,39 @@ function ProductDetailContent({
   const isSaved = wishlistIds.includes(product.id);
   const displayImage = product.gallery[activeImg] || product.image;
 
-  const handleAdd = async (goCheckout: boolean) => {
+  const handleAddToCart = async () => {
     setSubmitting(true);
-    const ok = await addToCart(product.id, activeVariant?.id ?? null, quantity);
+    await addToCart(product.id, activeVariant?.id ?? null, quantity);
     setSubmitting(false);
-    if (ok && goCheckout) {
-      navigate('/checkout');
+  };
+
+  const handleBuyNow = () => {
+    if (maxStock <= 0) {
+      showToast('This product is currently out of stock.');
+      return;
     }
+    saveCheckoutSelection({
+      mode: 'buy_now',
+      item: {
+        product_id: product.id,
+        variant_id: activeVariant?.id ?? null,
+        quantity,
+        product_name: product.name,
+        product_slug: product.slug,
+        product_image: displayImage || product.image || null,
+        variant_name: activeVariant?.name ?? null,
+        unit_price: displayPrice,
+        free_shipping: Boolean(product.free_shipping),
+        store: {
+          id: product.store_id,
+          name: product.store_name,
+          slug: product.store_slug,
+          logo: product.store_logo || null,
+          is_verified: product.store_verified,
+        },
+      },
+    });
+    navigate('/checkout?mode=buy_now');
   };
 
   return (
@@ -182,12 +210,33 @@ function ProductDetailContent({
           </Link>
         </div>
 
-        <Link
-          to={`/store/${product.store_slug}`}
-          className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-black text-[12.5px] font-semibold px-4 py-1.5 rounded-full transition-colors"
-        >
-          View store
-        </Link>
+        <div className="flex items-center gap-2">
+          {product.store_id && (
+            <Link
+              to={`/help/contact?storeId=${product.store_id}&storeName=${encodeURIComponent(product.store_name)}&storeSlug=${encodeURIComponent(product.store_slug)}`}
+              onClick={() => {
+                savePendingChatCard(product.store_id, {
+                  kind: 'product',
+                  product_id: product.id,
+                  product_slug: product.slug,
+                  product_name: product.name,
+                  product_image: displayImage || product.image || null,
+                  unit_price: product.price,
+                  store_name: product.store_name,
+                });
+              }}
+              className="bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[12.5px] font-semibold px-4 py-1.5 rounded-full transition-colors"
+            >
+              Contact store
+            </Link>
+          )}
+          <Link
+            to={`/store/${product.store_slug}`}
+            className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-black text-[12.5px] font-semibold px-4 py-1.5 rounded-full transition-colors"
+          >
+            View store
+          </Link>
+        </div>
       </div>
 
       {/* Buy Box */}
@@ -266,11 +315,6 @@ function ProductDetailContent({
             {product.category_id && (
               <span className="bg-[#ffefe6] text-[#ff6e20] font-semibold px-3 py-1 rounded-full">
                 {product.category_name}
-              </span>
-            )}
-            {product.brand_name && (
-              <span className="bg-[#f7f7f7] text-black font-medium px-3 py-1 rounded-full">
-                {product.brand_name}
               </span>
             )}
             {(product.has_free_delivery || product.free_shipping) && (
@@ -387,7 +431,7 @@ function ProductDetailContent({
             <button
               type="button"
               disabled={submitting || maxStock <= 0}
-              onClick={() => void handleAdd(false)}
+              onClick={() => void handleAddToCart()}
               className="bg-[#ff9800] hover:bg-[#eb8c00] disabled:opacity-50 transition-colors text-white text-[15px] font-bold py-3.5 px-6 rounded-full"
             >
               Add to cart
@@ -395,7 +439,7 @@ function ProductDetailContent({
             <button
               type="button"
               disabled={submitting || maxStock <= 0}
-              onClick={() => void handleAdd(true)}
+              onClick={handleBuyNow}
               className="kova-gradient hover:opacity-95 disabled:opacity-50 transition-opacity text-white text-[15px] font-bold py-3.5 px-6 rounded-full"
             >
               Buy now · ${(displayPrice * quantity).toFixed(2)}

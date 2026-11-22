@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useStore } from '../../context/StoreContext';
 import { ApiError } from '../../services/api';
@@ -44,7 +44,7 @@ type OrderStatusTab =
   | 'cancelled';
 
 export function SellerOrdersPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { khrRate, showToast } = useStore();
 
   const [statusFilter, setStatusFilter] = useState<OrderStatusTab>('');
@@ -52,6 +52,7 @@ export function SellerOrdersPage() {
   const [page, setPage] = useState(1);
   const [orders, setOrders] = useState<SellerOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const handledOrderParamRef = useRef<string | null>(null);
 
   // Order Detail & Fulfillment Drawer (Figma Seller · 08)
   const [selectedOrder, setSelectedOrder] = useState<SellerOrderItem | null>(
@@ -124,7 +125,7 @@ export function SellerOrdersPage() {
   const safePage = Math.min(page, lastPage);
   const paged = filtered.slice((safePage - 1) * perPage, safePage * perPage);
 
-  const openOrderDrawer = (ord: SellerOrderItem) => {
+  const openOrderDrawer = useCallback((ord: SellerOrderItem) => {
     setSelectedOrder(ord);
     setNextStatus(
       ord.status === 'pending'
@@ -138,7 +139,61 @@ export function SellerOrdersPage() {
     setCarrier(ord.shipping_carrier || ord.shipping_method_name || '');
     setTracking(ord.tracking_number || '');
     setNotes('');
-  };
+  }, []);
+
+  const closeOrderDrawer = useCallback(() => {
+    setSelectedOrder(null);
+    if (searchParams.has('order')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('order');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const orderParam = (searchParams.get('order') || '').trim().replace(/^#/, '');
+
+  useEffect(() => {
+    if (!orderParam) {
+      handledOrderParamRef.current = null;
+      return;
+    }
+    if (loading || handledOrderParamRef.current === orderParam) return;
+
+    const targetLower = orderParam.toLowerCase();
+    const matchOrder = (o: SellerOrderItem) =>
+      o.order_number.toLowerCase() === targetLower ||
+      (o.parent_order_number || '').toLowerCase() === targetLower ||
+      (o.child_order_number || '').toLowerCase() === targetLower ||
+      String(o.id) === orderParam;
+
+    const existing = orders.find(matchOrder);
+    if (existing) {
+      handledOrderParamRef.current = orderParam;
+      const t = window.setTimeout(() => openOrderDrawer(existing), 0);
+      return () => window.clearTimeout(t);
+    }
+
+    handledOrderParamRef.current = orderParam;
+    let active = true;
+    void storeOwnerApi
+      .getOrders({ search: orderParam, page: 1 })
+      .then((res) => {
+        if (!active) return;
+        const found = res.data.find(matchOrder) || res.data[0];
+        if (found) {
+          setOrders((prev) =>
+            prev.some((o) => o.id === found.id) ? prev : [found, ...prev],
+          );
+          openOrderDrawer(found);
+        }
+      })
+      .catch(() => {
+        // Ignore lookup error
+      });
+    return () => {
+      active = false;
+    };
+  }, [orderParam, loading, orders, openOrderDrawer]);
 
   const handleUpdateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -383,7 +438,7 @@ export function SellerOrdersPage() {
       {/* Rich Order Detail & Fulfillment Drawer (Exact Figma Seller · 08 layout) */}
       <SlideOverDrawer
         open={Boolean(selectedOrder)}
-        onClose={() => setSelectedOrder(null)}
+        onClose={closeOrderDrawer}
         title={selectedOrder ? `Order #${selectedOrder.order_number}` : ''}
         subtitle={
           selectedOrder
@@ -395,7 +450,7 @@ export function SellerOrdersPage() {
           <>
             <button
               type="button"
-              onClick={() => setSelectedOrder(null)}
+              onClick={closeOrderDrawer}
               className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
             >
               Close
@@ -544,7 +599,7 @@ export function SellerOrdersPage() {
                         | 'cancelled',
                     )
                   }
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
                 >
                   <option value="processing">Processing (Confirmed)</option>
                   <option value="shipped">Shipped (Handed to courier)</option>
@@ -564,7 +619,7 @@ export function SellerOrdersPage() {
                     value={carrier}
                     onChange={(e) => setCarrier(e.target.value)}
                     placeholder="J&T Express, Virak Buntham..."
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2 text-[13px] outline-none"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
@@ -576,7 +631,7 @@ export function SellerOrdersPage() {
                     value={tracking}
                     onChange={(e) => setTracking(e.target.value)}
                     placeholder="e.g. JT-KH-88412"
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2 text-[13px] font-mono outline-none"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono outline-none"
                   />
                 </label>
               </div>
@@ -590,7 +645,7 @@ export function SellerOrdersPage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Optional packing or rider note..."
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2 text-[13px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
                 />
               </label>
             </form>
@@ -758,7 +813,6 @@ export function SellerShippingPage() {
             label: 'In transit',
             value: String(inTransit),
             sub: 'Phnom Penh & provinces',
-            badge: 'Live',
             tone: 'green',
           },
           {
@@ -965,7 +1019,7 @@ export function SellerShippingPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. J&T Express Cambodia"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -983,7 +1037,7 @@ export function SellerShippingPage() {
                     | 'distance_based',
                 )
               }
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
             >
               <option value="fixed">Fixed rate</option>
               <option value="free">Free delivery</option>
@@ -1003,7 +1057,7 @@ export function SellerShippingPage() {
                 disabled={calcType === 'free'}
                 value={calcType === 'free' ? '0' : baseCost}
                 onChange={(e) => setBaseCost(e.target.value)}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none disabled:bg-[#f7f7f7]"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none disabled:bg-[#f7f7f7]"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -1018,7 +1072,7 @@ export function SellerShippingPage() {
                 value={calcType === 'free' ? '' : freeThreshold}
                 onChange={(e) => setFreeThreshold(e.target.value)}
                 placeholder={calcType === 'free' ? 'Always free' : 'Optional'}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none disabled:bg-[#f7f7f7]"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none disabled:bg-[#f7f7f7]"
               />
             </label>
           </div>
@@ -1031,7 +1085,7 @@ export function SellerShippingPage() {
               value={estDays}
               onChange={(e) => setEstDays(e.target.value)}
               placeholder="e.g. Same-day Phnom Penh · 1-3 days provinces"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
             />
           </label>
         </form>
@@ -1044,12 +1098,40 @@ export function SellerShippingPage() {
 // 7. Discounts & Promotions (/seller/promotions) — Exact Figma Seller · 15
 // 4 KPI Cards + Full-Width Table + Create Discount Drawer
 // ==========================================
-type PromoFilterTab =
-  | 'all'
-  | 'active'
-  | 'percentage'
-  | 'fixed_amount'
-  | 'free_shipping';
+type PromoFilterTab = 'all' | 'active' | 'percentage' | 'fixed_amount';
+
+function toLocalDateTimeInput(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function getTodayStartDateTimeInput(): string {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return toLocalDateTimeInput(now);
+}
+
+function getDefaultPromoWindow(): { start: string; end: string } {
+  const now = new Date();
+  const end = new Date(now);
+  end.setDate(end.getDate() + 7);
+  end.setHours(23, 59, 0, 0);
+  return {
+    start: toLocalDateTimeInput(now),
+    end: toLocalDateTimeInput(end),
+  };
+}
+
+function formatPromoDateTime(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${formatShortDate(iso)}, ${d.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })}`;
+}
 
 export function SellerPromotionsPage() {
   const { showToast, refreshCatalog } = useStore();
@@ -1058,15 +1140,74 @@ export function SellerPromotionsPage() {
   const [loading, setLoading] = useState(true);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<SellerPromotionItem | null>(
+    null,
+  );
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [discountType, setDiscountType] = useState<
-    'percentage' | 'fixed_amount' | 'free_shipping'
+    'percentage' | 'fixed_amount'
   >('percentage');
   const [discountValue, setDiscountValue] = useState('10');
   const [minOrder, setMinOrder] = useState('20');
   const [usageLimit, setUsageLimit] = useState('');
+  const [startDate, setStartDate] = useState(
+    () => getDefaultPromoWindow().start,
+  );
+  const [endDate, setEndDate] = useState(() => getDefaultPromoWindow().end);
   const [saving, setSaving] = useState(false);
+  const [togglingPause, setTogglingPause] = useState(false);
+
+  const todayMinDateTime = getTodayStartDateTimeInput();
+
+  const openCreateDrawer = () => {
+    const win = getDefaultPromoWindow();
+    setEditingPromo(null);
+    setCode('');
+    setName('');
+    setDiscountType('percentage');
+    setDiscountValue('10');
+    setMinOrder('20');
+    setUsageLimit('');
+    setStartDate(win.start);
+    setEndDate(win.end);
+    setDrawerOpen(true);
+  };
+
+  const openEditDrawer = (pr: SellerPromotionItem) => {
+    const win = getDefaultPromoWindow();
+    const parsedStart = pr.start_date ? new Date(pr.start_date) : null;
+    const parsedEnd = pr.end_date ? new Date(pr.end_date) : null;
+
+    setEditingPromo(pr);
+    setCode(pr.code);
+    setName(pr.name);
+    setDiscountType(
+      pr.discount_type === 'percentage' ? 'percentage' : 'fixed_amount',
+    );
+    setDiscountValue(String(pr.discount_value ?? '0'));
+    setMinOrder(
+      pr.min_order_amount !== null && pr.min_order_amount !== undefined
+        ? String(pr.min_order_amount)
+        : '',
+    );
+    setUsageLimit(
+      pr.usage_limit !== null && pr.usage_limit !== undefined
+        ? String(pr.usage_limit)
+        : '',
+    );
+    setStartDate(
+      parsedStart && !Number.isNaN(parsedStart.getTime())
+        ? toLocalDateTimeInput(parsedStart)
+        : win.start,
+    );
+    setEndDate(
+      parsedEnd && !Number.isNaN(parsedEnd.getTime())
+        ? toLocalDateTimeInput(parsedEnd)
+        : win.end,
+    );
+    setDrawerOpen(true);
+  };
 
   const loadPromos = useCallback(async () => {
     try {
@@ -1091,29 +1232,75 @@ export function SellerPromotionsPage() {
     };
   }, [loadPromos]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startDate || !endDate) {
+      showToast('Please select both start and end date & time.');
+      return;
+    }
+
+    const startObj = new Date(startDate);
+    const endObj = new Date(endDate);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(startObj.getTime()) || Number.isNaN(endObj.getTime())) {
+      showToast('Please enter a valid start and end date & time.');
+      return;
+    }
+    if (!editingPromo && startObj.getTime() < startOfToday.getTime()) {
+      showToast('Start date must be today or later.');
+      return;
+    }
+    if (endObj.getTime() <= startObj.getTime()) {
+      showToast('End date & time must be after the start date & time.');
+      return;
+    }
+
     setSaving(true);
     try {
-      await storeOwnerApi.createPromotion({
-        code: code.trim().toUpperCase(),
-        name: name.trim(),
-        discount_type: discountType,
-        discount_value:
-          discountType === 'free_shipping' ? 0 : Number(discountValue),
-        min_order_amount: minOrder ? Number(minOrder) : null,
-        usage_limit: usageLimit ? Number(usageLimit) : null,
-        is_active: true,
-      });
+      if (editingPromo) {
+        await storeOwnerApi.updatePromotion(editingPromo.id, {
+          code: code.trim().toUpperCase(),
+          name: name.trim(),
+          discount_type: discountType,
+          discount_value: Number(discountValue),
+          min_order_amount: minOrder ? Number(minOrder) : null,
+          usage_limit: usageLimit ? Number(usageLimit) : null,
+          start_date: startObj.toISOString(),
+          end_date: endObj.toISOString(),
+        });
+        showToast('Discount voucher updated.');
+      } else {
+        await storeOwnerApi.createPromotion({
+          code: code.trim().toUpperCase(),
+          name: name.trim(),
+          discount_type: discountType,
+          discount_value: Number(discountValue),
+          min_order_amount: minOrder ? Number(minOrder) : null,
+          usage_limit: usageLimit ? Number(usageLimit) : null,
+          start_date: startObj.toISOString(),
+          end_date: endObj.toISOString(),
+          is_active: true,
+        });
+        showToast('Discount voucher created.');
+      }
+      setEditingPromo(null);
       setCode('');
       setName('');
       setUsageLimit('');
+      const win = getDefaultPromoWindow();
+      setStartDate(win.start);
+      setEndDate(win.end);
       setDrawerOpen(false);
-      showToast('Discount voucher created.');
       await Promise.all([loadPromos(), refreshCatalog()]);
     } catch (err) {
       showToast(
-        err instanceof ApiError ? err.message : 'Unable to create promotion.',
+        err instanceof ApiError
+          ? err.message
+          : editingPromo
+            ? 'Unable to update promotion.'
+            : 'Unable to create promotion.',
       );
     } finally {
       setSaving(false);
@@ -1121,12 +1308,19 @@ export function SellerPromotionsPage() {
   };
 
   const handleToggleActive = async (pr: SellerPromotionItem) => {
+    setTogglingPause(true);
     try {
-      await storeOwnerApi.updatePromotion(pr.id, { is_active: !pr.is_active });
+      const nextActive = !pr.is_active;
+      await storeOwnerApi.updatePromotion(pr.id, { is_active: nextActive });
+      setEditingPromo((prev) =>
+        prev && prev.id === pr.id ? { ...prev, is_active: nextActive } : prev,
+      );
       showToast(pr.is_active ? 'Voucher paused.' : 'Voucher activated.');
       await Promise.all([loadPromos(), refreshCatalog()]);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Unable to update.');
+    } finally {
+      setTogglingPause(false);
     }
   };
 
@@ -1144,11 +1338,7 @@ export function SellerPromotionsPage() {
   const totalUses = promos.reduce((s, p) => s + (p.used_count ?? 0), 0);
   const filtered = promos.filter((p) => {
     if (tab === 'active') return p.is_active;
-    if (
-      tab === 'percentage' ||
-      tab === 'fixed_amount' ||
-      tab === 'free_shipping'
-    ) {
+    if (tab === 'percentage' || tab === 'fixed_amount') {
       return p.discount_type === tab;
     }
     return true;
@@ -1158,11 +1348,11 @@ export function SellerPromotionsPage() {
     <div className="flex flex-col gap-5">
       <DashboardPageHeader
         title="Discounts & promotions"
-        subtitle="Manage store coupon codes, percentage sales, and free-shipping vouchers."
+        subtitle="Manage store coupon codes with percentage or fixed-price discounts."
         actions={
           <button
             type="button"
-            onClick={() => setDrawerOpen(true)}
+            onClick={openCreateDrawer}
             className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
           >
             Create discount
@@ -1176,7 +1366,6 @@ export function SellerPromotionsPage() {
             label: 'Active promotions',
             value: String(activeCount),
             sub: `${promos.length} total vouchers created`,
-            badge: 'Live',
             tone: 'green',
           },
           {
@@ -1187,21 +1376,21 @@ export function SellerPromotionsPage() {
             tone: 'orange',
           },
           {
-            label: 'Coupon codes',
+            label: 'Percentage vouchers',
             value: String(
-              promos.filter((p) => p.discount_type !== 'free_shipping').length,
+              promos.filter((p) => p.discount_type === 'percentage').length,
             ),
-            sub: 'Percentage & fixed-amount',
-            badge: 'Codes',
+            sub: 'Percent-off campaigns',
+            badge: 'Percent',
             tone: 'neutral',
           },
           {
-            label: 'Free shipping promos',
+            label: 'Fixed price vouchers',
             value: String(
-              promos.filter((p) => p.discount_type === 'free_shipping').length,
+              promos.filter((p) => p.discount_type === 'fixed_amount').length,
             ),
-            sub: 'Delivery fee waivers',
-            badge: 'Logistics',
+            sub: 'Flat USD savings',
+            badge: 'Fixed',
             tone: 'neutral',
           },
         ]}
@@ -1222,14 +1411,8 @@ export function SellerPromotionsPage() {
             },
             {
               id: 'fixed_amount',
-              label: 'Fixed amount',
+              label: 'Fixed price',
               count: promos.filter((p) => p.discount_type === 'fixed_amount')
-                .length,
-            },
-            {
-              id: 'free_shipping',
-              label: 'Free shipping',
-              count: promos.filter((p) => p.discount_type === 'free_shipping')
                 .length,
             },
           ]}
@@ -1244,7 +1427,7 @@ export function SellerPromotionsPage() {
             </p>
             <button
               type="button"
-              onClick={() => setDrawerOpen(true)}
+              onClick={openCreateDrawer}
               className="bg-[#ff6e20] text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
             >
               Create first voucher
@@ -1260,6 +1443,7 @@ export function SellerPromotionsPage() {
                   </th>
                   <th className="py-2.5 px-3.5">Type</th>
                   <th className="py-2.5 px-3.5">Value</th>
+                  <th className="py-2.5 px-3.5">Schedule</th>
                   <th className="py-2.5 px-3.5">Usage</th>
                   <th className="py-2.5 px-3.5">Min spend</th>
                   <th className="py-2.5 px-3.5">Status</th>
@@ -1280,8 +1464,12 @@ export function SellerPromotionsPage() {
                         Code: {pr.code}
                       </p>
                     </td>
-                    <td className="py-3.5 px-3.5 capitalize text-[#555555]">
-                      {pr.discount_type.replace('_', ' ')}
+                    <td className="py-3.5 px-3.5 text-[#555555]">
+                      {pr.discount_type === 'percentage'
+                        ? 'Percentage'
+                        : pr.discount_type === 'fixed_amount'
+                          ? 'Fixed price'
+                          : pr.discount_type.replace('_', ' ')}
                     </td>
                     <td className="py-3.5 px-3.5 font-semibold text-black">
                       {pr.discount_type === 'percentage'
@@ -1289,6 +1477,18 @@ export function SellerPromotionsPage() {
                         : pr.discount_type === 'fixed_amount'
                           ? `-$${Number(pr.discount_value).toFixed(2)}`
                           : 'Free shipping'}
+                    </td>
+                    <td className="py-3.5 px-3.5 text-[12px] text-[#555555] whitespace-nowrap">
+                      {pr.start_date || pr.end_date ? (
+                        <div className="flex flex-col">
+                          <span>Start: {formatPromoDateTime(pr.start_date)}</span>
+                          <span className="text-[#767676]">
+                            End: {formatPromoDateTime(pr.end_date)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[#767676]">Always active</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-3.5 text-[#555555]">
                       {pr.used_count ?? 0} / {pr.usage_limit ?? '∞'}
@@ -1308,10 +1508,10 @@ export function SellerPromotionsPage() {
                       <div className="inline-flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => void handleToggleActive(pr)}
+                          onClick={() => openEditDrawer(pr)}
                           className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
                         >
-                          {pr.is_active ? 'Pause' : 'Activate'}
+                          Edit
                         </button>
                         <button
                           type="button"
@@ -1332,14 +1532,44 @@ export function SellerPromotionsPage() {
 
       <SlideOverDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title="Create discount voucher"
-        subtitle="Customers can claim and apply this code in their Kova shopping cart."
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditingPromo(null);
+        }}
+        title={
+          editingPromo ? 'Edit discount voucher' : 'Create discount voucher'
+        }
+        subtitle={
+          editingPromo
+            ? 'Update voucher details, schedule, or pause this campaign.'
+            : 'Customers can claim and apply this code in their Kova shopping cart.'
+        }
         footer={
           <>
+            {editingPromo && (
+              <button
+                type="button"
+                disabled={togglingPause}
+                onClick={() => void handleToggleActive(editingPromo)}
+                className={`mr-auto border text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors disabled:opacity-60 ${
+                  editingPromo.is_active
+                    ? 'bg-[#fff7ed] border-[#ff6e20]/30 text-[#ff6e20] hover:bg-[#ffefe6]'
+                    : 'bg-[#ecfdf3] border-[#029500]/30 text-[#029500] hover:bg-[#dcfce7]'
+                }`}
+              >
+                {togglingPause
+                  ? 'Updating...'
+                  : editingPromo.is_active
+                    ? 'Pause'
+                    : 'Activate'}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setDrawerOpen(false)}
+              onClick={() => {
+                setDrawerOpen(false);
+                setEditingPromo(null);
+              }}
               className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
             >
               Cancel
@@ -1350,14 +1580,20 @@ export function SellerPromotionsPage() {
               disabled={saving}
               className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
             >
-              {saving ? 'Creating...' : 'Create voucher'}
+              {saving
+                ? editingPromo
+                  ? 'Saving...'
+                  : 'Creating...'
+                : editingPromo
+                  ? 'Save changes'
+                  : 'Create voucher'}
             </button>
           </>
         }
       >
         <form
           id="seller-promo-form"
-          onSubmit={handleCreate}
+          onSubmit={handleSubmit}
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
@@ -1370,7 +1606,7 @@ export function SellerPromotionsPage() {
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="e.g. KOVA10"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] font-mono uppercase outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] font-mono uppercase outline-none"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -1383,7 +1619,7 @@ export function SellerPromotionsPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. 10% Weekend Audio Drop"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -1393,33 +1629,30 @@ export function SellerPromotionsPage() {
             <select
               value={discountType}
               onChange={(e) =>
-                setDiscountType(
-                  e.target.value as
-                    | 'percentage'
-                    | 'fixed_amount'
-                    | 'free_shipping',
-                )
+                setDiscountType(e.target.value as 'percentage' | 'fixed_amount')
               }
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
             >
-              <option value="percentage">Percentage off (%)</option>
-              <option value="fixed_amount">Fixed amount off (USD)</option>
-              <option value="free_shipping">Free shipping</option>
+              <option value="percentage">Percentage (%)</option>
+              <option value="fixed_amount">Fixed price (USD)</option>
             </select>
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold text-black">
-                Discount value
+                {discountType === 'percentage'
+                  ? 'Discount value (%)'
+                  : 'Discount value (USD)'}
               </span>
               <input
                 type="number"
+                required
                 step="0.01"
-                min={0}
-                disabled={discountType === 'free_shipping'}
-                value={discountType === 'free_shipping' ? '0' : discountValue}
+                min={0.01}
+                max={discountType === 'percentage' ? 100 : undefined}
+                value={discountValue}
                 onChange={(e) => setDiscountValue(e.target.value)}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none disabled:bg-[#f7f7f7]"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -1432,7 +1665,45 @@ export function SellerPromotionsPage() {
                 min={0}
                 value={minOrder}
                 onChange={(e) => setMinOrder(e.target.value)}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+              />
+            </label>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-black">
+                Start date &amp; time
+              </span>
+              <input
+                type="datetime-local"
+                required
+                min={editingPromo ? undefined : todayMinDateTime}
+                value={startDate}
+                onChange={(e) => {
+                  const nextStart = e.target.value;
+                  setStartDate(nextStart);
+                  if (endDate && nextStart && endDate <= nextStart) {
+                    const adjusted = new Date(nextStart);
+                    if (!Number.isNaN(adjusted.getTime())) {
+                      adjusted.setHours(adjusted.getHours() + 1);
+                      setEndDate(toLocalDateTimeInput(adjusted));
+                    }
+                  }
+                }}
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-black">
+                End date &amp; time
+              </span>
+              <input
+                type="datetime-local"
+                required
+                min={startDate || todayMinDateTime}
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
               />
             </label>
           </div>
@@ -1446,7 +1717,7 @@ export function SellerPromotionsPage() {
               value={usageLimit}
               onChange={(e) => setUsageLimit(e.target.value)}
               placeholder="Leave empty for unlimited"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
             />
           </label>
         </form>
@@ -1474,8 +1745,6 @@ export function SellerBakongPage() {
   const [loading, setLoading] = useState(true);
 
   const [accountId, setAccountId] = useState('');
-  const [registeredEmail, setRegisteredEmail] = useState(user?.email || '');
-  const [apiToken, setApiToken] = useState('');
   const [merchantName, setMerchantName] = useState(user?.store?.name || '');
   const [merchantCity, setMerchantCity] = useState('Phnom Penh');
   const [saving, setSaving] = useState(false);
@@ -1491,7 +1760,6 @@ export function SellerBakongPage() {
       setTxs(txRes.transactions.data);
       if (st.account) {
         setAccountId(st.account.bakong_account_id);
-        setRegisteredEmail(st.account.registered_email);
         setMerchantName(st.account.merchant_name);
         setMerchantCity(st.account.merchant_city || 'Phnom Penh');
       }
@@ -1518,24 +1786,12 @@ export function SellerBakongPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload: {
-        bakong_account_id: string;
-        registered_email: string;
-        api_token?: string;
-        merchant_name: string;
-        merchant_city?: string;
-      } = {
+      const res = await storeOwnerApi.connectBakong({
         bakong_account_id: accountId.trim(),
-        registered_email: registeredEmail.trim(),
         merchant_name: merchantName.trim(),
         merchant_city: merchantCity.trim() || 'Phnom Penh',
-      };
-      if (apiToken.trim()) {
-        payload.api_token = apiToken.trim();
-      }
-      const res = await storeOwnerApi.connectBakong(payload);
-      setApiToken('');
-      showToast(res.message || 'Bakong credentials saved in database.');
+      });
+      showToast(res.message || 'Bakong merchant details saved.');
       await loadBakong();
     } catch (err) {
       showToast(
@@ -1641,7 +1897,6 @@ export function SellerBakongPage() {
                   label: 'Pending scans',
                   value: String(txStats.pending_count),
                   sub: 'Awaiting buyer payment',
-                  badge: 'Live',
                   tone: 'orange',
                 },
                 {
@@ -1669,7 +1924,8 @@ export function SellerBakongPage() {
                       : 'Connect Bakong merchant account'}
                   </h2>
                   <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                    Credentials are encrypted at rest on the Kova server.
+                    Enter your Bakong receiving details. Kova manages the
+                    platform Bakong API token centrally.
                   </p>
                 </div>
                 <button
@@ -1677,12 +1933,12 @@ export function SellerBakongPage() {
                   disabled={saving}
                   className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
                 >
-                  {saving ? 'Connecting...' : 'Save configuration'}
+                  {saving ? 'Saving...' : 'Save configuration'}
                 </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className="flex flex-col gap-1.5">
+                <label className="flex flex-col gap-1.5 sm:col-span-2">
                   <span className="text-[12px] font-semibold text-black">
                     Bakong Account ID
                   </span>
@@ -1692,44 +1948,7 @@ export function SellerBakongPage() {
                     value={accountId}
                     onChange={(e) => setAccountId(e.target.value)}
                     placeholder="yourstore@aclb"
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] font-mono outline-none"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-semibold text-black">
-                    Registered Bakong email
-                  </span>
-                  <input
-                    type="email"
-                    required
-                    value={registeredEmail}
-                    onChange={(e) => setRegisteredEmail(e.target.value)}
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5 sm:col-span-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[12px] font-semibold text-black">
-                      Bakong Open API JWT token
-                    </span>
-                    {status?.account?.has_token && (
-                      <span className="text-[11px] font-semibold text-[#029500] font-mono">
-                        Saved in DB: {status.account.token_masked || 'Stored'}
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="password"
-                    required={!status?.account?.has_token}
-                    minLength={status?.account?.has_token ? undefined : 10}
-                    value={apiToken}
-                    onChange={(e) => setApiToken(e.target.value)}
-                    placeholder={
-                      status?.account?.has_token
-                        ? 'Stored securely in database — leave blank to keep saved token'
-                        : 'Paste NBC Bakong Open API JWT token'
-                    }
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono outline-none"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
@@ -1741,7 +1960,7 @@ export function SellerBakongPage() {
                     required
                     value={merchantName}
                     onChange={(e) => setMerchantName(e.target.value)}
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
@@ -1752,7 +1971,7 @@ export function SellerBakongPage() {
                     type="text"
                     value={merchantCity}
                     onChange={(e) => setMerchantCity(e.target.value)}
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
                   />
                 </label>
               </div>
@@ -1782,6 +2001,20 @@ export function SellerBakongPage() {
                   <dt className="text-[#767676]">Merchant</dt>
                   <dd className="font-semibold text-black">
                     {status?.account?.merchant_name || '—'}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <dt className="text-[#767676]">Platform API token</dt>
+                  <dd
+                    className={`font-semibold ${
+                      status?.platform_token_configured
+                        ? 'text-[#029500]'
+                        : 'text-[#ff6e20]'
+                    }`}
+                  >
+                    {status?.platform_token_configured
+                      ? 'Active (Admin managed)'
+                      : 'Pending admin setup'}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between py-2.5">
@@ -2208,7 +2441,7 @@ export function SellerPayoutsPage() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="10.00"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
             />
           </label>
 
@@ -2221,7 +2454,7 @@ export function SellerPayoutsPage() {
               onChange={(e) =>
                 setMethod(e.target.value as 'bakong' | 'bank_transfer')
               }
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
             >
               <option value="bakong">Bakong Account</option>
               <option value="bank_transfer">Cambodia Bank Transfer</option>
@@ -2374,7 +2607,7 @@ export function SellerStorefrontPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
 
@@ -2408,7 +2641,7 @@ export function SellerStorefrontPage() {
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
 
@@ -2420,7 +2653,7 @@ export function SellerStorefrontPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
 
@@ -2433,7 +2666,7 @@ export function SellerStorefrontPage() {
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Street, Sangkat, Khan, Phnom Penh"
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
             </div>
@@ -2458,7 +2691,7 @@ export function SellerStorefrontPage() {
                 value={announcements}
                 onChange={(e) => setAnnouncements(e.target.value)}
                 placeholder="e.g. Same-day delivery inside Phnom Penh for orders before 2:00 PM"
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
               />
             </label>
 

@@ -21,14 +21,6 @@ export interface Category {
   products_count?: number;
 }
 
-export interface Brand {
-  id: number;
-  name: string;
-  slug: string;
-  logo?: string | null;
-  products_count?: number;
-}
-
 export interface Province {
   id: number;
   name: string;
@@ -90,8 +82,6 @@ export interface Product {
   category_id: number | null;
   category_name: string;
   category_slug: string;
-  brand_id: number | null;
-  brand_name: string;
   rating: number;
   reviews_count: number;
   variants: ProductVariant[];
@@ -173,6 +163,7 @@ export interface Promotion {
   discount_value: number;
   min_order_amount: number | null;
   max_discount_amount: number | null;
+  start_date?: string | null;
   end_date?: string | null;
   store?: PromotionStoreInfo | null;
 }
@@ -300,10 +291,31 @@ export interface ReviewItem {
   created_at: string;
 }
 
+export interface ChatContextCard {
+  kind: 'order' | 'product';
+  order_id?: number | null;
+  order_number?: string | null;
+  order_status?: string | null;
+  total_amount?: number | null;
+  item_count?: number | null;
+  product_id?: number | null;
+  product_slug?: string | null;
+  product_name: string;
+  product_image?: string | null;
+  quantity?: number | null;
+  unit_price?: number | null;
+  store_name?: string | null;
+}
+
+export interface ChatMessageMetadata {
+  context_card?: ChatContextCard | null;
+}
+
 export interface SupportTicketMessage {
   id: number;
   message: string;
   attachments?: string[] | null;
+  metadata?: ChatMessageMetadata | null;
   is_admin_reply: boolean;
   created_at: string;
   user?: { id: number; name: string; avatar?: string | null } | null;

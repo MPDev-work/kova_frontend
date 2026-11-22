@@ -26,3 +26,32 @@ export function formatShortDate(iso?: string | null): string {
     year: 'numeric',
   });
 }
+
+export function formatChatTimestamp(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const startOfTarget = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round(
+    (startOfToday.getTime() - startOfTarget.getTime()) / 86_400_000,
+  );
+
+  if (diffDays === 0) {
+    return d.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+  if (diffDays === 1) {
+    return 'Yesterday';
+  }
+  return formatShortDate(iso);
+}

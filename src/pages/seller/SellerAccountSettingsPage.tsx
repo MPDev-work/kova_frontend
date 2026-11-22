@@ -169,7 +169,7 @@ export function SellerAccountSettingsPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
 
@@ -182,7 +182,7 @@ export function SellerAccountSettingsPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+855 12 345 678"
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
 
@@ -194,7 +194,7 @@ export function SellerAccountSettingsPage() {
                   type="email"
                   disabled
                   value={user.email}
-                  className="border border-[#ececec] bg-[#f7f7f7] text-[#767676] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] bg-[#f7f7f7] text-[#767676] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
             </div>
@@ -243,7 +243,7 @@ export function SellerAccountSettingsPage() {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter your current password"
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
 
@@ -258,7 +258,7 @@ export function SellerAccountSettingsPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Minimum 8 characters"
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
 
@@ -273,7 +273,7 @@ export function SellerAccountSettingsPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
             </div>

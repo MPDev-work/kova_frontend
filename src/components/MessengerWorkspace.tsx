@@ -20,7 +20,9 @@ import {
 import {
   ChatMessageBody,
   PendingAttachmentsBar,
+  PendingContextCardBar,
 } from './ChatMessageContent';
+import { consumePendingChatCard } from '../utils/chatContextCard';
 import { FigmaIcon } from './FigmaIcon';
 import { VerifiedBadge } from './VerifiedBadge';
 import { useStore } from '../context/StoreContext';
@@ -30,8 +32,8 @@ import {
   storeOwnerApi,
   type DashboardTicketItem,
 } from '../services/dashboardApi';
-import { formatShortDate } from '../utils/currency';
-import type { SupportTicket } from '../types/marketplace';
+import { formatChatTimestamp, formatShortDate } from '../utils/currency';
+import type { ChatContextCard, SupportTicket } from '../types/marketplace';
 
 type WorkspaceMode = 'customer' | 'seller' | 'admin';
 type FilterTab = 'all' | 'unread' | 'open' | 'in_progress' | 'resolved';
@@ -43,13 +45,18 @@ function getLastPreview(ticket: UnifiedTicket, mode: WorkspaceMode): string {
   if (latest) {
     const isOwn =
       mode === 'customer' ? !latest.is_admin_reply : latest.is_admin_reply;
+    const card = latest.metadata?.context_card;
     const body =
       latest.message?.trim() ||
       (latest.attachments && latest.attachments.length > 0
         ? latest.attachments.length === 1
           ? 'Sent a photo'
           : `Sent ${latest.attachments.length} photos`
-        : '');
+        : card
+          ? card.kind === 'order' && card.order_number
+            ? `Order #${card.order_number.replace(/^#/, '')}`
+            : card.product_name
+          : '');
     if (!body) return 'New message';
     return isOwn ? `You: ${body}` : body;
   }
@@ -87,6 +94,8 @@ export function MessengerWorkspace({
 
   const [replyText, setReplyText] = useState('');
   const [replyAttachments, setReplyAttachments] = useState<string[]>([]);
+  const [pendingContextCard, setPendingContextCard] =
+    useState<ChatContextCard | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [sending, setSending] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -242,6 +251,12 @@ export function MessengerWorkspace({
         prevThreadMetaRef.current = { id: null, count: 0 };
         setSelectedId(started.id);
         setActiveTicket(started);
+        const queuedCard = consumePendingChatCard(
+          started.store_id ?? opts.storeId ?? null,
+        );
+        if (queuedCard) {
+          setPendingContextCard(queuedCard);
+        }
         setSearchParams({ chat: String(started.id) }, { replace: true });
         void fetchList(true);
         window.setTimeout(() => {
@@ -374,6 +389,7 @@ export function MessengerWorkspace({
       isNearBottomRef.current = true;
       setShowScrollBottom(false);
       setChatMenuOpen(false);
+      setPendingContextCard(null);
     }
     setSelectedId(id);
     const next = new URLSearchParams(searchParams);
@@ -584,18 +600,27 @@ export function MessengerWorkspace({
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeTicket || (!replyText.trim() && replyAttachments.length === 0)) {
+    if (
+      !activeTicket ||
+      (!replyText.trim() &&
+        replyAttachments.length === 0 &&
+        !pendingContextCard)
+    ) {
       return;
     }
     setSending(true);
     try {
       forceScrollBottomRef.current = true;
       setShowScrollBottom(false);
+      const metadataPayload = pendingContextCard
+        ? { context_card: pendingContextCard }
+        : undefined;
       if (mode === 'admin') {
         const res = await adminApi.replyTicket(
           activeTicket.id,
           replyText.trim(),
           replyAttachments,
+          metadataPayload,
         );
         setActiveTicket(res.ticket);
       } else if (mode === 'seller') {
@@ -603,6 +628,7 @@ export function MessengerWorkspace({
           activeTicket.id,
           replyText.trim(),
           replyAttachments,
+          metadataPayload,
         );
         setActiveTicket(res.ticket);
       } else {
@@ -610,12 +636,14 @@ export function MessengerWorkspace({
           activeTicket.id,
           replyText.trim(),
           replyAttachments,
+          metadataPayload,
         );
         const fresh = await customerApi.getTicket(activeTicket.id);
         setActiveTicket(fresh);
       }
       setReplyText('');
       setReplyAttachments([]);
+      setPendingContextCard(null);
       if (replyTextareaRef.current) {
         replyTextareaRef.current.style.height = 'auto';
       }
@@ -896,7 +924,7 @@ export function MessengerWorkspace({
                       )}
                     </span>
                     {isPeerOnline && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#029500] border-2 border-white" />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#1e90ff] border-2 border-white" />
                     )}
                   </div>
 
@@ -925,7 +953,10 @@ export function MessengerWorkspace({
                           : 'text-[#767676]'
                       }`}
                     >
-                      {preview} · {formatShortDate(t.updated_at)}
+                      {preview} ·{' '}
+                      {formatChatTimestamp(
+                        t.latest_message?.created_at || t.updated_at || t.created_at,
+                      )}
                     </p>
                   </div>
 
@@ -1044,7 +1075,7 @@ export function MessengerWorkspace({
                     )}
                   </span>
                   {!activeTicket.is_blocked && activeTicket.peer_is_online && (
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#029500] border-2 border-white" />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#1e90ff] border-2 border-white" />
                   )}
                 </div>
 
@@ -1068,7 +1099,7 @@ export function MessengerWorkspace({
                     <span
                       className={`font-medium ${
                         !activeTicket.is_blocked && activeTicket.peer_is_online
-                          ? 'text-[#029500]'
+                          ? 'text-[#1e90ff]'
                           : 'text-[#8a8a8a]'
                       }`}
                     >
@@ -1076,11 +1107,6 @@ export function MessengerWorkspace({
                         ? 'Active'
                         : 'Offline'}
                     </span>
-                    {activeTicket.order && (
-                      <span className="bg-[#f4f4f4] text-[#555555] text-[11px] font-semibold px-2 py-0.5 rounded-full">
-                        Order #{activeTicket.order.order_number}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1228,8 +1254,7 @@ export function MessengerWorkspace({
                         isOwn={isOwnInitial}
                       />
                       <span className="text-[11px] text-[#8a8a8a] mt-1 px-1">
-                        {isOwnInitial ? 'You' : customerName} ·{' '}
-                        {formatShortDate(activeTicket.created_at)}
+                        {formatChatTimestamp(activeTicket.created_at)}
                       </span>
                     </div>
                   </div>
@@ -1281,10 +1306,12 @@ export function MessengerWorkspace({
                       <ChatMessageBody
                         message={msg.message}
                         attachments={msg.attachments}
+                        metadata={msg.metadata}
                         isOwn={isOwn}
+                        viewerMode={mode}
                       />
                       <span className="text-[11px] text-[#8a8a8a] mt-1 px-1">
-                        {senderName} · {formatShortDate(msg.created_at)}
+                        {formatChatTimestamp(msg.created_at)}
                       </span>
                     </div>
                   </div>
@@ -1332,6 +1359,10 @@ export function MessengerWorkspace({
               onSubmit={handleSendReply}
               className="bg-white border-t border-[#ececec] px-4 py-3 flex flex-col gap-2 shrink-0"
             >
+              <PendingContextCardBar
+                card={pendingContextCard}
+                onRemove={() => setPendingContextCard(null)}
+              />
               <PendingAttachmentsBar
                 attachments={replyAttachments}
                 onRemove={(idx) =>
@@ -1389,7 +1420,9 @@ export function MessengerWorkspace({
                   disabled={
                     sending ||
                     uploadingImage ||
-                    (!replyText.trim() && replyAttachments.length === 0)
+                    (!replyText.trim() &&
+                      replyAttachments.length === 0 &&
+                      !pendingContextCard)
                   }
                   className="mb-0.5 inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-45 text-white px-4.5 py-2 rounded-full text-[13px] font-semibold transition-colors shrink-0"
                 >

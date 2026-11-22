@@ -2,9 +2,9 @@ import type {
   Address,
   AppliedCoupon,
   BakongKhqrData,
-  Brand,
   CartSummary,
   Category,
+  ChatMessageMetadata,
   ChildOrderRecord,
   OrderRecord,
   PlatformSettings,
@@ -239,8 +239,6 @@ export function normalizeProduct(raw: any): Product {
     category_id: raw.category_id ? Number(raw.category_id) : null,
     category_name: String(raw.category?.name || 'Uncategorized'),
     category_slug: String(raw.category?.slug || ''),
-    brand_id: raw.brand_id ? Number(raw.brand_id) : null,
-    brand_name: String(raw.brand?.name || ''),
     rating: raw.reviews_avg_rating
       ? Number(Number(raw.reviews_avg_rating).toFixed(1))
       : 0,
@@ -412,10 +410,6 @@ export const catalogApi = {
     return apiRequest<Category[]>('/categories');
   },
 
-  async getBrands() {
-    return apiRequest<Brand[]>('/brands');
-  },
-
   async getProvinces() {
     return apiRequest<Province[]>('/shipping/provinces');
   },
@@ -457,8 +451,6 @@ export const catalogApi = {
     search?: string;
     category_id?: number;
     category?: string;
-    brand_id?: number;
-    brand?: string;
     store_id?: number;
     featured?: boolean;
     has_discount?: boolean;
@@ -563,6 +555,14 @@ export const cartApi = {
     return res.data;
   },
 
+  async removeItems(itemIds: number[]) {
+    const res = await apiRequest<CartSummary>('/cart/items/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ item_ids: itemIds }),
+    });
+    return res.data;
+  },
+
   async clearCart() {
     await apiRequest<null>('/cart/clear', { method: 'DELETE' });
   },
@@ -617,6 +617,12 @@ export const checkoutApi = {
     coupon_code?: string | null;
     notes?: string | null;
     shipping_methods?: Record<number, number>;
+    cart_item_ids?: number[];
+    buy_now_item?: {
+      product_id: number;
+      variant_id?: number | null;
+      quantity: number;
+    };
   }) {
     const res = await apiRequest<{ order: unknown }>('/checkout', {
       method: 'POST',
@@ -900,12 +906,18 @@ export const customerApi = {
     return res.data;
   },
 
-  async replyTicket(id: number, message: string, attachments?: string[]) {
+  async replyTicket(
+    id: number,
+    message: string,
+    attachments?: string[],
+    metadata?: ChatMessageMetadata | null,
+  ) {
     return apiRequest<unknown>(`/customer/tickets/${id}/reply`, {
       method: 'POST',
       body: JSON.stringify({
         message,
         attachments: attachments && attachments.length > 0 ? attachments : undefined,
+        metadata: metadata ?? undefined,
       }),
     });
   },

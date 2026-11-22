@@ -31,7 +31,7 @@ function getAdminBreadcrumbs(pathname: string): string[] {
     return ['Kova Global', 'Users & Roles'];
   }
   if (pathname.startsWith('/admin/catalog')) {
-    return ['Kova Global', 'Categories & Brands'];
+    return ['Kova Global', 'Categories'];
   }
   if (pathname.startsWith('/admin/bakong')) {
     return ['Kova Global', 'Payments & Transactions'];
@@ -123,9 +123,6 @@ export function AdminLayout() {
       <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center p-4">
         <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[440px] w-full text-center flex flex-col items-center gap-4">
           <KovaLogo size="sm" />
-          <span className="bg-black text-white text-[10.5px] font-bold px-3 py-1 rounded-full tracking-wide">
-            ROOT ADMIN
-          </span>
           <h1 className="text-[22px] font-bold text-black">
             Sign in as Root Administrator
           </h1>
@@ -214,7 +211,7 @@ export function AdminLayout() {
       title: 'COMMERCE',
       items: [
         {
-          label: 'Categories & Brands',
+          label: 'Categories',
           to: '/admin/catalog',
           icon: 'tag',
         },
@@ -292,9 +289,6 @@ export function AdminLayout() {
         <div className="flex flex-col gap-5 overflow-y-auto no-scrollbar">
           <div className="flex items-center gap-2 px-1.5 pt-0.5">
             <KovaLogo size="sm" to="/admin" />
-            <span className="bg-black text-white text-[9.5px] font-bold px-2.5 py-[3px] rounded-full tracking-[0.04em] whitespace-nowrap">
-              ROOT ADMIN
-            </span>
           </div>
 
           <nav className="flex flex-col gap-4">
@@ -428,17 +422,6 @@ export function AdminLayout() {
           </form>
 
           <div className="flex items-center gap-2.5 shrink-0">
-            <span className="hidden xl:inline-flex items-center bg-[#e7f6e7] text-[#029500] text-[11.5px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap">
-              System Healthy
-            </span>
-
-            <Link
-              to="/admin/stores?tab=applications"
-              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12px] font-semibold px-4 py-2 rounded-full transition-colors whitespace-nowrap"
-            >
-              Review stores
-            </Link>
-
             <button
               type="button"
               onClick={() => setNotifModalOpen(true)}

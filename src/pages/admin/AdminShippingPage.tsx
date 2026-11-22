@@ -268,7 +268,6 @@ export function AdminShippingPage() {
             label: 'In transit',
             value: String(stats.in_transit),
             sub: 'Phnom Penh & provinces',
-            badge: 'Live',
             tone: 'green',
           },
           {
@@ -522,7 +521,7 @@ export function AdminShippingPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. J&T Express Cambodia"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
             />
           </label>
 
@@ -535,7 +534,7 @@ export function AdminShippingPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Doorstep delivery across Phnom Penh & 25 provinces"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
             />
           </label>
 
@@ -554,7 +553,7 @@ export function AdminShippingPage() {
                     | 'distance_based',
                 )
               }
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
             >
               <option value="fixed">Fixed rate</option>
               <option value="free">Free delivery</option>
@@ -575,7 +574,7 @@ export function AdminShippingPage() {
                 disabled={calcType === 'free'}
                 value={calcType === 'free' ? '0' : baseCost}
                 onChange={(e) => setBaseCost(e.target.value)}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none disabled:bg-[#f7f7f7]"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none disabled:bg-[#f7f7f7]"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -590,7 +589,7 @@ export function AdminShippingPage() {
                 value={calcType === 'free' ? '' : freeThreshold}
                 onChange={(e) => setFreeThreshold(e.target.value)}
                 placeholder={calcType === 'free' ? 'Always free' : 'Optional'}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none disabled:bg-[#f7f7f7]"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none disabled:bg-[#f7f7f7]"
               />
             </label>
           </div>
@@ -604,7 +603,7 @@ export function AdminShippingPage() {
               value={estDays}
               onChange={(e) => setEstDays(e.target.value)}
               placeholder="e.g. Same-day Phnom Penh · 1-3 days provinces"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
             />
           </label>
 
@@ -676,7 +675,7 @@ export function AdminShippingPage() {
                     | 'completed',
                 )
               }
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
             >
               <option value="processing">Processing</option>
               <option value="shipped">Shipped (In transit)</option>
@@ -694,7 +693,7 @@ export function AdminShippingPage() {
               value={shipCarrier}
               onChange={(e) => setShipCarrier(e.target.value)}
               placeholder="e.g. J&T Express Cambodia"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
             />
           </label>
 
@@ -707,7 +706,7 @@ export function AdminShippingPage() {
               value={shipTracking}
               onChange={(e) => setShipTracking(e.target.value)}
               placeholder="e.g. JT-KH-20260001"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] font-mono outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono outline-none"
             />
           </label>
 

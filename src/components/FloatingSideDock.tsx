@@ -58,10 +58,10 @@ export function FloatingSideDock() {
     <>
       <aside
         aria-label="Quick navigation"
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2.5 select-none"
+        className="fixed right-0 top-[calc(50%+50px)] -translate-y-1/2 z-40 flex flex-col gap-2.5 select-none"
       >
         {/* Main Vertical Pill Card */}
-        <div className="w-[50px] sm:w-[56px] bg-white border border-r-0 border-[#ececec] rounded-l-[20px] shadow-[0_8px_28px_rgba(0,0,0,0.08)] py-3 flex flex-col items-center gap-1.5">
+        <div className="w-[48px] sm:w-[50px] bg-white border border-r-0 border-[#ececec] rounded-l-[17px] shadow-[0_8px_28px_rgba(0,0,0,0.08)] py-1.5 flex flex-col items-center gap-1.5">
           {/* Kova Brand Mark -> Home */}
           <Link
             to="/"
@@ -83,7 +83,7 @@ export function FloatingSideDock() {
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
           >
-            <Heart className="w-[21px] h-[21px]" strokeWidth={1.85} />
+            <Heart className="w-[20px] h-[20px]" strokeWidth={1.85} />
             {!bootstrapping && isSignedIn && (
               <DockBadge count={wishlistIds.length} />
             )}
@@ -100,7 +100,7 @@ export function FloatingSideDock() {
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
           >
-            <ShoppingCart className="w-[21px] h-[21px]" strokeWidth={1.85} />
+            <ShoppingCart className="w-[20px] h-[20px]" strokeWidth={1.85} />
             {!bootstrapping && <DockBadge count={cartCount} />}
             <DockTooltip label="Cart" />
           </Link>
@@ -111,7 +111,7 @@ export function FloatingSideDock() {
             aria-label="Messenger"
             className={`${itemBase} text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]`}
           >
-            <MessagesSquare className="w-[21px] h-[21px]" strokeWidth={1.85} />
+            <MessagesSquare className="w-[20px] h-[20px]" strokeWidth={1.85} />
             {!bootstrapping && isSignedIn && (
               <DockBadge count={unreadMessagesCount} />
             )}
@@ -129,7 +129,7 @@ export function FloatingSideDock() {
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
           >
-            <Bell className="w-[21px] h-[21px]" strokeWidth={1.85} />
+            <Bell className="w-[20px] h-[20px]" strokeWidth={1.85} />
             {!bootstrapping && isSignedIn && (
               <DockBadge count={unreadNotificationsCount} />
             )}
@@ -146,7 +146,7 @@ export function FloatingSideDock() {
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
           >
-            <Headset className="w-[21px] h-[21px]" strokeWidth={1.85} />
+            <Headset className="w-[20px] h-[20px]" strokeWidth={1.85} />
             <DockTooltip label="Support" />
           </Link>
         </div>
@@ -156,7 +156,7 @@ export function FloatingSideDock() {
           type="button"
           onClick={scrollToTop}
           aria-label="Back to top"
-          className="group relative w-[50px] sm:w-[56px] h-[52px] bg-white border border-r-0 border-[#ececec] rounded-l-[20px] shadow-[0_8px_28px_rgba(0,0,0,0.08)] flex items-center justify-center text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20] transition-colors"
+          className="group relative w-[48px] sm:w-[50px] h-[50px] bg-white border border-r-0 border-[#ececec] rounded-l-[20px] shadow-[0_8px_28px_rgba(0,0,0,0.08)] flex items-center justify-center text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20] transition-colors"
         >
           <ArrowUpToLine className="w-[20px] h-[20px]" strokeWidth={1.9} />
           <DockTooltip label="Back to top" />

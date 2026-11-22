@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Image } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { ApiError } from '../../services/api';
 import {
   adminApi,
   type AdminBakongAccount,
   type AdminBakongOverview,
-  type AdminBrandItem,
   type AdminCategoryItem,
   type AdminDisputeItem,
   type AdminUserItem,
@@ -488,11 +488,17 @@ export function AdminUsersPage() {
 // ==========================================
 export function AdminCatalogPage() {
   const { showToast, refreshCatalog } = useStore();
-  const [tab, setTab] = useState<'categories' | 'brands'>('categories');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'hidden'>(
+    'all',
+  );
   const [search, setSearch] = useState('');
   const [categories, setCategories] = useState<AdminCategoryItem[]>([]);
-  const [brands, setBrands] = useState<AdminBrandItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Quick inline category input bar
+  const [quickName, setQuickName] = useState('');
+  const [quickCommission, setQuickCommission] = useState('');
+  const [quickSaving, setQuickSaving] = useState(false);
 
   // Category drawer state (supports create + edit)
   const [catDrawerOpen, setCatDrawerOpen] = useState(false);
@@ -504,28 +510,13 @@ export function AdminCatalogPage() {
   const [catActive, setCatActive] = useState(true);
   const [savingCat, setSavingCat] = useState(false);
 
-  // Brand drawer state (supports create + edit)
-  const [brandDrawerOpen, setBrandDrawerOpen] = useState(false);
-  const [editingBrand, setEditingBrand] = useState<AdminBrandItem | null>(null);
-  const [brandName, setBrandName] = useState('');
-  const [brandWebsite, setBrandWebsite] = useState('');
-  const [brandDesc, setBrandDesc] = useState('');
-  const [brandLogo, setBrandLogo] = useState('');
-  const [brandActive, setBrandActive] = useState(true);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [savingBrand, setSavingBrand] = useState(false);
-
   const loadCatalog = useCallback(async () => {
     try {
-      const [cats, brs] = await Promise.all([
-        adminApi.getCategories(),
-        adminApi.getBrands(100),
-      ]);
+      const cats = await adminApi.getCategories();
       setCategories(cats);
-      setBrands(brs.data);
     } catch (err) {
       showToast(
-        err instanceof ApiError ? err.message : 'Unable to load catalog.',
+        err instanceof ApiError ? err.message : 'Unable to load categories.',
       );
     } finally {
       setLoading(false);
@@ -541,6 +532,32 @@ export function AdminCatalogPage() {
       active = false;
     };
   }, [loadCatalog]);
+
+  const handleQuickAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickName.trim()) return;
+    setQuickSaving(true);
+    try {
+      await adminApi.createCategory({
+        name: quickName.trim(),
+        commission_rate: quickCommission.trim()
+          ? Number(quickCommission)
+          : null,
+        order: categories.length + 1,
+        is_active: true,
+      });
+      setQuickName('');
+      setQuickCommission('');
+      showToast('Category added.');
+      await Promise.all([loadCatalog(), refreshCatalog()]);
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to add category.',
+      );
+    } finally {
+      setQuickSaving(false);
+    }
+  };
 
   const openNewCategory = () => {
     setEditingCat(null);
@@ -608,128 +625,92 @@ export function AdminCatalogPage() {
     }
   };
 
-  const openNewBrand = () => {
-    setEditingBrand(null);
-    setBrandName('');
-    setBrandWebsite('');
-    setBrandDesc('');
-    setBrandLogo('');
-    setBrandActive(true);
-    setBrandDrawerOpen(true);
-  };
-
-  const openEditBrand = (b: AdminBrandItem) => {
-    setEditingBrand(b);
-    setBrandName(b.name);
-    setBrandWebsite(b.website || '');
-    setBrandDesc(b.description || '');
-    setBrandLogo(b.logo || '');
-    setBrandActive(Boolean(b.is_active));
-    setBrandDrawerOpen(true);
-  };
-
-  const handleUploadBrandLogo = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingLogo(true);
-    try {
-      const media = await adminApi.uploadMedia(file, 'brands');
-      setBrandLogo(media.secure_url);
-      showToast('Image uploaded successfully.');
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Logo upload failed.');
-    } finally {
-      setUploadingLogo(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleSaveBrand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!brandName.trim()) return;
-    setSavingBrand(true);
-    try {
-      const payload = {
-        name: brandName.trim(),
-        website: brandWebsite.trim() || null,
-        description: brandDesc.trim() || null,
-        logo: brandLogo.trim() || null,
-        is_active: brandActive,
-      };
-      if (editingBrand) {
-        await adminApi.updateBrand(editingBrand.id, payload);
-        showToast('Brand updated.');
-      } else {
-        await adminApi.createBrand(payload);
-        showToast('Brand created.');
-      }
-      setBrandDrawerOpen(false);
-      await Promise.all([loadCatalog(), refreshCatalog()]);
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to save brand.',
-      );
-    } finally {
-      setSavingBrand(false);
-    }
-  };
-
-  const handleDeleteBrand = async (b: AdminBrandItem) => {
-    try {
-      await adminApi.deleteBrand(b.id);
-      showToast(`Deleted "${b.name}".`);
-      await Promise.all([loadCatalog(), refreshCatalog()]);
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to delete brand.',
-      );
-    }
-  };
-
   const q = search.trim().toLowerCase();
-  const filteredCats = categories.filter(
-    (c) =>
+  const filteredCats = categories.filter((c) => {
+    if (statusFilter === 'active' && !c.is_active) return false;
+    if (statusFilter === 'hidden' && c.is_active) return false;
+    return (
       !q ||
       c.name.toLowerCase().includes(q) ||
-      c.slug.toLowerCase().includes(q),
-  );
-  const filteredBrands = brands.filter(
-    (b) =>
-      !q ||
-      b.name.toLowerCase().includes(q) ||
-      b.slug.toLowerCase().includes(q),
-  );
+      c.slug.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="flex flex-col gap-5">
       <DashboardPageHeader
-        title="Categories & brands"
-        subtitle="Control marketplace taxonomy hierarchy, commission rates, and verified brands."
+        title="Categories"
+        subtitle="Manage marketplace categories, display order, and commission overrides."
         actions={
           <button
             type="button"
-            onClick={tab === 'categories' ? openNewCategory : openNewBrand}
+            onClick={openNewCategory}
             className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
           >
-            {tab === 'categories' ? 'Add category' : 'Add brand'}
+            Add category
           </button>
         }
       />
 
+      {/* Quick Category Input Bar */}
+      <form
+        onSubmit={handleQuickAddCategory}
+        className="bg-white border border-[#ececec] rounded-[20px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end gap-3"
+      >
+        <label className="flex-1 flex flex-col gap-1.5 min-w-0">
+          <span className="text-[12px] font-semibold text-black">
+            Quick add category
+          </span>
+          <input
+            type="text"
+            required
+            value={quickName}
+            onChange={(e) => setQuickName(e.target.value)}
+            placeholder="Type a new category name (e.g. Fashion & Apparel, Phones & Audio)..."
+            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+          />
+        </label>
+        <label className="w-full sm:w-[170px] flex flex-col gap-1.5 shrink-0">
+          <span className="text-[12px] font-semibold text-black">
+            Commission % (optional)
+          </span>
+          <input
+            type="number"
+            step="0.1"
+            min={0}
+            max={100}
+            value={quickCommission}
+            onChange={(e) => setQuickCommission(e.target.value)}
+            placeholder="Default"
+            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={quickSaving || !quickName.trim()}
+          className="h-[42px] bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[13px] font-semibold px-6 rounded-full transition-colors shrink-0"
+        >
+          {quickSaving ? 'Adding...' : 'Add category'}
+        </button>
+      </form>
+
       <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <FilterPillTabs<'categories' | 'brands'>
-            value={tab}
-            onChange={setTab}
+          <FilterPillTabs<'all' | 'active' | 'hidden'>
+            value={statusFilter}
+            onChange={setStatusFilter}
             options={[
+              { id: 'all', label: 'All categories', count: categories.length },
               {
-                id: 'categories',
-                label: 'Categories',
-                count: categories.length,
+                id: 'active',
+                label: 'Active',
+                count: categories.filter((c) => c.is_active).length,
               },
-              { id: 'brands', label: 'Brands', count: brands.length },
+              {
+                id: 'hidden',
+                label: 'Hidden',
+                count: categories.filter((c) => !c.is_active).length,
+              },
             ]}
           />
 
@@ -739,9 +720,7 @@ export function AdminCatalogPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={
-                tab === 'categories' ? 'Search categories...' : 'Search brands...'
-              }
+              placeholder="Search categories..."
               className="flex-1 bg-transparent text-[12.5px] text-black placeholder:text-[#979797] outline-none min-w-0"
             />
           </div>
@@ -749,109 +728,17 @@ export function AdminCatalogPage() {
 
         {loading ? (
           <DashboardTableSkeleton rows={6} />
-        ) : tab === 'categories' ? (
-          filteredCats.length === 0 ? (
-            <div className="py-14 text-center bg-[#f7f7f7] rounded-[14px] flex flex-col items-center gap-3">
-              <p className="text-[14px] font-semibold text-black">
-                No categories found
-              </p>
-              <button
-                type="button"
-                onClick={openNewCategory}
-                className="bg-[#ff6e20] text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-              >
-                Create first category
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#f7f7f7] text-[11.5px] font-semibold text-[#767676]">
-                    <th className="py-2.5 px-3.5 rounded-l-[10px]">Category</th>
-                    <th className="py-2.5 px-3.5">Sort order</th>
-                    <th className="py-2.5 px-3.5">SEO slug</th>
-                    <th className="py-2.5 px-3.5">Commission</th>
-                    <th className="py-2.5 px-3.5">Status</th>
-                    <th className="py-2.5 px-3.5 rounded-r-[10px] text-right">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#f1f1f1] text-[13px]">
-                  {filteredCats.map((c, idx) => (
-                    <tr
-                      key={c.id}
-                      className="hover:bg-[#fafafa] transition-colors"
-                    >
-                      <td className="py-3.5 px-3.5">
-                        <div className="flex items-center gap-3">
-                          <span className="w-9 h-9 rounded-[10px] bg-[#f7f7f7] border border-[#ececec] text-[#ff6e20] flex items-center justify-center shrink-0">
-                            <FigmaIcon name="tag" className="w-4 h-4" />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-black">{c.name}</p>
-                            {c.description && (
-                              <p className="text-[11.5px] text-[#8a8a8a] truncate max-w-[260px]">
-                                {c.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-3.5 font-medium text-[#555555]">
-                        #{c.order ?? idx + 1}
-                      </td>
-                      <td className="py-3.5 px-3.5 font-mono text-[12px] text-[#767676]">
-                        /c/{c.slug}
-                      </td>
-                      <td className="py-3.5 px-3.5 text-[#555555]">
-                        {c.commission_rate !== null &&
-                        c.commission_rate !== undefined
-                          ? `${c.commission_rate}%`
-                          : 'Platform default'}
-                      </td>
-                      <td className="py-3.5 px-3.5">
-                        <StatusPill
-                          label={c.is_active ? 'Active' : 'Hidden'}
-                          tone={c.is_active ? 'green' : 'neutral'}
-                        />
-                      </td>
-                      <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => openEditCategory(c)}
-                            className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDeleteCategory(c)}
-                            className="text-[12.5px] font-semibold text-[#e5322d] hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        ) : filteredBrands.length === 0 ? (
+        ) : filteredCats.length === 0 ? (
           <div className="py-14 text-center bg-[#f7f7f7] rounded-[14px] flex flex-col items-center gap-3">
             <p className="text-[14px] font-semibold text-black">
-              No brands found
+              No categories found
             </p>
             <button
               type="button"
-              onClick={openNewBrand}
+              onClick={openNewCategory}
               className="bg-[#ff6e20] text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
             >
-              Create first brand
+              Create first category
             </button>
           </div>
         ) : (
@@ -859,10 +746,10 @@ export function AdminCatalogPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#f7f7f7] text-[11.5px] font-semibold text-[#767676]">
-                  <th className="py-2.5 px-3.5 rounded-l-[10px]">Brand</th>
+                  <th className="py-2.5 px-3.5 rounded-l-[10px]">Category</th>
+                  <th className="py-2.5 px-3.5">Sort order</th>
                   <th className="py-2.5 px-3.5">SEO slug</th>
-                  <th className="py-2.5 px-3.5">Website</th>
-                  <th className="py-2.5 px-3.5">Products</th>
+                  <th className="py-2.5 px-3.5">Commission</th>
                   <th className="py-2.5 px-3.5">Status</th>
                   <th className="py-2.5 px-3.5 rounded-r-[10px] text-right">
                     Action
@@ -870,56 +757,56 @@ export function AdminCatalogPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1f1f1] text-[13px]">
-                {filteredBrands.map((b) => (
+                {filteredCats.map((c, idx) => (
                   <tr
-                    key={b.id}
+                    key={c.id}
                     className="hover:bg-[#fafafa] transition-colors"
                   >
                     <td className="py-3.5 px-3.5">
                       <div className="flex items-center gap-3">
-                        {b.logo ? (
-                          <img
-                            src={b.logo}
-                            alt={b.name}
-                            className="w-9 h-9 rounded-[10px] object-contain border border-[#ececec] bg-white p-1 shrink-0"
-                          />
-                        ) : (
-                          <span className="w-9 h-9 rounded-[10px] bg-[#ffefe6] text-[#ff6e20] text-[12px] font-bold flex items-center justify-center shrink-0">
-                            {b.name.slice(0, 2).toUpperCase()}
-                          </span>
-                        )}
-                        <span className="font-semibold text-black">
-                          {b.name}
+                        <span className="w-9 h-9 rounded-[10px] bg-[#f7f7f7] border border-[#ececec] text-[#ff6e20] flex items-center justify-center shrink-0">
+                          <FigmaIcon name="tag" className="w-4 h-4" />
                         </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-black">{c.name}</p>
+                          {c.description && (
+                            <p className="text-[11.5px] text-[#8a8a8a] truncate max-w-[260px]">
+                              {c.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </td>
+                    <td className="py-3.5 px-3.5 font-medium text-[#555555]">
+                      #{c.order ?? idx + 1}
+                    </td>
                     <td className="py-3.5 px-3.5 font-mono text-[12px] text-[#767676]">
-                      /{b.slug}
+                      /c/{c.slug}
                     </td>
-                    <td className="py-3.5 px-3.5 text-[#767676] truncate max-w-[200px]">
-                      {b.website || '—'}
-                    </td>
-                    <td className="py-3.5 px-3.5 font-semibold text-black">
-                      {b.products_count ?? 0}
+                    <td className="py-3.5 px-3.5 text-[#555555]">
+                      {c.commission_rate !== null &&
+                      c.commission_rate !== undefined
+                        ? `${c.commission_rate}%`
+                        : 'Platform default'}
                     </td>
                     <td className="py-3.5 px-3.5">
                       <StatusPill
-                        label={b.is_active ? 'Active' : 'Hidden'}
-                        tone={b.is_active ? 'green' : 'neutral'}
+                        label={c.is_active ? 'Active' : 'Hidden'}
+                        tone={c.is_active ? 'green' : 'neutral'}
                       />
                     </td>
                     <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => openEditBrand(b)}
+                          onClick={() => openEditCategory(c)}
                           className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleDeleteBrand(b)}
+                          onClick={() => void handleDeleteCategory(c)}
                           className="text-[12.5px] font-semibold text-[#e5322d] hover:underline"
                         >
                           Delete
@@ -938,7 +825,9 @@ export function AdminCatalogPage() {
       <SlideOverDrawer
         open={catDrawerOpen}
         onClose={() => setCatDrawerOpen(false)}
-        title={editingCat ? `Edit category · ${editingCat.name}` : 'Add global category'}
+        title={
+          editingCat ? `Edit category · ${editingCat.name}` : 'Add global category'
+        }
         subtitle="Marketplace categories are available to all approved store owners."
         footer={
           <>
@@ -979,7 +868,7 @@ export function AdminCatalogPage() {
               value={catName}
               onChange={(e) => setCatName(e.target.value)}
               placeholder="e.g. Electronics & Audio"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
             />
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -995,7 +884,7 @@ export function AdminCatalogPage() {
                 value={catCommission}
                 onChange={(e) => setCatCommission(e.target.value)}
                 placeholder="Platform default"
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -1007,7 +896,7 @@ export function AdminCatalogPage() {
                 min={0}
                 value={catOrder}
                 onChange={(e) => setCatOrder(e.target.value)}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
               />
             </label>
           </div>
@@ -1020,148 +909,27 @@ export function AdminCatalogPage() {
               value={catDesc}
               onChange={(e) => setCatDesc(e.target.value)}
               placeholder="Short summary of products in this category..."
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] p-3 text-[13.5px] outline-none"
+              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[16px] p-3.5 text-[13.5px] outline-none"
             />
           </label>
-          <div className="pt-2 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[13px] font-semibold text-black">
-                Visible on Kova Marketplace
-              </p>
-              <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
-                Show this category to buyers and sellers across the platform.
-              </p>
-            </div>
-            <ToggleSwitch
-              checked={catActive}
-              onChange={setCatActive}
-              ariaLabel="Visible on Kova Marketplace"
-            />
-          </div>
-        </form>
-      </SlideOverDrawer>
-
-      {/* Brand Create/Edit Drawer */}
-      <SlideOverDrawer
-        open={brandDrawerOpen}
-        onClose={() => setBrandDrawerOpen(false)}
-        title={editingBrand ? `Edit brand · ${editingBrand.name}` : 'Add global brand'}
-        subtitle="Upload crisp brand logos for verified brand discovery."
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setBrandDrawerOpen(false)}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="admin-brand-form"
-              disabled={savingBrand || uploadingLogo}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-            >
-              {savingBrand
-                ? 'Saving...'
-                : editingBrand
-                  ? 'Save changes'
-                  : 'Create brand'}
-            </button>
-          </>
-        }
-      >
-        <form
-          id="admin-brand-form"
-          onSubmit={handleSaveBrand}
-          className="flex flex-col gap-4"
-        >
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="text-[12px] font-semibold text-black">
-              Brand name
+              Visibility
             </span>
-            <input
-              type="text"
-              required
-              value={brandName}
-              onChange={(e) => setBrandName(e.target.value)}
-              placeholder="e.g. Sony, Anker, Apple"
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-semibold text-black">
-              Website URL (optional)
-            </span>
-            <input
-              type="url"
-              value={brandWebsite}
-              onChange={(e) => setBrandWebsite(e.target.value)}
-              placeholder="https://..."
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-semibold text-black">
-              Description
-            </span>
-            <textarea
-              rows={2}
-              value={brandDesc}
-              onChange={(e) => setBrandDesc(e.target.value)}
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] p-3 text-[13.5px] outline-none"
-            />
-          </label>
-          <div className="flex flex-col gap-2">
-            <span className="text-[12px] font-semibold text-black">
-              Brand logo
-            </span>
-            <label className="border border-dashed border-[#ff6e20]/60 bg-[#fff9f5] hover:bg-[#ffefe6]/60 transition-colors rounded-[14px] p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center">
-              <FigmaIcon name="upload" className="w-5 h-5 text-[#ff6e20]" />
-              <span className="text-[12.5px] font-semibold text-[#ff6e20]">
-                {uploadingLogo ? 'Uploading image...' : 'Upload brand logo'}
+            <div className="h-[42px] bg-white border border-[#ececec] rounded-full px-4 flex items-center justify-between gap-3">
+              <span
+                className={`text-[13px] font-medium ${
+                  catActive ? 'text-[#ff6e20]' : 'text-[#767676]'
+                }`}
+              >
+                {catActive ? 'Visible on marketplace' : 'Hidden'}
               </span>
-              <span className="text-[11px] text-[#8a8a8a]">
-                PNG, JPG, WebP
-              </span>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handleUploadBrandLogo}
-                className="hidden"
+              <ToggleSwitch
+                checked={catActive}
+                onChange={setCatActive}
+                ariaLabel="Visible on Kova Marketplace"
               />
-            </label>
-            {brandLogo && (
-              <div className="flex items-center gap-3 pt-1">
-                <img
-                  src={brandLogo}
-                  alt="Brand preview"
-                  className="w-12 h-12 rounded-[10px] object-contain border border-[#ececec] bg-white p-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => setBrandLogo('')}
-                  className="text-[12px] font-semibold text-[#e5322d] hover:underline"
-                >
-                  Remove logo
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="pt-2 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[13px] font-semibold text-black">
-                Active brand
-              </p>
-              <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
-                Allow sellers to tag products under this brand.
-              </p>
             </div>
-            <ToggleSwitch
-              checked={brandActive}
-              onChange={setBrandActive}
-              ariaLabel="Active brand"
-            />
           </div>
         </form>
       </SlideOverDrawer>
@@ -1273,7 +1041,6 @@ export function AdminBakongPage() {
           label: 'Pending KHQR',
           value: String(overview.transactions.pending_count),
           sub: 'Awaiting customer scan',
-          badge: 'Live',
           tone: overview.transactions.pending_count > 0 ? 'orange' : 'neutral',
         },
         {
@@ -1298,6 +1065,12 @@ export function AdminBakongPage() {
                 ENV: {overview.environment}
               </span>
             )}
+            <Link
+              to="/admin/settings"
+              className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-black text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
+            >
+              Bakong API Token
+            </Link>
             <button
               type="button"
               onClick={handleExportLedger}
@@ -1749,7 +1522,7 @@ export function AdminDisputesPage() {
                       | 'closed',
                   )
                 }
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
               >
                 <option value="resolved_customer">
                   Approve refund (favor customer)
@@ -1784,8 +1557,75 @@ export function AdminDisputesPage() {
 // ==========================================
 // 7. Platform & System Settings (/admin/settings) — Figma Admin · 26
 // ==========================================
+const CURRENCY_OPTIONS = [
+  { code: 'USD', symbol: '$', label: 'US Dollar' },
+  { code: 'KHR', symbol: '៛', label: 'Cambodian Riel' },
+] as const;
+
+const SOCIAL_LINK_FIELDS = [
+  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/kovaglobal' },
+  { key: 'telegram', label: 'Telegram', placeholder: 'https://t.me/kovaglobal' },
+  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/kovaglobal' },
+  { key: 'tiktok', label: 'TikTok', placeholder: 'https://tiktok.com/@kovaglobal' },
+  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@kovaglobal' },
+] as const;
+
+const BOOLEAN_SETTING_KEYS = new Set([
+  'commission_enabled',
+  'allow_store_registration',
+  'auto_approve_stores',
+  'maintenance_mode',
+  'telegram_notifications_enabled',
+]);
+
+const BRANDING_FILE_KEYS = new Set(['site_logo', 'site_favicon']);
+
+function parseBoolSetting(val: string | undefined): boolean {
+  const normalized = (val ?? '').trim().toLowerCase();
+  return normalized === 'true' || normalized === '1' || normalized === 'yes';
+}
+
+function parseSupportedCurrencies(raw: string | undefined): string[] {
+  if (!raw) return ['USD', 'KHR'];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      const codes = parsed
+        .map((c) => String(c).trim().toUpperCase())
+        .filter(Boolean);
+      return codes.length > 0 ? Array.from(new Set(codes)) : ['USD'];
+    }
+  } catch {
+    const split = raw
+      .split(',')
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+    if (split.length > 0) return Array.from(new Set(split));
+  }
+  return ['USD', 'KHR'];
+}
+
+function parseSocialLinks(raw: string | undefined): Record<string, string> {
+  if (!raw || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const out: Record<string, string> = {};
+      Object.entries(parsed as Record<string, unknown>).forEach(([k, v]) => {
+        if (typeof v === 'string') out[k.toLowerCase()] = v;
+      });
+      return out;
+    }
+  } catch {
+    if (/^https?:\/\//i.test(raw.trim())) {
+      return { facebook: raw.trim() };
+    }
+  }
+  return {};
+}
+
 export function AdminSettingsPage() {
-  const { showToast, refreshCatalog, khrRate } = useStore();
+  const { showToast, refreshCatalog, khrRate, settings: publicSettings } = useStore();
   const [grouped, setGrouped] = useState<Record<string, PlatformSettingItem[]>>(
     {},
   );
@@ -1796,6 +1636,7 @@ export function AdminSettingsPage() {
   const [activeGroup, setActiveGroup] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -1842,8 +1683,7 @@ export function AdminSettingsPage() {
         value,
       }));
       await adminApi.updateSettings(payload);
-      setInitialValues({ ...draftValues });
-      await refreshCatalog();
+      await Promise.all([loadSettings(), refreshCatalog()]);
       showToast('System configuration saved.');
     } catch (err) {
       showToast(
@@ -1853,6 +1693,42 @@ export function AdminSettingsPage() {
       setSaving(false);
     }
   };
+
+  const handleBrandingFileUpload = async (key: string, file: File | null) => {
+    if (!file) return;
+    setUploadingKey(key);
+    try {
+      const uploaded = await adminApi.uploadBrandingAsset(file);
+      setDraftValues((prev) => ({
+        ...prev,
+        [key]: uploaded.secure_url,
+      }));
+      showToast(
+        key === 'site_logo'
+          ? 'Site logo uploaded. Click "Save system config" to apply.'
+          : 'Site favicon uploaded. Click "Save system config" to apply.',
+      );
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to upload file.',
+      );
+    } finally {
+      setUploadingKey(null);
+    }
+  };
+
+  const supportedCurrencies = parseSupportedCurrencies(
+    draftValues.supported_currencies,
+  );
+  const bakongTokenItem = (grouped.bakong || []).find(
+    (item) => item.key === 'bakong_api_token',
+  );
+  const bakongEnv = (
+    publicSettings.services?.bakong_environment || 'production'
+  ).toUpperCase();
+  const allowStoreReg = parseBoolSetting(draftValues.allow_store_registration);
+  const autoApproveStores = parseBoolSetting(draftValues.auto_approve_stores);
+  const maintenanceMode = parseBoolSetting(draftValues.maintenance_mode);
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-5">
@@ -1873,7 +1749,7 @@ export function AdminSettingsPage() {
             </button>
             <button
               type="submit"
-              disabled={saving || loading}
+              disabled={saving || loading || Boolean(uploadingKey)}
               className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
             >
               {saving ? 'Saving...' : 'Save system config'}
@@ -1929,32 +1805,421 @@ export function AdminSettingsPage() {
                 className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4"
               >
                 <h2 className="text-[15.5px] font-bold text-black capitalize">
-                  {groupName.replace(/_/g, ' ')} settings
+                  {groupName === 'bakong'
+                    ? 'Bakong Open API & KHQR settings'
+                    : `${groupName.replace(/_/g, ' ')} settings`}
                 </h2>
+                {groupName === 'bakong' && (
+                  <p className="text-[12px] text-[#767676] -mt-2">
+                    Manage the single platform-wide NBC Bakong Open API JWT
+                    token used to generate and verify KHQR payments for every
+                    store on Kova. Bakong environment &amp; API URL are
+                    configured in <code className="font-mono">.env</code>{' '}
+                    (default: <span className="font-semibold">production</span>).
+                  </p>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {items.map((item) => (
-                    <label key={item.key} className="flex flex-col gap-1.5">
-                      <span className="text-[12px] font-semibold text-black capitalize">
-                        {item.key.replace(/_/g, ' ')}
-                      </span>
-                      <input
-                        type="text"
-                        value={draftValues[item.key] ?? ''}
-                        onChange={(e) =>
-                          setDraftValues((prev) => ({
-                            ...prev,
-                            [item.key]: e.target.value,
-                          }))
+                  {items.map((item) => {
+                    // 1. Secret platform Bakong Open API JWT Token
+                    if (item.is_secret || item.key === 'bakong_api_token') {
+                      return (
+                        <label
+                          key={item.key}
+                          className="flex flex-col gap-1.5 sm:col-span-2"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-[12px] font-semibold text-black">
+                              Bakong Open API JWT token
+                            </span>
+                            {item.has_value ? (
+                              <span className="text-[11px] font-semibold text-[#029500] font-mono">
+                                Saved in DB: {item.masked_value || 'Stored'}
+                                {item.expires_at
+                                  ? ` · Exp ${formatShortDate(item.expires_at)}`
+                                  : ''}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-semibold text-[#ff6e20]">
+                                Not configured yet
+                              </span>
+                            )}
+                          </div>
+                          <input
+                            type="password"
+                            value={draftValues[item.key] ?? ''}
+                            onChange={(e) =>
+                              setDraftValues((prev) => ({
+                                ...prev,
+                                [item.key]: e.target.value,
+                              }))
+                            }
+                            placeholder={
+                              item.has_value
+                                ? 'Stored encrypted in database — leave blank to keep saved token'
+                                : 'Paste platform NBC Bakong Open API JWT token'
+                            }
+                            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono outline-none"
+                          />
+                          {item.description && (
+                            <span className="text-[11px] text-[#8a8a8a]">
+                              {item.description}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    }
+
+                    // 2. Branding file upload (site_logo, site_favicon)
+                    if (BRANDING_FILE_KEYS.has(item.key)) {
+                      const currentUrl = (draftValues[item.key] ?? '').trim();
+                      const isLogo = item.key === 'site_logo';
+                      const isUploading = uploadingKey === item.key;
+                      return (
+                        <div
+                          key={item.key}
+                          className="flex flex-col gap-2 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-3.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[12.5px] font-semibold text-black capitalize">
+                              {item.key.replace(/_/g, ' ')}
+                            </span>
+                            {currentUrl && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraftValues((prev) => ({
+                                    ...prev,
+                                    [item.key]: '',
+                                  }))
+                                }
+                                className="text-[11px] font-semibold text-[#e5322d] hover:underline"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`${
+                                isLogo ? 'w-24 h-14' : 'w-14 h-14'
+                              } rounded-[12px] border border-[#ececec] bg-white overflow-hidden shrink-0 flex items-center justify-center p-1.5`}
+                            >
+                              {currentUrl ? (
+                                <img
+                                  src={currentUrl}
+                                  alt={item.key}
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              ) : (
+                                <Image className="w-5 h-5 text-[#ababab]" />
+                              )}
+                            </div>
+
+                            <div className="flex flex-col gap-1.5 min-w-0">
+                              <label className="inline-flex items-center gap-1.5 self-start bg-white hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] hover:border-[#ff6e20]/40 text-black text-[12px] font-semibold px-3.5 py-1.5 rounded-full cursor-pointer transition-colors">
+                                <input
+                                  type="file"
+                                  accept={
+                                    isLogo
+                                      ? 'image/png,image/jpeg,image/webp,image/svg+xml'
+                                      : 'image/png,image/x-icon,image/svg+xml,image/webp,.ico'
+                                  }
+                                  disabled={isUploading}
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0] || null;
+                                    void handleBrandingFileUpload(
+                                      item.key,
+                                      file,
+                                    );
+                                    e.target.value = '';
+                                  }}
+                                />
+                                <span>
+                                  {isUploading
+                                    ? 'Uploading...'
+                                    : currentUrl
+                                      ? 'Replace file'
+                                      : 'Choose file'}
+                                </span>
+                              </label>
+                              <span className="text-[11px] text-[#8a8a8a]">
+                                {isLogo
+                                  ? 'PNG, JPG, WebP, or SVG'
+                                  : 'PNG, ICO, SVG, or WebP (square)'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // 3. Toggle Switches for boolean flags (same compact height & full-rounded pill as inputs)
+                    if (
+                      item.type === 'boolean' ||
+                      BOOLEAN_SETTING_KEYS.has(item.key)
+                    ) {
+                      const isOn = parseBoolSetting(draftValues[item.key]);
+                      const labelText = item.key.replace(/_/g, ' ');
+                      return (
+                        <div key={item.key} className="flex flex-col gap-1.5">
+                          <span className="text-[12px] font-semibold text-black capitalize">
+                            {labelText}
+                          </span>
+                          <div className="h-[42px] bg-white border border-[#ececec] rounded-full px-4 flex items-center justify-between gap-3">
+                            <span
+                              className={`text-[13px] font-medium ${
+                                isOn ? 'text-[#ff6e20]' : 'text-[#767676]'
+                              }`}
+                            >
+                              {isOn ? 'Enabled' : 'Disabled'}
+                            </span>
+                            <ToggleSwitch
+                              checked={isOn}
+                              onChange={(next) =>
+                                setDraftValues((prev) => ({
+                                  ...prev,
+                                  [item.key]: next ? 'true' : 'false',
+                                }))
+                              }
+                              ariaLabel={`Toggle ${labelText}`}
+                            />
+                          </div>
+                          {item.description && (
+                            <span className="text-[11px] text-[#8a8a8a]">
+                              {item.description}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // 4. Default Currency dropdown
+                    if (item.key === 'default_currency') {
+                      const currentVal = (
+                        draftValues[item.key] || 'USD'
+                      ).toUpperCase();
+                      const selectableCodes = Array.from(
+                        new Set([...supportedCurrencies, currentVal]),
+                      );
+                      return (
+                        <label key={item.key} className="flex flex-col gap-1.5">
+                          <span className="text-[12px] font-semibold text-black capitalize">
+                            Default currency
+                          </span>
+                          <select
+                            value={currentVal}
+                            onChange={(e) =>
+                              setDraftValues((prev) => ({
+                                ...prev,
+                                [item.key]: e.target.value,
+                              }))
+                            }
+                            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
+                          >
+                            {selectableCodes.map((code) => {
+                              const meta = CURRENCY_OPTIONS.find(
+                                (c) => c.code === code,
+                              );
+                              return (
+                                <option key={code} value={code}>
+                                  {meta
+                                    ? `${meta.code} (${meta.symbol}) — ${meta.label}`
+                                    : code}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          {item.description && (
+                            <span className="text-[11px] text-[#8a8a8a]">
+                              {item.description}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    }
+
+                    // 5. Supported Currencies multi-select pill cards
+                    if (item.key === 'supported_currencies') {
+                      const toggleCurrency = (code: string) => {
+                        const active = supportedCurrencies.includes(code);
+                        if (active && supportedCurrencies.length <= 1) {
+                          showToast('At least one currency must stay enabled.');
+                          return;
                         }
-                        className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
-                      />
-                      {item.description && (
-                        <span className="text-[11px] text-[#8a8a8a]">
-                          {item.description}
+                        const nextList = active
+                          ? supportedCurrencies.filter((c) => c !== code)
+                          : [...supportedCurrencies, code];
+                        setDraftValues((prev) => {
+                          const nextState: Record<string, string> = {
+                            ...prev,
+                            supported_currencies: JSON.stringify(nextList),
+                          };
+                          if (
+                            prev.default_currency &&
+                            !nextList.includes(
+                              prev.default_currency.toUpperCase(),
+                            )
+                          ) {
+                            nextState.default_currency = nextList[0];
+                          }
+                          return nextState;
+                        });
+                      };
+
+                      return (
+                        <div
+                          key={item.key}
+                          className="flex flex-col gap-2 sm:col-span-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[12px] font-semibold text-black">
+                              Supported currencies
+                            </span>
+                            <span className="text-[11px] text-[#8a8a8a]">
+                              Select currencies enabled at checkout
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {CURRENCY_OPTIONS.map((curr) => {
+                              const isSelected = supportedCurrencies.includes(
+                                curr.code,
+                              );
+                              return (
+                                <button
+                                  key={curr.code}
+                                  type="button"
+                                  onClick={() => toggleCurrency(curr.code)}
+                                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-[14px] border text-left transition-colors ${
+                                    isSelected
+                                      ? 'bg-[#ffefe6] border-[#ff6e20] text-black'
+                                      : 'bg-[#fafafa] border-[#ececec] text-[#555555] hover:border-[#cccccc]'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <span
+                                      className={`w-9 h-9 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0 ${
+                                        isSelected
+                                          ? 'bg-[#ff6e20] text-white'
+                                          : 'bg-white border border-[#ececec] text-black'
+                                      }`}
+                                    >
+                                      {curr.symbol}
+                                    </span>
+                                    <div className="min-w-0">
+                                      <p className="text-[13px] font-bold text-black">
+                                        {curr.code}
+                                      </p>
+                                      <p className="text-[11.5px] text-[#767676] truncate">
+                                        {curr.label}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 ${
+                                      isSelected
+                                        ? 'bg-white text-[#ff6e20]'
+                                        : 'bg-[#eeeeee] text-[#767676]'
+                                    }`}
+                                  >
+                                    {isSelected ? 'Enabled' : 'Disabled'}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // 6. Social Links as normal URL inputs
+                    if (item.key === 'social_links') {
+                      const linksMap = parseSocialLinks(draftValues[item.key]);
+                      const updateSocialLink = (
+                        platform: string,
+                        urlValue: string,
+                      ) => {
+                        const nextMap: Record<string, string> = {
+                          ...linksMap,
+                          [platform]: urlValue,
+                        };
+                        const cleaned: Record<string, string> = {};
+                        Object.entries(nextMap).forEach(([k, v]) => {
+                          if (v.trim()) cleaned[k] = v.trim();
+                        });
+                        setDraftValues((prev) => ({
+                          ...prev,
+                          social_links: JSON.stringify(cleaned),
+                        }));
+                      };
+
+                      return (
+                        <div
+                          key={item.key}
+                          className="flex flex-col gap-2.5 sm:col-span-2 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4"
+                        >
+                          <div>
+                            <span className="text-[12.5px] font-semibold text-black">
+                              Social links
+                            </span>
+                            <p className="text-[11px] text-[#8a8a8a] mt-0.5">
+                              Paste normal profile URLs — filled links appear
+                              automatically in the marketplace footer.
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {SOCIAL_LINK_FIELDS.map((social) => (
+                              <label
+                                key={social.key}
+                                className="flex flex-col gap-1"
+                              >
+                                <span className="text-[11.5px] font-semibold text-[#555555]">
+                                  {social.label}
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="url"
+                                  value={linksMap[social.key] ?? ''}
+                                  onChange={(e) =>
+                                    updateSocialLink(social.key, e.target.value)
+                                  }
+                                  placeholder={social.placeholder}
+                                  className="h-[40px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[12.5px] text-black outline-none"
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // 7. Standard text / numeric inputs
+                    return (
+                      <label key={item.key} className="flex flex-col gap-1.5">
+                        <span className="text-[12px] font-semibold text-black capitalize">
+                          {item.key.replace(/_/g, ' ')}
                         </span>
-                      )}
-                    </label>
-                  ))}
+                        <input
+                          type={item.type === 'number' ? 'number' : 'text'}
+                          step={item.type === 'number' ? 'any' : undefined}
+                          value={draftValues[item.key] ?? ''}
+                          onChange={(e) =>
+                            setDraftValues((prev) => ({
+                              ...prev,
+                              [item.key]: e.target.value,
+                            }))
+                          }
+                          className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+                        />
+                        {item.description && (
+                          <span className="text-[11px] text-[#8a8a8a]">
+                            {item.description}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </section>
             ))}
@@ -1974,13 +2239,45 @@ export function AdminSettingsPage() {
               </div>
               <div className="flex items-center justify-between py-2.5">
                 <dt className="text-[#767676]">Store registrations</dt>
-                <dd className="font-semibold text-[#029500]">
-                  Open (KYC required)
+                <dd
+                  className={`font-semibold ${
+                    allowStoreReg ? 'text-[#029500]' : 'text-[#767676]'
+                  }`}
+                >
+                  {allowStoreReg
+                    ? autoApproveStores
+                      ? 'Open (Auto-approve)'
+                      : 'Open (Review required)'
+                    : 'Closed'}
                 </dd>
               </div>
               <div className="flex items-center justify-between py-2.5">
-                <dt className="text-[#767676]">KHQR gateway</dt>
-                <dd className="font-semibold text-[#029500]">NBC Bakong</dd>
+                <dt className="text-[#767676]">Maintenance mode</dt>
+                <dd
+                  className={`font-semibold ${
+                    maintenanceMode ? 'text-[#e5322d]' : 'text-[#029500]'
+                  }`}
+                >
+                  {maintenanceMode ? 'Active' : 'Off'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-[#767676]">KHQR environment</dt>
+                <dd className="font-semibold text-[#029500]">
+                  {bakongEnv} (.env)
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-[#767676]">Bakong API token</dt>
+                <dd
+                  className={`font-semibold ${
+                    bakongTokenItem?.has_value
+                      ? 'text-[#029500]'
+                      : 'text-[#ff6e20]'
+                  }`}
+                >
+                  {bakongTokenItem?.has_value ? 'Configured' : 'Not set'}
+                </dd>
               </div>
               <div className="flex items-center justify-between py-2.5">
                 <dt className="text-[#767676]">Setting groups</dt>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
 import { ApiError, checkoutApi } from '../../services/api';
@@ -8,8 +8,16 @@ import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { KhqrModal } from '../../components/KhqrModal';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
 import { CheckoutSkeleton } from '../../components/Skeleton';
+import {
+  buildBuyNowStoreGroup,
+  clearCheckoutSelection,
+  computeCouponForSelection,
+  filterStoresByCartItemIds,
+  readCheckoutSelection,
+} from '../../utils/checkoutSelection';
 import type {
   Address,
+  CartStoreGroup,
   ChildOrderRecord,
   ShippingMethod,
 } from '../../types/marketplace';
@@ -24,7 +32,7 @@ export function CheckoutPage() {
     addresses,
     addAddress,
     appliedCoupon,
-    couponDiscount,
+    applyCoupon,
     removeCoupon,
     khrRate,
     submitCheckout,
@@ -34,6 +42,69 @@ export function CheckoutPage() {
     showToast,
   } = useStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const modeParam = searchParams.get('mode');
+
+  const storedSelection = useMemo(() => {
+    void modeParam;
+    return readCheckoutSelection();
+  }, [modeParam]);
+
+  const buyNowItem =
+    storedSelection?.mode === 'buy_now' ? storedSelection.item : null;
+
+  const {
+    checkoutStores,
+    checkoutTotalItems,
+    checkoutSubtotal,
+    selectedCartItemIds,
+    isBuyNow,
+  } = useMemo<{
+    checkoutStores: CartStoreGroup[];
+    checkoutTotalItems: number;
+    checkoutSubtotal: number;
+    selectedCartItemIds: number[] | undefined;
+    isBuyNow: boolean;
+  }>(() => {
+    if (buyNowItem) {
+      const group = buildBuyNowStoreGroup(buyNowItem);
+      return {
+        checkoutStores: [group],
+        checkoutTotalItems: buyNowItem.quantity,
+        checkoutSubtotal: group.store_subtotal,
+        selectedCartItemIds: undefined,
+        isBuyNow: true,
+      };
+    }
+
+    if (
+      storedSelection?.mode === 'cart_items' &&
+      storedSelection.cart_item_ids.length > 0
+    ) {
+      const idSet = new Set(storedSelection.cart_item_ids);
+      const filtered = filterStoresByCartItemIds(cart.stores, idSet);
+      const activeIds = filtered.stores.flatMap((g) =>
+        g.items.map((item) => item.id),
+      );
+      return {
+        checkoutStores: filtered.stores,
+        checkoutTotalItems: filtered.totalItems,
+        checkoutSubtotal: filtered.subtotal,
+        selectedCartItemIds: activeIds,
+        isBuyNow: false,
+      };
+    }
+
+    return {
+      checkoutStores: cart.stores,
+      checkoutTotalItems: cart.total_items,
+      checkoutSubtotal: cart.total_amount,
+      selectedCartItemIds: undefined,
+      isBuyNow: false,
+    };
+  }, [buyNowItem, storedSelection, cart.stores, cart.total_items, cart.total_amount]);
+
+  const checkoutStoreIdsKey = checkoutStores.map((g) => g.store.id).join(',');
 
   const [selectedAddrId, setSelectedAddrId] = useState<number | null>(null);
   const [showAddAddressForm, setShowAddAddressForm] = useState(false);
@@ -68,6 +139,12 @@ export function CheckoutPage() {
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(
     null,
   );
+  const [couponInput, setCouponInput] = useState(appliedCoupon?.code || '');
+  const [couponFeedback, setCouponFeedback] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   const activeAddress =
     addresses.find((a) => a.id === selectedAddrId) ||
@@ -75,19 +152,20 @@ export function CheckoutPage() {
     addresses[0] ||
     null;
 
-  // Fetch real shipping methods per store in cart
+  // Fetch real shipping methods per store in the active checkout selection
   useEffect(() => {
     let active = true;
+    const storeIds = checkoutStoreIdsKey
+      ? checkoutStoreIdsKey.split(',').map((id) => Number(id))
+      : [];
     const loadMethods = async () => {
       const entries = await Promise.all(
-        cart.stores.map(async (g) => {
+        storeIds.map(async (storeId) => {
           try {
-            const methods = await checkoutApi.getStoreShippingMethods(
-              g.store.id,
-            );
-            return [g.store.id, methods] as const;
+            const methods = await checkoutApi.getStoreShippingMethods(storeId);
+            return [storeId, methods] as const;
           } catch {
-            return [g.store.id, [] as ShippingMethod[]] as const;
+            return [storeId, [] as ShippingMethod[]] as const;
           }
         }),
       );
@@ -101,11 +179,11 @@ export function CheckoutPage() {
       setShippingMethodsByStore(map);
       setSelectedMethodByStore((prev) => ({ ...defaults, ...prev }));
     };
-    if (cart.stores.length > 0) void loadMethods();
+    if (storeIds.length > 0) void loadMethods();
     return () => {
       active = false;
     };
-  }, [cart.stores]);
+  }, [checkoutStoreIdsKey]);
 
   const computeShippingOption = (
     method: ShippingMethod,
@@ -169,8 +247,8 @@ export function CheckoutPage() {
     };
   };
 
-  const subtotal = cart.total_amount;
-  const shippingByStore = cart.stores.reduce<Record<number, number>>(
+  const subtotal = checkoutSubtotal;
+  const shippingByStore = checkoutStores.reduce<Record<number, number>>(
     (acc, g) => {
       const allItemsFree =
         g.all_free_shipping ??
@@ -201,46 +279,39 @@ export function CheckoutPage() {
     (sum, fee) => sum + fee,
     0,
   );
-  const freeShippingCouponDiscount = (() => {
-    if (!appliedCoupon || appliedCoupon.discount_type !== 'free_shipping') {
-      return 0;
-    }
-    if (appliedCoupon.store_id) {
-      const targetGroup = cart.stores.find(
-        (g) => g.store.id === appliedCoupon.store_id,
-      );
-      if (!targetGroup) return 0;
-      if (
-        appliedCoupon.min_order_amount &&
-        targetGroup.store_subtotal < appliedCoupon.min_order_amount
-      ) {
-        return 0;
-      }
-      const waived = shippingByStore[targetGroup.store.id] || 0;
-      return appliedCoupon.max_discount_amount &&
-        appliedCoupon.max_discount_amount > 0
-        ? Math.min(waived, appliedCoupon.max_discount_amount)
-        : waived;
-    }
-    if (
-      appliedCoupon.min_order_amount &&
-      cart.total_amount < appliedCoupon.min_order_amount
-    ) {
-      return 0;
-    }
-    return appliedCoupon.max_discount_amount &&
-      appliedCoupon.max_discount_amount > 0
-      ? Math.min(estimatedShipping, appliedCoupon.max_discount_amount)
-      : estimatedShipping;
-  })();
-  const effectiveCouponDiscount =
-    appliedCoupon?.discount_type === 'free_shipping'
-      ? freeShippingCouponDiscount
-      : couponDiscount;
+  const { eligible: isCouponEligible, discount: effectiveCouponDiscount } =
+    computeCouponForSelection(
+      appliedCoupon,
+      checkoutStores,
+      subtotal,
+      shippingByStore,
+      estimatedShipping,
+    );
   const total = Math.max(
     0,
     subtotal + estimatedShipping - effectiveCouponDiscount,
   );
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponInput.trim()) return;
+    setApplyingCoupon(true);
+    const storeSubtotals: Record<number, number> = {};
+    checkoutStores.forEach((g) => {
+      storeSubtotals[g.store.id] = g.store_subtotal;
+    });
+    const res = await applyCoupon(
+      couponInput.trim(),
+      checkoutStores.length > 0
+        ? {
+            totalAmount: subtotal,
+            storeSubtotals,
+          }
+        : undefined,
+    );
+    setCouponFeedback(res);
+    setApplyingCoupon(false);
+  };
 
   const handleSaveNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,6 +361,19 @@ export function CheckoutPage() {
         },
         payment_method: 'bakong_khqr',
         shipping_methods: selectedMethodByStore,
+        coupon_code:
+          appliedCoupon && isCouponEligible ? appliedCoupon.code : null,
+        ...(isBuyNow && buyNowItem
+          ? {
+              buy_now_item: {
+                product_id: buyNowItem.product_id,
+                variant_id: buyNowItem.variant_id,
+                quantity: buyNowItem.quantity,
+              },
+            }
+          : selectedCartItemIds && selectedCartItemIds.length > 0
+            ? { cart_item_ids: selectedCartItemIds }
+            : {}),
       });
 
       const payableChildren = order.children.filter((c) =>
@@ -303,6 +387,7 @@ export function CheckoutPage() {
         setKhqrOrders(payableChildren);
         setKhqrOpen(true);
       } else {
+        clearCheckoutSelection();
         showToast(`Order #${order.order_number} created.`);
         navigate(`/account/orders/${order.order_number}`);
       }
@@ -351,20 +436,36 @@ export function CheckoutPage() {
     );
   }
 
-  if (cart.stores.length === 0 && !khqrOpen) {
+  if (checkoutStores.length === 0 && !khqrOpen) {
     return (
       <div className="kova-container px-4 py-16 text-center">
         <div className="bg-white border border-[#ececec] rounded-[24px] p-10 max-w-[520px] mx-auto flex flex-col items-center gap-4">
-          <h1 className="text-[24px] font-semibold">Your cart is empty</h1>
+          <h1 className="text-[24px] font-semibold">
+            {storedSelection?.mode === 'cart_items'
+              ? 'No items selected for checkout'
+              : 'Your cart is empty'}
+          </h1>
           <p className="text-[14px] text-[#767676]">
-            Add products to your cart before checking out.
+            {storedSelection?.mode === 'cart_items'
+              ? 'Return to your cart and select the products you want to purchase.'
+              : 'Add products to your cart before checking out.'}
           </p>
-          <Link
-            to="/products"
-            className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[14px] font-semibold px-6 py-3 rounded-full transition-colors"
-          >
-            Browse products
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            {storedSelection?.mode === 'cart_items' && (
+              <Link
+                to="/cart"
+                className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[14px] font-semibold px-6 py-3 rounded-full transition-colors"
+              >
+                Back to cart
+              </Link>
+            )}
+            <Link
+              to="/products"
+              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[14px] font-semibold px-6 py-3 rounded-full transition-colors"
+            >
+              Browse products
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -373,20 +474,42 @@ export function CheckoutPage() {
   return (
     <div className="kova-container px-4 lg:px-6 pt-5 pb-12 flex flex-col gap-5">
       <p className="text-[12px] text-[#767676]">
-        <Link to="/cart" className="hover:text-[#ff6e20]">
-          Cart
-        </Link>{' '}
-        &nbsp;/&nbsp; Checkout
+        {isBuyNow && buyNowItem ? (
+          <>
+            <Link
+              to={`/product/${buyNowItem.product_slug}`}
+              className="hover:text-[#ff6e20]"
+            >
+              {buyNowItem.product_name}
+            </Link>{' '}
+            &nbsp;/&nbsp; Buy Now Checkout
+          </>
+        ) : (
+          <>
+            <Link to="/cart" className="hover:text-[#ff6e20]">
+              Cart
+            </Link>{' '}
+            &nbsp;/&nbsp; Checkout
+          </>
+        )}
       </p>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[32px] font-semibold text-black leading-[1.2]">
-            Checkout
-          </h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[32px] font-semibold text-black leading-[1.2]">
+              Checkout
+            </h1>
+            {isBuyNow && (
+              <span className="bg-[#ffefe6] text-[#ff6e20] text-[12px] font-semibold px-3 py-1 rounded-full">
+                Direct Buy Now
+              </span>
+            )}
+          </div>
           <p className="text-[14px] text-[#767676] mt-1">
-            Select your shipping address and delivery option, then complete
-            payment via Bakong KHQR.
+            {isBuyNow
+              ? 'Checking out only this product — your shopping cart remains untouched.'
+              : 'Select your shipping address and delivery option, then complete payment via Bakong KHQR.'}
           </p>
         </div>
 
@@ -502,7 +625,7 @@ export function CheckoutPage() {
                     onChange={(e) =>
                       setNewAddr({ ...newAddr, full_name: e.target.value })
                     }
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
@@ -517,7 +640,7 @@ export function CheckoutPage() {
                       setNewAddr({ ...newAddr, phone: e.target.value })
                     }
                     placeholder="+855 ..."
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                   />
                 </label>
                 <CambodiaLocationSelector
@@ -532,7 +655,7 @@ export function CheckoutPage() {
                       commune: loc.commune,
                     })
                   }
-                  inputClassName="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] bg-white outline-none"
+                  inputClassName="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] bg-white outline-none"
                   labelClassName="text-[12px] font-medium text-black"
                 />
 
@@ -548,7 +671,7 @@ export function CheckoutPage() {
                       setNewAddr({ ...newAddr, address_line_1: e.target.value })
                     }
                     placeholder="House #, Street..."
-                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                   />
                 </label>
                 <div className="sm:col-span-2 flex items-center gap-3 pt-1">
@@ -574,17 +697,19 @@ export function CheckoutPage() {
           <section className="flex flex-col gap-4">
             <div>
               <h2 className="text-[20px] font-semibold text-black">
-                Delivery options ({cart.stores.length} package
-                {cart.stores.length > 1 ? 's' : ''})
+                Delivery options ({checkoutStores.length} package
+                {checkoutStores.length > 1 ? 's' : ''})
               </h2>
               <p className="text-[13px] text-[#767676]">
                 Choose your preferred shipping method for each store.
               </p>
             </div>
 
-            {cart.stores.map((group, idx) => {
+            {checkoutStores.map((group, idx) => {
               const storeMeta = stores.find((s) => s.id === group.store.id);
-              const isVerified = Boolean(storeMeta?.is_verified);
+              const isVerified = Boolean(
+                storeMeta?.is_verified ?? buyNowItem?.store.is_verified,
+              );
               const methods = shippingMethodsByStore[group.store.id] || [];
               const chosenId = selectedMethodByStore[group.store.id];
 
@@ -729,7 +854,7 @@ export function CheckoutPage() {
                                   )}
                                 <span
                                   className={
-                                    fee === 0 ? 'text-[#029500]' : 'text-black'
+                                    fee === 0 ? 'text-[#ff6e20]' : 'text-black'
                                   }
                                 >
                                   {fee > 0 ? `$${fee.toFixed(2)}` : 'Free'}
@@ -742,7 +867,7 @@ export function CheckoutPage() {
                               </span>
                             )}
                             {isFreeByProduct ? (
-                              <span className="text-[11.5px] font-medium text-[#029500]">
+                              <span className="text-[11.5px] font-medium text-[#ff6e20]">
                                 Free shipping included on your items
                               </span>
                             ) : (
@@ -750,7 +875,7 @@ export function CheckoutPage() {
                                 <span
                                   className={`text-[11.5px] font-medium ${
                                     isFreeByThreshold
-                                      ? 'text-[#029500]'
+                                      ? 'text-[#ff6e20]'
                                       : 'text-[#8a8a8a]'
                                   }`}
                                 >
@@ -783,13 +908,16 @@ export function CheckoutPage() {
                 Order summary
               </h2>
               <span className="text-[12px] font-medium text-[#767676]">
-                {cart.total_items} item{cart.total_items > 1 ? 's' : ''}
+                {checkoutTotalItems} item{checkoutTotalItems > 1 ? 's' : ''}
               </span>
             </div>
 
             <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto pr-1">
-              {cart.stores.map((group) => {
+              {checkoutStores.map((group) => {
                 const storeMeta = stores.find((s) => s.id === group.store.id);
+                const isStoreVerified = Boolean(
+                  storeMeta?.is_verified ?? buyNowItem?.store.is_verified,
+                );
                 return (
                   <div key={group.store.id} className="flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-2">
@@ -804,7 +932,7 @@ export function CheckoutPage() {
                         <span className="text-[12px] font-semibold text-black truncate">
                           {group.store.name}
                         </span>
-                        {storeMeta?.is_verified && <VerifiedBadge size="xs" />}
+                        {isStoreVerified && <VerifiedBadge size="xs" />}
                       </div>
                       <Link
                         to={`/store/${group.store.slug}`}
@@ -844,20 +972,103 @@ export function CheckoutPage() {
                   ${estimatedShipping.toFixed(2)}
                 </span>
               </div>
-              {appliedCoupon && effectiveCouponDiscount > 0 && (
-                <div className="flex justify-between gap-2">
-                  <span className="text-[#767676]">
-                    Voucher ({appliedCoupon.code}
-                    {appliedCoupon.store?.name
-                      ? ` · ${appliedCoupon.store.name}`
-                      : ''}
-                    )
-                  </span>
-                  <span className="font-medium text-[#029500] shrink-0">
-                    −${effectiveCouponDiscount.toFixed(2)}
-                  </span>
+              {appliedCoupon && (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[#767676] flex items-center gap-2 flex-wrap">
+                      <span>
+                        {appliedCoupon.code}
+                        {appliedCoupon.store?.name
+                          ? ` (${appliedCoupon.store.name})`
+                          : ' discount'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeCoupon();
+                          setCouponFeedback(null);
+                        }}
+                        className="text-[11px] text-[#e5322d] hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </span>
+                    <span
+                      className={`font-medium shrink-0 ${
+                        effectiveCouponDiscount > 0
+                          ? 'text-[#029500]'
+                          : 'text-[#8a8a8a]'
+                      }`}
+                    >
+                      {effectiveCouponDiscount > 0
+                        ? `−$${effectiveCouponDiscount.toFixed(2)}`
+                        : '$0.00'}
+                    </span>
+                  </div>
+                  {appliedCoupon.store_id &&
+                    !checkoutStores.some(
+                      (g) => g.store.id === appliedCoupon.store_id,
+                    ) && (
+                      <p className="text-[11.5px] text-[#ff6e20]">
+                        This voucher only applies to{' '}
+                        {appliedCoupon.store?.name || 'another store'}.
+                      </p>
+                    )}
+                  {appliedCoupon.store_id &&
+                    appliedCoupon.min_order_amount &&
+                    (() => {
+                      const matched = checkoutStores.find(
+                        (g) => g.store.id === appliedCoupon.store_id,
+                      );
+                      if (
+                        !matched ||
+                        matched.store_subtotal >= appliedCoupon.min_order_amount
+                      ) {
+                        return null;
+                      }
+                      const remain =
+                        appliedCoupon.min_order_amount - matched.store_subtotal;
+                      return (
+                        <p className="text-[11.5px] text-[#ff6e20]">
+                          Add ${remain.toFixed(2)} more from{' '}
+                          {appliedCoupon.store?.name || 'this store'} to activate
+                          voucher.
+                        </p>
+                      );
+                    })()}
                 </div>
               )}
+
+              <form
+                onSubmit={handleApplyCoupon}
+                className="flex items-center justify-between h-[42px] bg-white border border-[#ececec] focus-within:border-[#ff6e20] rounded-full pl-4 pr-1 mt-1 transition-colors"
+              >
+                <input
+                  type="text"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  placeholder="Enter discount code"
+                  className="flex-1 bg-transparent text-[13px] text-black outline-none min-w-0"
+                />
+                <button
+                  type="submit"
+                  disabled={applyingCoupon || !couponInput.trim()}
+                  className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[13px] font-semibold h-[34px] px-4 rounded-full transition-colors shrink-0 cursor-pointer"
+                >
+                  {applyingCoupon ? '...' : 'Apply'}
+                </button>
+              </form>
+
+              {couponFeedback && (
+                <p
+                  className={`text-[12px] ${
+                    couponFeedback.ok ? 'text-[#029500]' : 'text-[#e5322d]'
+                  }`}
+                >
+                  {couponFeedback.message}
+                </p>
+              )}
+
               <div className="border-t border-[#ececec] pt-3 flex items-baseline justify-between">
                 <span className="text-[15px] font-semibold text-black">
                   Total
@@ -873,7 +1084,7 @@ export function CheckoutPage() {
               </div>
             </div>
 
-            <div className="bg-[#f7f7f7] rounded-[14px] px-4 py-3 flex items-center justify-between gap-3">
+            {/* <div className="bg-[#f7f7f7] rounded-[14px] px-4 py-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[12.5px] font-semibold text-black">
                   Bakong KHQR Payment
@@ -885,7 +1096,7 @@ export function CheckoutPage() {
               <span className="bg-[#E1232E] text-white text-[11px] font-bold px-2.5 py-1 rounded-[6px] tracking-wide">
                 KHQR
               </span>
-            </div>
+            </div> */}
           </div>
 
           <div className="sticky bottom-5 z-20 bg-white/95 backdrop-blur-md border border-[#ececec] rounded-[20px] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)] flex flex-col gap-2.5">
@@ -900,10 +1111,14 @@ export function CheckoutPage() {
                 : `Purchase - $${total.toFixed(2)}`}
             </button>
             <Link
-              to="/cart"
+              to={
+                isBuyNow && buyNowItem
+                  ? `/product/${buyNowItem.product_slug}`
+                  : '/cart'
+              }
               className="w-full text-center bg-white border border-[#ececec] hover:border-black text-black text-[14px] font-semibold py-3 px-5 rounded-full transition-colors"
             >
-              Return to cart
+              {isBuyNow ? 'Back to product' : 'Return to cart'}
             </Link>
           </div>
         </aside>
@@ -920,7 +1135,9 @@ export function CheckoutPage() {
               // Deferred KHQR session: cancel session cleanly without ever creating an Order row!
               await checkoutApi.cancelCheckoutSession(checkoutSessionToken);
               showToast(
-                'Payment cancelled. Your items are still in your cart.',
+                isBuyNow
+                  ? 'Payment cancelled.'
+                  : 'Payment cancelled. Your items are still in your cart.',
               );
             } else if (createdOrderId) {
               await cancelOrder(
@@ -930,7 +1147,9 @@ export function CheckoutPage() {
               );
               await refreshCart();
               showToast(
-                'Payment cancelled. Your items are still in your cart.',
+                isBuyNow
+                  ? 'Payment cancelled.'
+                  : 'Payment cancelled. Your items are still in your cart.',
               );
             }
           } catch (err) {
@@ -948,6 +1167,7 @@ export function CheckoutPage() {
         }}
         onTimeout={(timedOutOrderNumber) => {
           const targetOrder = timedOutOrderNumber || createdOrderNumber;
+          clearCheckoutSelection();
           setKhqrOpen(false);
           setCheckoutSessionToken(null);
           showToast(
@@ -967,6 +1187,7 @@ export function CheckoutPage() {
         }}
         onAllPaid={(paidOrderNumber) => {
           const targetOrder = paidOrderNumber || createdOrderNumber;
+          clearCheckoutSelection();
           setKhqrOpen(false);
           setCheckoutSessionToken(null);
           removeCoupon();

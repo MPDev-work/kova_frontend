@@ -147,7 +147,7 @@ export function MyProfilePage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3 py-2.5 text-[12.5px] text-black outline-none"
+              className="h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[12.5px] text-black outline-none"
             />
           </label>
 
@@ -160,7 +160,7 @@ export function MyProfilePage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+855 ..."
-              className="bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3 py-2.5 text-[12.5px] text-black outline-none"
+              className="h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[12.5px] text-black outline-none"
             />
           </label>
 
@@ -172,7 +172,7 @@ export function MyProfilePage() {
               type="email"
               disabled
               value={user.email}
-              className="bg-[#f7f7f7] border border-[#ececec] rounded-[12px] px-3 py-2.5 text-[12.5px] text-[#767676] outline-none"
+              className="h-[42px] bg-[#f7f7f7] border border-[#ececec] rounded-full px-4 text-[12.5px] text-[#767676] outline-none"
             />
           </label>
         </div>
@@ -350,7 +350,7 @@ export function AddAddressPage() {
             required
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#ff6e20]"
+            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
           />
         </label>
         <label className="flex flex-col gap-1.5">
@@ -360,7 +360,7 @@ export function AddAddressPage() {
             required
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#ff6e20]"
+            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
           />
         </label>
 
@@ -383,7 +383,7 @@ export function AddAddressPage() {
             value={street}
             onChange={(e) => setStreet(e.target.value)}
             placeholder="House #, Street..."
-            className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#ff6e20]"
+            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
           />
         </label>
         <div className="sm:col-span-2 flex items-center justify-between gap-3 pt-2 border-t border-[#f1f1f1]">
@@ -472,7 +472,7 @@ function EditAddressForm({ address }: { address: Address }) {
           required
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#ff6e20]"
+          className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
         />
       </label>
       <label className="flex flex-col gap-1.5">
@@ -482,7 +482,7 @@ function EditAddressForm({ address }: { address: Address }) {
           required
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#ff6e20]"
+          className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
         />
       </label>
 
@@ -505,7 +505,7 @@ function EditAddressForm({ address }: { address: Address }) {
           value={street}
           onChange={(e) => setStreet(e.target.value)}
           placeholder="House #, Street..."
-          className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#ff6e20]"
+          className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
         />
       </label>
       <div className="sm:col-span-2 flex items-center justify-between gap-3 pt-2 border-t border-[#f1f1f1]">
@@ -1181,7 +1181,7 @@ export function MyReviewsPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Summarize your experience..."
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] text-black outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] text-black outline-none"
               />
             </label>
 
@@ -1268,7 +1268,7 @@ export function WriteReviewPage() {
             <select
               value={productId}
               onChange={(e) => setProductId(Number(e.target.value))}
-              className="border border-[#ececec] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white"
+              className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] bg-white"
             >
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -1559,7 +1559,7 @@ export function ChangePasswordPage() {
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           placeholder="Current password"
-          className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+          className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
         />
         <input
           type="password"
@@ -1568,7 +1568,7 @@ export function ChangePasswordPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="New password (min 8 characters)"
-          className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+          className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
         />
         <input
           type="password"
@@ -1577,7 +1577,7 @@ export function ChangePasswordPage() {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           placeholder="Confirm new password"
-          className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+          className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
         />
         <div className="flex gap-2.5 pt-1">
           <Link
@@ -1630,7 +1630,7 @@ export function DeleteAccountPage() {
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
           placeholder="Type DELETE to confirm"
-          className="border border-[#ececec] focus:border-[#e5322d] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+          className="h-[42px] border border-[#ececec] focus:border-[#e5322d] rounded-full px-4 text-[13px] outline-none"
         />
         <div className="flex gap-2.5">
           <Link

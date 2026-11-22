@@ -7,7 +7,9 @@ import { ApiError, orderApi } from '../../services/api';
 import { formatRiel, formatShortDate } from '../../utils/currency';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { KhqrModal } from '../../components/KhqrModal';
+import { savePendingChatCard } from '../../utils/chatContextCard';
 import type {
+  ChatContextCard,
   ChildOrderRecord,
   OrderItemRecord,
   OrderRecord,
@@ -32,6 +34,29 @@ const RATING_LABELS: Record<number, string> = {
   4: 'Very good',
   5: 'Excellent',
 };
+
+function buildOrderChatCard(
+  order: OrderRecord,
+  pkg: ChildOrderRecord,
+): ChatContextCard {
+  const firstItem = pkg.items[0];
+  const totalQty = pkg.items.reduce((sum, item) => sum + item.quantity, 0);
+  return {
+    kind: 'order',
+    order_id: order.id,
+    order_number: order.order_number,
+    order_status: pkg.status || order.status,
+    total_amount: pkg.total_amount,
+    item_count: totalQty || firstItem?.quantity || 1,
+    product_id: firstItem?.product_id ?? null,
+    product_name:
+      firstItem?.product_name || `Order #${order.order_number}`,
+    product_image: firstItem?.image ?? null,
+    quantity: firstItem?.quantity ?? null,
+    unit_price: firstItem?.unit_price ?? null,
+    store_name: pkg.store?.name ?? null,
+  };
+}
 
 interface ReviewTarget {
   orderItemId: number;
@@ -194,7 +219,7 @@ function ProductReviewModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Summarize your experience..."
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] text-black outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] text-black outline-none"
             />
           </label>
 
@@ -382,7 +407,7 @@ export function MyOrdersPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by order number, store, or product..."
-          className="bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-4 py-2.5 text-[13px] text-black outline-none w-full max-w-[460px]"
+          className="h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] text-black outline-none w-full max-w-[460px]"
         />
       </div>
 
@@ -625,7 +650,13 @@ export function MyOrdersPage() {
                         <>
                           <Link
                             to={`/help/contact?storeId=${pkg.store.id}&storeName=${encodeURIComponent(pkg.store.name)}&storeSlug=${encodeURIComponent(pkg.store.slug)}&orderId=${selectedOrder.id}&orderNumber=${encodeURIComponent(selectedOrder.order_number)}`}
-                            onClick={closeOrderModal}
+                            onClick={() => {
+                              savePendingChatCard(
+                                pkg.store!.id,
+                                buildOrderChatCard(selectedOrder, pkg),
+                              );
+                              closeOrderModal();
+                            }}
                             className="bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[11.5px] font-semibold px-3 py-1 rounded-full transition-colors"
                           >
                             Contact store
@@ -985,6 +1016,12 @@ export function OrderDetailsPage() {
                     <>
                       <Link
                         to={`/help/contact?storeId=${pkg.store.id}&storeName=${encodeURIComponent(pkg.store.name)}&storeSlug=${encodeURIComponent(pkg.store.slug)}&orderId=${order.id}&orderNumber=${encodeURIComponent(order.order_number)}`}
+                        onClick={() => {
+                          savePendingChatCard(
+                            pkg.store!.id,
+                            buildOrderChatCard(order, pkg),
+                          );
+                        }}
                         className="bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold px-3.5 py-1 rounded-full transition-colors"
                       >
                         Contact store

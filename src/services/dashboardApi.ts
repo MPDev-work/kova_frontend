@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import type { ChatMessageMetadata } from '../types/marketplace';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -129,17 +130,6 @@ export interface AdminCategoryItem {
   children?: AdminCategoryItem[];
 }
 
-export interface AdminBrandItem {
-  id: number;
-  name: string;
-  slug: string;
-  logo?: string | null;
-  description?: string | null;
-  website?: string | null;
-  is_active: boolean;
-  products_count?: number;
-}
-
 export interface AdminBakongOverview {
   environment: string;
   api_url: string;
@@ -211,6 +201,10 @@ export interface PlatformSettingItem {
   value: string | null;
   type?: string;
   description?: string | null;
+  is_secret?: boolean;
+  has_value?: boolean;
+  masked_value?: string | null;
+  expires_at?: string | null;
 }
 
 export interface AuditLogItem {
@@ -373,46 +367,6 @@ export const adminApi = {
     return apiRequest<null>(`/admin/categories/${id}`, { method: 'DELETE' });
   },
 
-  async getBrands(perPage = 50) {
-    const res = await apiRequest<PaginatedResult<AdminBrandItem> | AdminBrandItem[]>(
-      `/admin/brands?per_page=${perPage}`,
-    );
-    return normalizePaginated(res.data);
-  },
-
-  async createBrand(payload: {
-    name: string;
-    logo?: string | null;
-    description?: string | null;
-    website?: string | null;
-    is_active?: boolean;
-  }) {
-    return apiRequest<AdminBrandItem>('/admin/brands', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async updateBrand(
-    id: number,
-    payload: {
-      name?: string;
-      logo?: string | null;
-      description?: string | null;
-      website?: string | null;
-      is_active?: boolean;
-    },
-  ) {
-    return apiRequest<AdminBrandItem>(`/admin/brands/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async deleteBrand(id: number) {
-    return apiRequest<null>(`/admin/brands/${id}`, { method: 'DELETE' });
-  },
-
   async getUsers(params?: { role?: string; status?: string; search?: string; page?: number }) {
     const qs = new URLSearchParams();
     if (params?.role) qs.set('role', params.role);
@@ -514,7 +468,12 @@ export const adminApi = {
     return res.data;
   },
 
-  async replyTicket(id: number, message: string, attachments?: string[]) {
+  async replyTicket(
+    id: number,
+    message: string,
+    attachments?: string[],
+    metadata?: ChatMessageMetadata | null,
+  ) {
     const res = await apiRequest<{
       message: DashboardTicketMessage;
       ticket: DashboardTicketItem;
@@ -524,6 +483,7 @@ export const adminApi = {
         message,
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
+        metadata: metadata ?? undefined,
       }),
     });
     return res.data;
@@ -566,6 +526,18 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify({ settings }),
     });
+  },
+
+  async uploadBrandingAsset(file: File) {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'branding');
+    const res = await apiRequest<{ id: number; secure_url: string }>('/media/upload', {
+      method: 'POST',
+      body: fd,
+      isFormData: true,
+    });
+    return res.data;
   },
 
   async getAuditLogs(params?: { action?: string; page?: number; per_page?: number }) {
@@ -645,7 +617,7 @@ export const adminApi = {
     });
   },
 
-  async uploadMedia(file: File, folder: 'categories' | 'brands' | 'products' | 'stores') {
+  async uploadMedia(file: File, folder: 'categories' | 'products' | 'stores') {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('folder', folder);
@@ -717,7 +689,6 @@ export interface SellerProductItem {
   slug: string;
   sku: string;
   category_id?: number | null;
-  brand_id?: number | null;
   description?: string | null;
   short_description?: string | null;
   regular_price: number | string;
@@ -731,7 +702,6 @@ export interface SellerProductItem {
   primary_image?: { image_url: string } | null;
   images?: { id?: number; media_id?: number | null; image_url: string; is_primary?: boolean; sort_order?: number }[];
   category?: { id: number; name: string } | null;
-  brand?: { id: number; name: string } | null;
 }
 
 export interface InventoryMovementItem {
@@ -820,9 +790,10 @@ export interface SellerBakongStatus {
   is_connected: boolean;
   is_enabled: boolean;
   connection_status: string;
+  platform_token_configured?: boolean;
   account: {
     bakong_account_id: string;
-    registered_email: string;
+    registered_email?: string | null;
     merchant_name: string;
     merchant_city?: string | null;
     merchant_category_code?: string | null;
@@ -858,6 +829,7 @@ export interface DashboardTicketMessage {
   user_id: number;
   message: string;
   attachments?: string[] | null;
+  metadata?: ChatMessageMetadata | null;
   is_admin_reply: boolean;
   created_at: string;
   user?: {
@@ -1186,8 +1158,14 @@ export const storeOwnerApi = {
   async updatePromotion(
     id: number,
     payload: Partial<{
+      code: string;
       name: string;
+      discount_type: 'percentage' | 'fixed_amount';
       discount_value: number;
+      min_order_amount: number | null;
+      usage_limit: number | null;
+      start_date: string | null;
+      end_date: string | null;
       is_active: boolean;
     }>,
   ) {
@@ -1208,8 +1186,6 @@ export const storeOwnerApi = {
 
   async connectBakong(payload: {
     bakong_account_id: string;
-    registered_email: string;
-    api_token?: string;
     merchant_name: string;
     merchant_city?: string;
     merchant_category_code?: string;
@@ -1329,7 +1305,12 @@ export const storeOwnerApi = {
     return res.data;
   },
 
-  async replyTicket(id: number, message: string, attachments?: string[]) {
+  async replyTicket(
+    id: number,
+    message: string,
+    attachments?: string[],
+    metadata?: ChatMessageMetadata | null,
+  ) {
     const res = await apiRequest<{
       message: DashboardTicketMessage;
       ticket: DashboardTicketItem;
@@ -1339,6 +1320,7 @@ export const storeOwnerApi = {
         message,
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
+        metadata: metadata ?? undefined,
       }),
     });
     return res.data;

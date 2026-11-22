@@ -893,7 +893,6 @@ export function AdminStoresPage() {
       label: 'Active stores',
       value: String(activeCount),
       sub: 'Verified & selling on Kova',
-      badge: 'Live',
       tone: 'green',
     },
     {
@@ -1364,7 +1363,7 @@ export function AdminStoresPage() {
                   value={commissionDraft}
                   onChange={(e) => setCommissionDraft(e.target.value)}
                   placeholder="Platform default (e.g. 5)"
-                  className="flex-1 min-w-[180px] border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2 text-[13px] outline-none"
+                  className="h-[42px] flex-1 min-w-[180px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
                 />
                 <button
                   type="submit"

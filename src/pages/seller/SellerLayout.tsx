@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import {
   storeOwnerApi,
@@ -11,7 +12,6 @@ import { KovaLogo } from '../../components/KovaLogo';
 import { NotificationModal } from '../../components/NotificationModal';
 import { CustomerSettingsSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
-import { StorefrontPreviewModal } from './SellerStorePreviewPage';
 
 interface SellerNavItem {
   label: string;
@@ -74,6 +74,7 @@ export function SellerLayout() {
     isSignedIn,
     user,
     unreadNotificationsCount,
+    refreshUser,
     signOut,
   } = useStore();
   const location = useLocation();
@@ -83,7 +84,6 @@ export function SellerLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickQuery, setQuickQuery] = useState('');
   const [notifModalOpen, setNotifModalOpen] = useState(false);
-  const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [storeProfile, setStoreProfile] = useState<SellerStoreProfile | null>(
     null,
   );
@@ -94,6 +94,14 @@ export function SellerLayout() {
     user?.roles?.includes('store_owner') || user?.store,
   );
   const isApproved = user?.store?.status === 'approved';
+
+  // When an applicant clicks "Visit Your Store" from their approval email, refresh user profile
+  // immediately so their newly approved seller role & store unlock without re-login.
+  useEffect(() => {
+    if (isSignedIn && !isApproved) {
+      void refreshUser();
+    }
+  }, [isSignedIn, isApproved, refreshUser]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -135,9 +143,6 @@ export function SellerLayout() {
       <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center p-4">
         <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[440px] w-full text-center flex flex-col items-center gap-4">
           <KovaLogo size="sm" />
-          <span className="bg-[#ffefe6] text-[#ff6e20] text-[10.5px] font-bold px-3 py-1 rounded-full tracking-wide">
-            SELLER CENTER
-          </span>
           <h1 className="text-[22px] font-bold text-black">
             Sign in to your Seller Center
           </h1>
@@ -221,10 +226,18 @@ export function SellerLayout() {
                 : 'Your store application was not approved. You can submit an updated application anytime.'}
           </p>
           <div className="flex flex-wrap gap-2.5 pt-1">
+            {storeStatus !== 'suspended' && (
+              <Link
+                to="/"
+                className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-full"
+              >
+                Continue shopping
+              </Link>
+            )}
             <button
               type="button"
-              onClick={() => window.location.reload()}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-full"
+              onClick={() => void refreshUser()}
+              className="bg-white border border-[#ececec] hover:border-black text-black text-[13.5px] font-semibold px-6 py-2.5 rounded-full transition-colors"
             >
               Refresh status
             </button>
@@ -242,7 +255,6 @@ export function SellerLayout() {
   }
 
   const storeName = storeProfile?.name || user.store?.name || 'My Store';
-  const storeSlug = storeProfile?.slug || user.store?.slug || '';
   const storeLogo = storeProfile?.logo || user.store?.logo || null;
   const storeVerified = Boolean(
     storeProfile?.is_verified ?? user.store?.is_verified,
@@ -365,9 +377,6 @@ export function SellerLayout() {
         <div className="flex flex-col gap-3.5 overflow-y-auto no-scrollbar">
           <div className="flex items-center gap-2 px-1.5 pt-0.5">
             <KovaLogo size="sm" to="/seller" />
-            <span className="bg-[#ffefe6] text-[#ff6e20] text-[9.5px] font-bold px-2.5 py-[3px] rounded-full tracking-[0.04em]">
-              SELLER
-            </span>
           </div>
 
           {/* Store Identity Switcher Card */}
@@ -441,41 +450,14 @@ export function SellerLayout() {
         </div>
 
         <div className="pt-3">
-          <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] px-3.5 py-3 flex flex-col gap-1">
-            <p className="text-[11.5px] font-bold text-black">
-              Kova Seller Store
-            </p>
-            <p className="text-[10.5px] text-[#767676]">
-              {storeProfile?.commission_rate !== null &&
-              storeProfile?.commission_rate !== undefined
-                ? `${storeProfile.commission_rate}% commission`
-                : 'Platform default rate'}
-            </p>
-            {storeSlug && (
-              <button
-                type="button"
-                onClick={() => setPreviewModalOpen(true)}
-                className="text-left text-[11px] font-semibold text-[#ff6e20] hover:underline pt-0.5"
-              >
-                Preview storefront
-              </button>
-            )}
-            <div className="flex items-center justify-between pt-2 mt-1 border-t border-[#ececec]">
-              <Link
-                to="/seller/settings"
-                className="text-[11px] font-medium text-[#767676] hover:text-black"
-              >
-                Account settings
-              </Link>
-              <button
-                type="button"
-                onClick={() => void signOut().then(() => navigate('/login'))}
-                className="text-[11px] font-medium text-[#767676] hover:text-[#e5322d]"
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => void signOut().then(() => navigate('/login'))}
+            className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            <span>Log out</span>
+          </button>
         </div>
       </aside>
 
@@ -537,15 +519,6 @@ export function SellerLayout() {
           </form>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setPreviewModalOpen(true)}
-              title="Preview your live storefront"
-              className="hidden xl:inline-flex items-center bg-[#e7f6e7] hover:bg-[#d7f0d7] text-[#029500] text-[11.5px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-colors"
-            >
-              Store Live
-            </button>
-
             <button
               type="button"
               onClick={() => setNotifModalOpen(true)}
@@ -615,10 +588,6 @@ export function SellerLayout() {
       <NotificationModal
         open={notifModalOpen}
         onClose={() => setNotifModalOpen(false)}
-      />
-      <StorefrontPreviewModal
-        open={previewModalOpen}
-        onClose={() => setPreviewModalOpen(false)}
       />
     </div>
   );

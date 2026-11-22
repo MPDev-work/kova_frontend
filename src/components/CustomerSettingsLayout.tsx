@@ -217,9 +217,6 @@ export function CustomerSettingsLayout() {
         <div className="flex flex-col gap-3.5 overflow-y-auto no-scrollbar">
           <div className="flex items-center gap-2 px-1">
             <KovaLogo size="sm" />
-            <span className="bg-[#ffefe6] text-[#ff6e20] text-[10px] font-bold px-2 py-[3px] rounded-full tracking-wide">
-              CUSTOMER
-            </span>
           </div>
 
           <Link

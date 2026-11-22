@@ -433,7 +433,10 @@ export function ChatThreadModal({
                   <ChatMessageBody
                     message={msg.message}
                     attachments={msg.attachments}
+                    metadata={msg.metadata}
                     isOwn={isOwn}
+                    viewerMode={viewingAsStaff ? 'seller' : 'customer'}
+                    onCardNavigate={onClose}
                   />
                   <span className="text-[11px] text-[#8a8a8a] mt-1 px-1">
                     {senderName} · {formatShortDate(msg.created_at)}

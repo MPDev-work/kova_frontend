@@ -14,11 +14,11 @@ import type { ChildOrderRecord } from '../types/marketplace';
 const SUCCESS_SPARKS = [
   { angle: '0deg', color: '#029500', size: 7 },
   { angle: '45deg', color: '#ff6e20', size: 6 },
-  { angle: '90deg', color: '#22c55e', size: 7 },
+  { angle: '90deg', color: '#029500', size: 7 },
   { angle: '135deg', color: '#fbbf24', size: 6 },
   { angle: '180deg', color: '#029500', size: 7 },
   { angle: '225deg', color: '#ff6e20', size: 6 },
-  { angle: '270deg', color: '#22c55e', size: 7 },
+  { angle: '270deg', color: '#029500', size: 7 },
   { angle: '315deg', color: '#fbbf24', size: 6 },
 ];
 
@@ -342,7 +342,7 @@ function KhqrModalContent({
                 />
               ))}
 
-              <div className="khqr-success-circle relative w-[84px] h-[84px] rounded-full bg-[#029500] shadow-[0_12px_28px_rgba(2,149,0,0.28)] flex items-center justify-center">
+              <div className="khqr-success-circle relative w-[84px] h-[84px] rounded-full bg-[#029500] shadow-[0_12px_28px_rgba(2, 149, 0,0.28)] flex items-center justify-center">
                 <svg
                   width="42"
                   height="42"

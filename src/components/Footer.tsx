@@ -28,8 +28,25 @@ const PROMISES: { icon: FigmaIconName; title: string; desc: string }[] = [
 ];
 
 export function Footer() {
-  const { showToast } = useStore();
+  const { settings, showToast } = useStore();
   const [email, setEmail] = useState('');
+
+  const socialEntries = (() => {
+    const raw = settings.social_links;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+    return Object.entries(raw as Record<string, unknown>)
+      .filter(([, v]) => typeof v === 'string' && v.trim().length > 0)
+      .map(([platform, url]) => {
+        const trimmed = String(url).trim();
+        const href = /^https?:\/\//i.test(trimmed)
+          ? trimmed
+          : `https://${trimmed}`;
+        return {
+          platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+          href,
+        };
+      });
+  })();
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +96,21 @@ export function Footer() {
               <FigmaIcon name="map-pin" className="w-4 h-4 text-[#ff6e20]" />
               <span>No. 21, St. 214, Boeung Raing, Daun Penh, Phnom Penh</span>
             </div>
+            {socialEntries.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {socialEntries.map((item) => (
+                  <a
+                    key={item.platform}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] text-[12px] font-semibold px-3 py-1 rounded-full transition-colors"
+                  >
+                    {item.platform}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Shop */}

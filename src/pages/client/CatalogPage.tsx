@@ -26,16 +26,14 @@ interface CatalogPageProps {
 }
 
 export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
-  const { categories, brands } = useStore();
+  const { categories } = useStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialQuery = searchParams.get('q') || '';
   const initialCategory = searchParams.get('category') || '';
-  const initialBrand = searchParams.get('brand') || '';
   const initialSort = searchParams.get('sort') || 'newest';
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-  const [selectedBrand, setSelectedBrand] = useState(initialBrand);
   const [priceRange, setPriceRange] = useState('any');
   const [onlyVerified, setOnlyVerified] = useState(false);
   const [onlyInStock, setOnlyInStock] = useState(false);
@@ -57,7 +55,6 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
         const res = await catalogApi.getProducts({
           search: initialQuery || undefined,
           category: selectedCategory || undefined,
-          brand: selectedBrand || undefined,
           has_discount: mode === 'promotion' || undefined,
           free_shipping: mode === 'free-delivery' || undefined,
           verified_only: onlyVerified || undefined,
@@ -90,7 +87,6 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
   }, [
     initialQuery,
     selectedCategory,
-    selectedBrand,
     priceRange,
     onlyVerified,
     onlyInStock,
@@ -101,7 +97,6 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
 
   const clearAllFilters = () => {
     setSelectedCategory('');
-    setSelectedBrand('');
     setPriceRange('any');
     setOnlyVerified(false);
     setOnlyInStock(false);
@@ -132,7 +127,6 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
             </p>
           </div>
           {(selectedCategory ||
-            selectedBrand ||
             priceRange !== 'any' ||
             onlyVerified ||
             onlyInStock ||
@@ -182,46 +176,6 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
                 }`}
               >
                 {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Brands Row */}
-        {brands.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[12px] font-semibold text-[#767676] w-[96px] shrink-0">
-              Brands:
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedBrand('');
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-full text-[12px] transition-colors ${
-                selectedBrand === ''
-                  ? 'bg-[#ff6e20] text-white font-semibold'
-                  : 'bg-[#f7f7f7] text-black font-medium hover:bg-[#ffefe6] hover:text-[#ff6e20]'
-              }`}
-            >
-              All Brands
-            </button>
-            {brands.map((brand) => (
-              <button
-                key={brand.id}
-                type="button"
-                onClick={() => {
-                  setSelectedBrand(brand.slug);
-                  setPage(1);
-                }}
-                className={`px-3 py-1.5 rounded-full text-[12px] transition-colors ${
-                  selectedBrand === brand.slug
-                    ? 'bg-[#ff6e20] text-white font-semibold'
-                    : 'bg-[#f7f7f7] text-black font-medium hover:bg-[#ffefe6] hover:text-[#ff6e20]'
-                }`}
-              >
-                {brand.name}
               </button>
             ))}
           </div>

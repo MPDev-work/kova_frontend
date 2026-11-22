@@ -11,7 +11,7 @@ import {
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 
 export function VerifiedStoresPage() {
-  const { bootstrapping, stores, brands, products } = useStore();
+  const { bootstrapping, stores, products } = useStore();
 
   const verifiedStores = useMemo(() => {
     const v = stores.filter((s) => s.is_verified);
@@ -19,19 +19,12 @@ export function VerifiedStoresPage() {
   }, [stores]);
 
   const marqueeItems = useMemo(() => {
-    if (brands.length > 0) {
-      return brands.map((b) => ({
-        name: b.name,
-        logo: b.logo || null,
-        target: `/products?brand=${encodeURIComponent(b.slug)}`,
-      }));
-    }
     return verifiedStores.map((s) => ({
       name: s.name,
       logo: s.logo || null,
       target: `/store/${s.slug}`,
     }));
-  }, [brands, verifiedStores]);
+  }, [verifiedStores]);
 
   return (
     <div className="bg-[#f2f2f7] min-h-screen w-full">

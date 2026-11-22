@@ -39,7 +39,6 @@ export function Header() {
         .filter(
           (p) =>
             p.name.toLowerCase().includes(query.toLowerCase()) ||
-            p.brand_name.toLowerCase().includes(query.toLowerCase()) ||
             p.category_name.toLowerCase().includes(query.toLowerCase()),
         )
         .slice(0, 5)
@@ -87,7 +86,7 @@ export function Header() {
                   setQuery(e.target.value);
                   setShowSuggestions(true);
                 }}
-                placeholder="Search products, brands, or stores..."
+                placeholder="Search products, categories, or stores..."
                 className="flex-1 bg-transparent text-[14px] text-black placeholder:text-[#ababab] tracking-[-0.28px] outline-none min-w-0"
               />
               {query && (
@@ -224,7 +223,7 @@ export function Header() {
                         Root Admin Dashboard
                       </Link>
                     )}
-                    {(user.roles?.includes('store_owner') || user.store) && (
+                    {user.store?.status === 'approved' && (
                       <Link
                         to="/seller"
                         onClick={() => setShowProfileMenu(false)}

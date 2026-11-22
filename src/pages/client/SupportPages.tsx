@@ -56,7 +56,7 @@ export function HelpCenterPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search orders, Bakong KHQR, returns..."
-          className="bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-[25px] px-4 py-3.5 text-[14px] outline-none max-w-[540px]"
+          className="h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[14px] outline-none max-w-[540px]"
         />
       </div>
 
@@ -200,9 +200,6 @@ export function SupportTicketsPage() {
 
           <div className="hidden sm:flex items-center gap-2">
             <KovaLogo size="sm" />
-            <span className="bg-[#ffefe6] text-[#ff6e20] text-[10px] font-bold px-2.5 py-[3px] rounded-full tracking-wide">
-              MESSAGES
-            </span>
           </div>
         </div>
 

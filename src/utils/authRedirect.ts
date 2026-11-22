@@ -3,8 +3,8 @@ import type { UserProfile } from '../types/marketplace';
 export type DashboardPath = '/admin' | '/seller';
 
 /**
- * Returns the target dashboard route for Root Admin or Store Owner accounts,
- * or null for standard customers and guests.
+ * Returns the target dashboard route for Root Admin or approved Store Owner accounts,
+ * or null for standard customers, guests, and pending/rejected seller applicants.
  */
 export function getUserDashboardPath(
   user: UserProfile | null | undefined,
@@ -14,7 +14,14 @@ export function getUserDashboardPath(
   if (roles.includes('admin') || roles.includes('root_admin')) {
     return '/admin';
   }
-  if (roles.includes('store_owner') || Boolean(user.store)) {
+  // Pending or rejected seller applicants remain customers until approved by Admin
+  if (
+    user.store?.status === 'approved' ||
+    user.store?.status === 'suspended'
+  ) {
+    return '/seller';
+  }
+  if (roles.includes('store_owner') && !user.store) {
     return '/seller';
   }
   return null;

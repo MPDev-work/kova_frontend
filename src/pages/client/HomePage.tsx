@@ -96,12 +96,12 @@ export function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-1 gap-x-3 gap-y-2 flex-1 overflow-y-auto no-scrollbar">
-              {categories.slice(0, 10).map((cat) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-1 content-start gap-x-3 gap-y-1 flex-1 overflow-y-auto no-scrollbar">
+              {categories.map((cat) => (
                 <Link
                   key={cat.id}
                   to={`/products?category=${encodeURIComponent(cat.slug)}`}
-                  className="flex items-center justify-between text-[12.5px] font-medium text-black hover:text-[#ff6e20] py-0.5 transition-colors group"
+                  className="flex items-center justify-between text-[13px] font-medium text-black hover:text-[#ff6e20] hover:bg-[#ffefe6]/60 px-2 -mx-1 py-1.5 rounded-[10px] transition-colors group"
                 >
                   <span className="truncate">{cat.name}</span>
                   <span className="text-[14px] text-[#979797] group-hover:text-[#ff6e20] shrink-0 ml-1">

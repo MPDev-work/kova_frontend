@@ -24,9 +24,9 @@ import { DEFAULT_KHR_RATE } from '../utils/currency';
 import type {
   Address,
   AppliedCoupon,
-  Brand,
   CartSummary,
   Category,
+  ChatMessageMetadata,
   OrderRecord,
   PlatformSettings,
   Product,
@@ -60,7 +60,6 @@ interface StoreContextValue {
 
   // Public Catalog
   categories: Category[];
-  brands: Brand[];
   stores: Store[];
   products: Product[];
   promotions: Promotion[];
@@ -107,11 +106,18 @@ interface StoreContextValue {
   ) => Promise<boolean>;
   updateCartQty: (cartItemId: number, quantity: number) => Promise<void>;
   removeFromCart: (cartItemId: number) => Promise<void>;
+  removeMultipleFromCart: (cartItemIds: number[]) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
   appliedCoupon: AppliedCoupon | null;
   couponDiscount: number;
-  applyCoupon: (code: string) => Promise<{ ok: boolean; message: string }>;
+  applyCoupon: (
+    code: string,
+    overrideTotals?: {
+      totalAmount: number;
+      storeSubtotals: Record<number, number>;
+    },
+  ) => Promise<{ ok: boolean; message: string }>;
   removeCoupon: () => void;
 
   // Wishlist & Recently Viewed
@@ -138,6 +144,13 @@ interface StoreContextValue {
     payment_method: 'bakong_khqr' | 'cod';
     shipping_methods?: Record<number, number>;
     notes?: string;
+    coupon_code?: string | null;
+    cart_item_ids?: number[];
+    buy_now_item?: {
+      product_id: number;
+      variant_id?: number | null;
+      quantity: number;
+    };
   }) => Promise<OrderRecord>;
   cancelOrder: (
     orderId: number,
@@ -177,6 +190,7 @@ interface StoreContextValue {
     ticketId: number,
     message: string,
     attachments?: string[],
+    metadata?: ChatMessageMetadata | null,
   ) => Promise<void>;
 
   // Live In-App Notifications
@@ -246,7 +260,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [settings, setSettings] = useState<PlatformSettings>({});
   const [categories, setCategories] = useState<Category[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -410,7 +423,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const [
       settingsRes,
       catRes,
-      brandRes,
       storeRes,
       prodRes,
       promoRes,
@@ -418,7 +430,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ] = await Promise.allSettled([
       catalogApi.getSettings(),
       catalogApi.getCategories(),
-      catalogApi.getBrands(),
       catalogApi.getStores({ per_page: 50 }),
       catalogApi.getProducts({ per_page: 50 }),
       catalogApi.getPromotions(),
@@ -428,8 +439,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (settingsRes.status === 'fulfilled') setSettings(settingsRes.value.data);
     if (catRes.status === 'fulfilled')
       setCategories(Array.isArray(catRes.value.data) ? catRes.value.data : []);
-    if (brandRes.status === 'fulfilled')
-      setBrands(Array.isArray(brandRes.value.data) ? brandRes.value.data : []);
     if (storeRes.status === 'fulfilled') setStores(storeRes.value);
     if (prodRes.status === 'fulfilled') setProducts(prodRes.value.products);
     if (promoRes.status === 'fulfilled') setPromotions(promoRes.value);
@@ -646,6 +655,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Automatically check approval status for customers with a pending store application
+  // so they switch smoothly to Seller Center as soon as Admin approves.
+  const hasPendingStore = user?.store?.status === 'pending';
+  useEffect(() => {
+    if (!hasPendingStore) return;
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshUser();
+      }
+    };
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshUser();
+      }
+    }, 15000);
+    return () => {
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+      window.clearInterval(interval);
+    };
+  }, [hasPendingStore, refreshUser]);
+
   const completeGoogleAuth = useCallback(
     async (token: string) => {
       setAuthToken(token);
@@ -754,24 +787,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const removeMultipleFromCart = async (cartItemIds: number[]) => {
+    if (cartItemIds.length === 0) return;
+    try {
+      const updated = await cartApi.removeItems(cartItemIds);
+      setCart(updated);
+      showToast(
+        cartItemIds.length === 1
+          ? '1 item removed from cart.'
+          : `${cartItemIds.length} items removed from cart.`,
+      );
+    } catch (err) {
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to remove selected items.',
+      );
+    }
+  };
+
   const clearCart = async () => {
     await cartApi.clearCart();
     setCart(EMPTY_CART);
   };
 
-  const applyCoupon = async (
-    code: string,
-  ): Promise<{ ok: boolean; message: string }> => {
+  const applyCoupon: StoreContextValue['applyCoupon'] = async (
+    code,
+    overrideTotals,
+  ) => {
     try {
-      const storeSubtotals: Record<number, number> = {};
-      cart.stores.forEach((g) => {
-        storeSubtotals[g.store.id] = g.store_subtotal;
-      });
-      const hasCartItems = cart.stores.length > 0;
+      let totalAmount: number | undefined;
+      let storeSubtotals: Record<number, number> | undefined;
+
+      if (overrideTotals) {
+        totalAmount = overrideTotals.totalAmount;
+        storeSubtotals = overrideTotals.storeSubtotals;
+      } else if (cart.stores.length > 0) {
+        const subMap: Record<number, number> = {};
+        cart.stores.forEach((g) => {
+          subMap[g.store.id] = g.store_subtotal;
+        });
+        totalAmount = cart.total_amount;
+        storeSubtotals = subMap;
+      }
+
       const res = await catalogApi.validateCoupon(
         code,
-        hasCartItems ? cart.total_amount : undefined,
-        hasCartItems ? storeSubtotals : undefined,
+        totalAmount,
+        storeSubtotals,
       );
       setAppliedCoupon(res.data);
       showToast(res.message || `Voucher ${res.data.code} applied.`);
@@ -910,14 +973,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const submitCheckout: StoreContextValue['submitCheckout'] = async (
     payload,
   ) => {
+    const resolvedCouponCode =
+      payload.coupon_code !== undefined
+        ? payload.coupon_code
+        : appliedCoupon && isCouponEligibleForCart
+          ? appliedCoupon.code
+          : null;
+
     const order = await checkoutApi.checkout({
       ...payload,
-      coupon_code:
-        appliedCoupon && isCouponEligibleForCart ? appliedCoupon.code : null,
+      coupon_code: resolvedCouponCode,
     });
-    // Keep cart intact for Bakong KHQR until payment actually completes
+    // Keep cart intact for Bakong KHQR until payment actually completes;
+    // for non-KHQR selective/buy-now checkouts refresh cart so unselected items remain.
     if (payload.payment_method !== 'bakong_khqr') {
-      setCart(EMPTY_CART);
+      if (payload.buy_now_item || payload.cart_item_ids) {
+        await refreshCart();
+      } else {
+        setCart(EMPTY_CART);
+      }
       setAppliedCoupon(null);
     }
     if (order.id > 0) {
@@ -971,8 +1045,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ticketId: number,
     message: string,
     attachments?: string[],
+    metadata?: ChatMessageMetadata | null,
   ) => {
-    await customerApi.replyTicket(ticketId, message, attachments);
+    await customerApi.replyTicket(ticketId, message, attachments, metadata);
     await refreshTickets();
     showToast('Reply sent.');
   };
@@ -1006,7 +1081,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         settings,
         khrRate,
         categories,
-        brands,
         stores,
         products,
         promotions,
@@ -1028,6 +1102,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         addToCart,
         updateCartQty,
         removeFromCart,
+        removeMultipleFromCart,
         clearCart,
         refreshCart,
         appliedCoupon,

@@ -909,7 +909,7 @@ export function SellerProductsPage() {
                               {p.name}
                             </p>
                             <p className="text-[11px] text-[#8a8a8a] truncate">
-                              {p.brand?.name || p.category?.name || 'Standard'}
+                              {p.category?.name || 'Standard'}
                             </p>
                           </div>
                         </div>
@@ -1009,14 +1009,12 @@ export function SellerProductFormPage() {
   const { productId } = useParams<{ productId: string }>();
   const isEdit = Boolean(productId);
   const navigate = useNavigate();
-  const { user, categories, brands, khrRate, showToast, refreshCatalog } =
-    useStore();
+  const { user, categories, khrRate, showToast, refreshCatalog } = useStore();
 
   const [loading, setLoading] = useState(isEdit);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
-  const [brandId, setBrandId] = useState<string>('');
   const [regularPrice, setRegularPrice] = useState('');
   const [discountPrice, setDiscountPrice] = useState('');
   const [stockQuantity, setStockQuantity] = useState('10');
@@ -1049,7 +1047,6 @@ export function SellerProductFormPage() {
         setName(p.name);
         setSku(p.sku);
         setCategoryId(p.category_id ? String(p.category_id) : '');
-        setBrandId(p.brand_id ? String(p.brand_id) : '');
         setRegularPrice(String(p.regular_price));
         setDiscountPrice(p.discount_price ? String(p.discount_price) : '');
         setStockQuantity(String(p.stock_quantity));
@@ -1162,7 +1159,6 @@ export function SellerProductFormPage() {
           name: name.trim(),
           sku: sku.trim(),
           category_id: effectiveCategory,
-          brand_id: brandId ? Number(brandId) : null,
           regular_price: Number(regularPrice),
           discount_price: discountPrice ? Number(discountPrice) : null,
           stock_quantity: Number(stockQuantity),
@@ -1180,7 +1176,6 @@ export function SellerProductFormPage() {
           name: name.trim(),
           sku: sku.trim(),
           category_id: effectiveCategory,
-          brand_id: brandId ? Number(brandId) : null,
           regular_price: Number(regularPrice),
           discount_price: discountPrice ? Number(discountPrice) : null,
           stock_quantity: Number(stockQuantity),
@@ -1287,7 +1282,7 @@ export function SellerProductFormPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Studio Wireless Headphones — ANC Edition"
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -1299,7 +1294,7 @@ export function SellerProductFormPage() {
                 value={shortDescription}
                 onChange={(e) => setShortDescription(e.target.value)}
                 placeholder="One-line highlight displayed on product cards"
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -1421,7 +1416,7 @@ export function SellerProductFormPage() {
                   value={regularPrice}
                   onChange={(e) => setRegularPrice(e.target.value)}
                   placeholder="0.00"
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
                 <span className="text-[11px] text-[#8a8a8a]">
                   {formatRiel(parsedRegular, khrRate)}
@@ -1439,7 +1434,7 @@ export function SellerProductFormPage() {
                   value={discountPrice}
                   onChange={(e) => setDiscountPrice(e.target.value)}
                   placeholder="Optional promo price"
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
                 <span className="text-[11px] text-[#029500] font-medium">
                   {discountPct > 0
@@ -1466,7 +1461,7 @@ export function SellerProductFormPage() {
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
                   placeholder="e.g. KT-AUD-001"
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] font-mono outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] font-mono outline-none"
                 />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -1479,7 +1474,7 @@ export function SellerProductFormPage() {
                   min={0}
                   value={stockQuantity}
                   onChange={(e) => setStockQuantity(e.target.value)}
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -1491,7 +1486,7 @@ export function SellerProductFormPage() {
                   min={0}
                   value={lowStockThreshold}
                   onChange={(e) => setLowStockThreshold(e.target.value)}
-                  className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none"
+                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                 />
               </label>
             </div>
@@ -1515,7 +1510,7 @@ export function SellerProductFormPage() {
                     e.target.value as 'draft' | 'published' | 'archived',
                   )
                 }
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
               >
                 <option value="published">
                   Active — Visible on Marketplace
@@ -1577,30 +1572,12 @@ export function SellerProductFormPage() {
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
               >
                 <option value="">No category</option>
                 {categories.map((c) => (
                   <option key={c.id} value={String(c.id)}>
                     {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-black">
-                Brand (optional)
-              </span>
-              <select
-                value={brandId}
-                onChange={(e) => setBrandId(e.target.value)}
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
-              >
-                <option value="">No brand</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={String(b.id)}>
-                    {b.name}
                   </option>
                 ))}
               </select>
@@ -2022,7 +1999,7 @@ export function SellerInventoryPage() {
               required
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(Number(e.target.value))}
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
             >
               {products.length === 0 && (
                 <option value={0}>No products yet</option>
@@ -2044,7 +2021,7 @@ export function SellerInventoryPage() {
               onChange={(e) =>
                 setType(e.target.value as 'restock' | 'adjustment')
               }
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
             >
               <option value="restock">Add stock (+ Incoming shipment)</option>
               <option value="adjustment">Manual adjustment (+/-)</option>
@@ -2060,7 +2037,7 @@ export function SellerInventoryPage() {
               required
               value={qtyChange}
               onChange={(e) => setQtyChange(e.target.value)}
-              className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] outline-none"
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
             />
             {selectedProduct && (
               <span className="text-[11.5px] text-[#767676]">

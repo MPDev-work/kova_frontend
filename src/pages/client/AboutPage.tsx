@@ -175,8 +175,25 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
             <p className="text-[13px] text-[#767676] pt-1">
               {myApp.status === 'approved'
                 ? 'Your store has been approved and is ready to sell on Kova.'
-                : 'Your application is pending review by a Kova Root Administrator.'}
+                : 'Your application is pending review by a Kova Root Administrator. You can continue shopping as a customer in the meantime — once approved, we will send you a welcome email and switch your account to Seller Center.'}
             </p>
+            <div className="flex flex-wrap gap-2.5 pt-2">
+              {myApp.status === 'approved' ? (
+                <Link
+                  to="/seller"
+                  className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13px] font-semibold px-5 py-2.5 rounded-full transition-colors"
+                >
+                  Visit your store
+                </Link>
+              ) : (
+                <Link
+                  to="/"
+                  className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13px] font-semibold px-5 py-2.5 rounded-full transition-colors"
+                >
+                  Continue shopping
+                </Link>
+              )}
+            </div>
           </div>
         ) : isSignedIn ? (
           <form
@@ -207,7 +224,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
                 placeholder="Your store name"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -219,7 +236,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="012 345 678"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -231,7 +248,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={email || user?.email || ''}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="store@example.com"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -244,7 +261,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 setDistrict(loc.district);
                 setCommune(loc.commune);
               }}
-              inputClassName="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-4 py-2.5 text-[14px] bg-white outline-none"
+              inputClassName="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[14px] bg-white outline-none"
             />
 
             <label className="flex flex-col gap-1.5">
@@ -255,7 +272,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 placeholder="Building #, Street..."
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -267,7 +284,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 type="text"
                 value={businessRegNo}
                 onChange={(e) => setBusinessRegNo(e.target.value)}
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -279,7 +296,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 type="text"
                 value={taxId}
                 onChange={(e) => setTaxId(e.target.value)}
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -343,7 +360,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={ownerName}
                 onChange={(e) => setOwnerName(e.target.value)}
                 placeholder="Your full name"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -355,7 +372,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
                 placeholder="Your store name"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -367,7 +384,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -379,7 +396,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="012 345 678"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -392,7 +409,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 8 characters"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -407,7 +424,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={passwordConfirmation}
                 onChange={(e) => setPasswordConfirmation(e.target.value)}
                 placeholder="Re-enter password"
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 
@@ -420,7 +437,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 setDistrict(loc.district);
                 setCommune(loc.commune);
               }}
-              inputClassName="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-4 py-2.5 text-[14px] bg-white outline-none"
+              inputClassName="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[14px] bg-white outline-none"
             />
 
             <label className="flex flex-col gap-1.5">
@@ -431,7 +448,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 placeholder="Building #, Street..."
-                className="border border-[#ececec] rounded-[12px] px-4 py-2.5 text-[14px] outline-none focus:border-[#ff6e20]"
+                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
 

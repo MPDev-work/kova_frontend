@@ -35,7 +35,7 @@ export function CambodiaLocationSelector({
   commune,
   onChange,
   required = true,
-  inputClassName = 'border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none',
+  inputClassName = 'h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none',
   labelClassName = 'text-[12px] font-semibold text-black',
 }: CambodiaLocationSelectorProps) {
   const selectedProvinceObj = useMemo(

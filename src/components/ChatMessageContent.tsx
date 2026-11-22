@@ -1,7 +1,159 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ExternalLink, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, ExternalLink, Package, ShoppingBag, X } from 'lucide-react';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import type { ChatContextCard, ChatMessageMetadata } from '../types/marketplace';
+
+function getCardDestination(
+  card: ChatContextCard,
+  viewerMode: 'customer' | 'seller' | 'admin',
+): { to: string; label: string } | null {
+  if (card.kind === 'order' && card.order_number) {
+    const cleanOrder = card.order_number.replace(/^#/, '');
+    if (viewerMode === 'seller') {
+      return {
+        to: `/seller/orders?order=${encodeURIComponent(cleanOrder)}`,
+        label: 'View order',
+      };
+    }
+    if (viewerMode === 'admin') {
+      return {
+        to: `/admin/shipping?search=${encodeURIComponent(cleanOrder)}`,
+        label: 'View order',
+      };
+    }
+    return {
+      to: `/account/orders?order=${encodeURIComponent(cleanOrder)}`,
+      label: 'View order',
+    };
+  }
+
+  if (card.kind === 'product') {
+    if (viewerMode === 'seller') {
+      return {
+        to: card.product_id
+          ? `/seller/products/${card.product_id}/edit`
+          : '/seller/products',
+        label: 'View product',
+      };
+    }
+    if (card.product_slug) {
+      return {
+        to: `/product/${encodeURIComponent(card.product_slug)}`,
+        label: 'View product',
+      };
+    }
+  }
+
+  return null;
+}
+
+function formatCardStatus(status?: string | null): string | null {
+  if (!status) return null;
+  return status.replace(/_/g, ' ');
+}
+
+function ChatContextCardView({
+  card,
+  viewerMode,
+  onNavigate,
+}: {
+  card: ChatContextCard;
+  viewerMode: 'customer' | 'seller' | 'admin';
+  onNavigate?: () => void;
+}) {
+  const destination = getCardDestination(card, viewerMode);
+  const statusLabel = formatCardStatus(card.order_status);
+  const isOrder = card.kind === 'order';
+  const extraItemsCount =
+    card.item_count && card.quantity && card.item_count > card.quantity
+      ? card.item_count - card.quantity
+      : 0;
+  const displayPrice =
+    isOrder && card.total_amount != null
+      ? Number(card.total_amount)
+      : card.unit_price != null
+        ? Number(card.unit_price)
+        : null;
+
+  return (
+    <div className="w-[272px] sm:w-[308px] max-w-full bg-white border border-[#ececec] rounded-[16px] overflow-hidden shadow-[0_3px_12px_rgba(0,0,0,0.06)] text-left">
+      <div className="bg-[#fafafa] border-b border-[#f0f0f0] px-3 py-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {isOrder ? (
+            <Package className="w-3.5 h-3.5 text-[#ff6e20] shrink-0" />
+          ) : (
+            <ShoppingBag className="w-3.5 h-3.5 text-[#ff6e20] shrink-0" />
+          )}
+          <span className="text-[11.5px] font-semibold text-black truncate">
+            {isOrder && card.order_number
+              ? `Order #${card.order_number.replace(/^#/, '')}`
+              : 'Product inquiry'}
+          </span>
+        </div>
+        {isOrder && statusLabel ? (
+          <span className="bg-[#ffefe6] text-[#ff6e20] text-[10.5px] font-semibold px-2 py-0.5 rounded-full capitalize shrink-0">
+            {statusLabel}
+          </span>
+        ) : card.store_name ? (
+          <span className="text-[11px] text-[#767676] truncate max-w-[120px]">
+            {card.store_name}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="p-3 flex items-center gap-3">
+        <div className="w-[56px] h-[56px] rounded-[10px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center">
+          {card.product_image ? (
+            <img
+              src={card.product_image}
+              alt={card.product_name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Package className="w-5 h-5 text-[#979797]" />
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-black leading-snug line-clamp-2">
+            {card.product_name}
+          </p>
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <p className="text-[11.5px] text-[#767676] truncate">
+              {isOrder && card.quantity != null
+                ? `Qty ${card.quantity}${
+                    card.unit_price != null
+                      ? ` · $${Number(card.unit_price).toFixed(2)}`
+                      : ''
+                  }${extraItemsCount > 0 ? ` · +${extraItemsCount} more` : ''}`
+                : card.store_name || 'Item details'}
+            </p>
+            {displayPrice != null && (
+              <span className="text-[13.5px] font-bold text-[#ff6e20] shrink-0">
+                ${displayPrice.toFixed(2)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {destination && (
+        <div className="px-3 pb-3">
+          <Link
+            to={destination.to}
+            onClick={onNavigate}
+            className="w-full inline-flex items-center justify-center gap-1.5 bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold py-2 px-3 rounded-full transition-colors"
+          >
+            <span>{destination.label}</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const URL_REGEX =
   /(https?:\/\/[^\s<]+|www\.[^\s<]+|(?<![@\w/.])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org|io|co|app|dev|ai|kh|edu|gov|me|tv|gg|ly|sh|xyz|info|biz|shop|store|site|online|tech|cloud|pro|link)(?:\/[^\s<]*)?)/gi;
@@ -60,11 +212,17 @@ function renderLinkedText(text: string, isOwn: boolean) {
 export function ChatMessageBody({
   message,
   attachments,
+  metadata,
   isOwn,
+  viewerMode = 'customer',
+  onCardNavigate,
 }: {
   message?: string | null;
   attachments?: string[] | null;
+  metadata?: ChatMessageMetadata | null;
   isOwn: boolean;
+  viewerMode?: 'customer' | 'seller' | 'admin';
+  onCardNavigate?: () => void;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   useBodyScrollLock(Boolean(previewUrl));
@@ -80,6 +238,7 @@ export function ChatMessageBody({
 
   const images = (attachments || []).filter(Boolean);
   const text = (message || '').trim();
+  const contextCard = metadata?.context_card ?? null;
 
   return (
     <>
@@ -88,6 +247,14 @@ export function ChatMessageBody({
           isOwn ? 'items-end' : 'items-start'
         }`}
       >
+        {contextCard && (
+          <ChatContextCardView
+            card={contextCard}
+            viewerMode={viewerMode}
+            onNavigate={onCardNavigate}
+          />
+        )}
+
         {images.length > 0 && (
           <div
             className={`grid gap-1.5 ${
@@ -154,6 +321,82 @@ export function ChatMessageBody({
           document.body,
         )}
     </>
+  );
+}
+
+export function PendingContextCardBar({
+  card,
+  onRemove,
+}: {
+  card: ChatContextCard | null;
+  onRemove: () => void;
+}) {
+  if (!card) return null;
+  const isOrder = card.kind === 'order';
+  const statusLabel = formatCardStatus(card.order_status);
+  const extraItemsCount =
+    card.item_count && card.quantity && card.item_count > card.quantity
+      ? card.item_count - card.quantity
+      : 0;
+  const displayPrice =
+    isOrder && card.total_amount != null
+      ? Number(card.total_amount)
+      : card.unit_price != null
+        ? Number(card.unit_price)
+        : null;
+
+  return (
+    <div className="flex items-center gap-3 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-2.5 pr-3">
+      <div className="w-[48px] h-[48px] rounded-[10px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
+        {card.product_image ? (
+          <img
+            src={card.product_image}
+            alt={card.product_name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <Package className="w-5 h-5 text-[#979797]" />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-[#ff6e20]">
+            {isOrder && card.order_number
+              ? `Asking about Order #${card.order_number.replace(/^#/, '')}`
+              : 'Asking about this product'}
+          </span>
+          {isOrder && statusLabel && (
+            <span className="bg-[#ffefe6] text-[#ff6e20] text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize">
+              {statusLabel}
+            </span>
+          )}
+        </div>
+        <p className="text-[13px] font-semibold text-black truncate mt-0.5">
+          {card.product_name}
+        </p>
+        <p className="text-[11.5px] text-[#767676] truncate">
+          {isOrder && card.quantity != null
+            ? `Qty ${card.quantity}${
+                card.unit_price != null
+                  ? ` · $${Number(card.unit_price).toFixed(2)} each`
+                  : ''
+              }${extraItemsCount > 0 ? ` · +${extraItemsCount} more` : ''}`
+            : card.store_name || 'Attached product details'}
+          {displayPrice != null ? ` · $${displayPrice.toFixed(2)}` : ''}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove attached item"
+        title="Remove attached item"
+        className="w-7 h-7 rounded-full bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[#767676] flex items-center justify-center shrink-0 transition-colors"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
   );
 }
 
