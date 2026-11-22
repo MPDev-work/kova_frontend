@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { ApiError, customerApi } from '../../services/api';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
@@ -26,7 +27,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
   const [province, setProvince] = useState('Phnom Penh');
   const [district, setDistrict] = useState('Chamkar Mon');
   const [commune, setCommune] = useState('Tonle Basak');
-  const [street, setStreet] = useState('');
+  const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [phone, setPhone] = useState(user?.phone || '');
   const [email, setEmail] = useState(user?.email || '');
   const [businessRegNo, setBusinessRegNo] = useState('');
@@ -62,7 +63,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
   }, [mode, isSignedIn]);
 
   if (mode === 'seller') {
-    const composedAddress = [street.trim(), commune, district, province]
+    const composedAddress = [commune, district, province]
       .filter(Boolean)
       .join(', ');
 
@@ -75,6 +76,10 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
           store_name: storeName.trim(),
           store_description: storeDescription.trim() || undefined,
           store_address: composedAddress,
+          province: province.trim() || undefined,
+          district: district.trim() || undefined,
+          commune: commune.trim() || undefined,
+          google_maps_url: googleMapsUrl.trim() || undefined,
           phone: phone.trim(),
           email: (email || user?.email || '').trim(),
           business_registration_number: businessRegNo.trim() || undefined,
@@ -114,6 +119,10 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
           store_name: storeName.trim(),
           store_description: storeDescription.trim() || undefined,
           store_address: composedAddress,
+          province: province.trim() || undefined,
+          district: district.trim() || undefined,
+          commune: commune.trim() || undefined,
+          google_maps_url: googleMapsUrl.trim() || undefined,
         });
         const app = await customerApi.getMyStoreApplication();
         setMyApp(app && typeof app === 'object' && 'id' in app ? app : null);
@@ -265,16 +274,27 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
             />
 
             <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold">Street address</span>
+              <span className="text-[12px] font-semibold">
+                Google Maps link (optional)
+              </span>
               <input
-                type="text"
-                required
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                placeholder="Building #, Street..."
+                type="url"
+                value={googleMapsUrl}
+                onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                placeholder="https://maps.google.com/..."
                 className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
+
+            {composedAddress && (
+              <div className="sm:col-span-2 bg-[#f7f7f7] border border-[#ececec] rounded-[14px] px-4 py-2.5 flex items-center gap-2 text-[13px] text-[#555555]">
+                <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
+                <span className="truncate">
+                  <strong className="text-black">Location preview:</strong>{' '}
+                  {composedAddress}
+                </span>
+              </div>
+            )}
 
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold">
@@ -441,16 +461,27 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
             />
 
             <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold">Street address</span>
+              <span className="text-[12px] font-semibold">
+                Google Maps link (optional)
+              </span>
               <input
-                type="text"
-                required
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                placeholder="Building #, Street..."
+                type="url"
+                value={googleMapsUrl}
+                onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                placeholder="https://maps.google.com/..."
                 className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
               />
             </label>
+
+            {composedAddress && (
+              <div className="sm:col-span-2 bg-[#f7f7f7] border border-[#ececec] rounded-[14px] px-4 py-2.5 flex items-center gap-2 text-[13px] text-[#555555]">
+                <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
+                <span className="truncate">
+                  <strong className="text-black">Location preview:</strong>{' '}
+                  {composedAddress}
+                </span>
+              </div>
+            )}
 
             <label className="flex flex-col gap-1.5 sm:col-span-2">
               <span className="text-[12px] font-semibold">

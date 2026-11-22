@@ -672,6 +672,10 @@ export interface SellerStoreProfile {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  province?: string | null;
+  district?: string | null;
+  commune?: string | null;
+  google_maps_url?: string | null;
   status: string;
   is_verified: boolean;
   commission_rate?: number | null;
@@ -929,6 +933,10 @@ export const storeOwnerApi = {
     name?: string;
     description?: string | null;
     address?: string | null;
+    province?: string | null;
+    district?: string | null;
+    commune?: string | null;
+    google_maps_url?: string | null;
     phone?: string | null;
     email?: string | null;
     announcements?: string | null;
@@ -1138,7 +1146,7 @@ export const storeOwnerApi = {
 
   async createPromotion(payload: {
     code: string;
-    name: string;
+    name?: string | null;
     description?: string | null;
     discount_type: 'percentage' | 'fixed_amount' | 'free_shipping';
     discount_value: number;

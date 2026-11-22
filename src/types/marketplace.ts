@@ -36,6 +36,10 @@ export interface Store {
   logo?: string | null;
   banner?: string | null;
   address?: string | null;
+  province?: string | null;
+  district?: string | null;
+  commune?: string | null;
+  google_maps_url?: string | null;
   phone?: string | null;
   email?: string | null;
   status: string;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle2, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ApiError, customerApi } from '../services/api';
@@ -20,10 +20,23 @@ export function ContactVerificationCard({
   const [emailStep, setEmailStep] = useState(false);
   const [emailCode, setEmailCode] = useState('');
   const [emailBusy, setEmailBusy] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailCooldown, setEmailCooldown] = useState(0);
 
   const [phoneStep, setPhoneStep] = useState(false);
   const [phoneCode, setPhoneCode] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneCooldown, setPhoneCooldown] = useState(0);
+
+  useEffect(() => {
+    if (emailCooldown <= 0 && phoneCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setEmailCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      setPhoneCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [emailCooldown, phoneCooldown]);
 
   if (!user) return null;
 
@@ -38,11 +51,19 @@ export function ContactVerificationCard({
 
   const handleSend = async (channel: 'email' | 'phone') => {
     if (channel === 'phone' && !effectivePhone) {
-      showToast('Please enter your phone number above before verifying.');
+      const msg = 'Please enter your phone number above before verifying.';
+      setPhoneError(msg);
+      showToast(msg);
       return;
     }
-    if (channel === 'email') setEmailBusy(true);
-    else setPhoneBusy(true);
+
+    if (channel === 'email') {
+      setEmailBusy(true);
+      setEmailError(null);
+    } else {
+      setPhoneBusy(true);
+      setPhoneError(null);
+    }
 
     try {
       const res = await customerApi.sendVerificationCode(
@@ -57,17 +78,21 @@ export function ContactVerificationCard({
       if (channel === 'email') {
         setEmailStep(true);
         setEmailCode('');
+        setEmailCooldown(60);
       } else {
         setPhoneStep(true);
         setPhoneCode('');
+        setPhoneCooldown(60);
       }
       showToast(res.message || 'Verification code sent.');
     } catch (err) {
-      showToast(
+      const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send verification code.',
-      );
+          : 'Unable to send verification code.';
+      if (channel === 'email') setEmailError(msg);
+      else setPhoneError(msg);
+      showToast(msg);
     } finally {
       if (channel === 'email') setEmailBusy(false);
       else setPhoneBusy(false);
@@ -77,12 +102,20 @@ export function ContactVerificationCard({
   const handleConfirm = async (channel: 'email' | 'phone') => {
     const code = (channel === 'email' ? emailCode : phoneCode).trim();
     if (!/^\d{6}$/.test(code)) {
-      showToast('Please enter the 6-digit verification code.');
+      const msg = 'Please enter the 6-digit verification code.';
+      if (channel === 'email') setEmailError(msg);
+      else setPhoneError(msg);
+      showToast(msg);
       return;
     }
 
-    if (channel === 'email') setEmailBusy(true);
-    else setPhoneBusy(true);
+    if (channel === 'email') {
+      setEmailBusy(true);
+      setEmailError(null);
+    } else {
+      setPhoneBusy(true);
+      setPhoneError(null);
+    }
 
     try {
       const res = await customerApi.confirmVerificationCode(channel, code);
@@ -90,17 +123,21 @@ export function ContactVerificationCard({
       if (channel === 'email') {
         setEmailStep(false);
         setEmailCode('');
+        setEmailCooldown(0);
       } else {
         setPhoneStep(false);
         setPhoneCode('');
+        setPhoneCooldown(0);
       }
       showToast(res.message || 'Verified successfully.');
     } catch (err) {
-      showToast(
+      const msg =
         err instanceof ApiError
           ? err.message
-          : 'Invalid or expired verification code.',
-      );
+          : 'Invalid or expired verification code.';
+      if (channel === 'email') setEmailError(msg);
+      else setPhoneError(msg);
+      showToast(msg);
     } finally {
       if (channel === 'email') setEmailBusy(false);
       else setPhoneBusy(false);
@@ -118,7 +155,8 @@ export function ContactVerificationCard({
             Email &amp; phone verification
           </h2>
           <p className="text-[12px] text-[#8a8a8a]">
-            Verify your contact details to secure your Kova account
+            Verify your contact details to secure your Kova account (each phone
+            number can only be linked to one account)
           </p>
         </div>
       </div>
@@ -148,18 +186,26 @@ export function ContactVerificationCard({
           ) : (
             <button
               type="button"
-              disabled={emailBusy}
+              disabled={emailBusy || emailCooldown > 0}
               onClick={() => void handleSend('email')}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12px] font-semibold px-4 py-1.5 rounded-full transition-colors shrink-0"
+              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-55 text-white text-[12px] font-semibold px-4 py-1.5 rounded-full transition-colors shrink-0"
             >
               {emailBusy
                 ? 'Sending...'
-                : emailStep
-                  ? 'Resend code'
-                  : 'Verify email'}
+                : emailCooldown > 0
+                  ? `Resend (${emailCooldown}s)`
+                  : emailStep
+                    ? 'Resend code'
+                    : 'Verify email'}
             </button>
           )}
         </div>
+
+        {emailError && (
+          <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/20 rounded-[12px] px-3.5 py-2">
+            {emailError}
+          </p>
+        )}
 
         {!emailVerified && emailStep && (
           <div className="pt-2 border-t border-[#ececec] flex flex-col gap-2">
@@ -173,7 +219,7 @@ export function ContactVerificationCard({
                   setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))
                 }
                 placeholder="Enter 6-digit code"
-                className="flex-1 min-w-[160px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 py-2 text-[13px] font-mono tracking-widest text-black outline-none"
+                className="flex-1 min-w-[160px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest text-black outline-none"
               />
               <button
                 type="button"
@@ -188,6 +234,7 @@ export function ContactVerificationCard({
                 onClick={() => {
                   setEmailStep(false);
                   setEmailCode('');
+                  setEmailError(null);
                 }}
                 className="text-[12px] font-semibold text-[#767676] hover:text-black px-2 py-1"
               >
@@ -223,18 +270,26 @@ export function ContactVerificationCard({
           ) : (
             <button
               type="button"
-              disabled={phoneBusy || !effectivePhone}
+              disabled={phoneBusy || !effectivePhone || phoneCooldown > 0}
               onClick={() => void handleSend('phone')}
               className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-45 text-white text-[12px] font-semibold px-4 py-1.5 rounded-full transition-colors shrink-0"
             >
               {phoneBusy
                 ? 'Sending...'
-                : phoneStep
-                  ? 'Resend code'
-                  : 'Verify phone'}
+                : phoneCooldown > 0
+                  ? `Resend (${phoneCooldown}s)`
+                  : phoneStep
+                    ? 'Resend code'
+                    : 'Verify phone'}
             </button>
           )}
         </div>
+
+        {phoneError && (
+          <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/20 rounded-[12px] px-3.5 py-2">
+            {phoneError}
+          </p>
+        )}
 
         {!(phoneVerified && effectivePhone === (user.phone || '').trim()) &&
           phoneStep && (
@@ -248,8 +303,8 @@ export function ContactVerificationCard({
                   onChange={(e) =>
                     setPhoneCode(e.target.value.replace(/\D/g, '').slice(0, 6))
                   }
-                  placeholder="Enter 6-digit code"
-                  className="flex-1 min-w-[160px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 py-2 text-[13px] font-mono tracking-widest text-black outline-none"
+                  placeholder="Enter 6-digit SMS code"
+                  className="flex-1 min-w-[160px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest text-black outline-none"
                 />
                 <button
                   type="button"
@@ -264,6 +319,7 @@ export function ContactVerificationCard({
                   onClick={() => {
                     setPhoneStep(false);
                     setPhoneCode('');
+                    setPhoneError(null);
                   }}
                   className="text-[12px] font-semibold text-[#767676] hover:text-black px-2 py-1"
                 >

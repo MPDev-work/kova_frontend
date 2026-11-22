@@ -338,6 +338,10 @@ export const authApi = {
     store_name?: string;
     store_description?: string;
     store_address?: string;
+    province?: string;
+    district?: string;
+    commune?: string;
+    google_maps_url?: string;
   }) {
     const res = await apiRequest<{ user: UserProfile; token: string }>(
       '/auth/register',
@@ -349,8 +353,49 @@ export const authApi = {
     return res;
   },
 
-  async login(payload: { email: string; password: string }) {
-    return apiRequest<{ user: UserProfile; token: string }>('/auth/login', {
+  async login(payload: { identifier: string; password: string }) {
+    return apiRequest<
+      | {
+          requires_verification: true;
+          challenge_token: string;
+          channel: 'email' | 'phone';
+          masked_target: string;
+          available_channels: ('email' | 'phone')[];
+          expires_in_seconds: number;
+        }
+      | {
+          requires_verification?: false;
+          user: UserProfile;
+          token: string;
+        }
+    >('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async verifyLoginOtp(payload: { challenge_token: string; code: string }) {
+    return apiRequest<{ user: UserProfile; token: string }>(
+      '/auth/login/verify',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async resendLoginOtp(payload: {
+    challenge_token: string;
+    channel?: 'email' | 'phone';
+  }) {
+    return apiRequest<{
+      requires_verification: true;
+      challenge_token: string;
+      channel: 'email' | 'phone';
+      masked_target: string;
+      available_channels: ('email' | 'phone')[];
+      expires_in_seconds: number;
+    }>('/auth/login/resend', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -1001,6 +1046,10 @@ export const customerApi = {
     store_name: string;
     store_description?: string;
     store_address: string;
+    province?: string;
+    district?: string;
+    commune?: string;
+    google_maps_url?: string;
     phone: string;
     email: string;
     business_registration_number?: string;

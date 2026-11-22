@@ -137,11 +137,11 @@ export function VoucherCard({
           <p className="text-[16px] font-bold text-[#ff6e20] leading-tight">
             {valueText}
           </p>
-          {/* {promo.name?.trim() && (
+          {promo.name?.trim() && (
             <p className="text-[13px] font-semibold text-black truncate mt-0.5">
               {promo.name.trim()}
             </p>
-          )} */}
+          )}
           <p className="text-[12px] text-[#767676] truncate mt-0.5">
             Code: <strong className="text-black">{promo.code}</strong>
             {minAmount ? ` · Min $${minAmount.toFixed(2)}` : ''}

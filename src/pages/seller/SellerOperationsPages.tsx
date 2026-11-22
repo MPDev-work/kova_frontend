@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { ApiError } from '../../services/api';
 import {
@@ -29,6 +30,7 @@ import {
   DashboardTableSkeleton,
 } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
 import { StorefrontPreviewModal } from './SellerStorePreviewPage';
 
 // ==========================================
@@ -1459,7 +1461,11 @@ export function SellerPromotionsPage() {
                     className="hover:bg-[#fafafa] transition-colors"
                   >
                     <td className="py-3.5 px-3.5">
-                      <p className="font-semibold text-black">{pr.name}</p>
+                      {pr.name?.trim() && (
+                        <p className="font-semibold text-black">
+                          {pr.name.trim()}
+                        </p>
+                      )}
                       <p className="text-[11.5px] font-mono text-[#ff6e20] font-semibold">
                         Code: {pr.code}
                       </p>
@@ -1611,14 +1617,13 @@ export function SellerPromotionsPage() {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-semibold text-black">
-              Campaign name
+              Campaign name (optional)
             </span>
             <input
               type="text"
-              required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. 10% Weekend Audio Drop"
+              placeholder="Leave empty or e.g. 10% Weekend Audio Drop"
               className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
             />
           </label>
@@ -2477,7 +2482,10 @@ export function SellerStorefrontPage() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
+  const [province, setProvince] = useState('Phnom Penh');
+  const [district, setDistrict] = useState('');
+  const [commune, setCommune] = useState('');
+  const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [description, setDescription] = useState('');
   const [announcements, setAnnouncements] = useState('');
   const [policies, setPolicies] = useState('');
@@ -2492,7 +2500,24 @@ export function SellerStorefrontPage() {
       setName(p.name || '');
       setPhone(p.phone || '');
       setEmail(p.email || '');
-      setAddress(p.address || '');
+      if (p.province || p.district || p.commune) {
+        setProvince(p.province || 'Phnom Penh');
+        setDistrict(p.district || '');
+        setCommune(p.commune || '');
+      } else if (p.address) {
+        const parts = p.address
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        setProvince(parts[parts.length - 1] || 'Phnom Penh');
+        setDistrict(parts.length >= 2 ? parts[parts.length - 2] : '');
+        setCommune(parts.length >= 3 ? parts[parts.length - 3] : '');
+      } else {
+        setProvince('Phnom Penh');
+        setDistrict('');
+        setCommune('');
+      }
+      setGoogleMapsUrl(p.google_maps_url || '');
       setDescription(p.description || '');
       setAnnouncements(p.announcements || '');
       setPolicies(p.policies || '');
@@ -2519,11 +2544,20 @@ export function SellerStorefrontPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      const addressParts = [
+        commune.trim(),
+        district.trim(),
+        province.trim(),
+      ].filter(Boolean);
       await storeOwnerApi.updateProfile({
         name: name.trim(),
         phone: phone.trim() || null,
         email: email.trim() || null,
-        address: address.trim() || null,
+        province: province.trim() || null,
+        district: district.trim() || null,
+        commune: commune.trim() || null,
+        address: addressParts.length > 0 ? addressParts.join(', ') : null,
+        google_maps_url: googleMapsUrl.trim() || null,
         description: description.trim() || null,
         announcements: announcements.trim() || null,
         policies: policies.trim() || null,
@@ -2657,18 +2691,78 @@ export function SellerStorefrontPage() {
                 />
               </label>
 
-              <label className="flex flex-col gap-1.5 sm:col-span-2">
-                <span className="text-[12px] font-semibold text-black">
-                  Store pickup address
-                </span>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Street, Sangkat, Khan, Phnom Penh"
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-                />
-              </label>
+              <div className="sm:col-span-2 pt-2 border-t border-[#f1f1f1] flex flex-col gap-3">
+                <div>
+                  <h3 className="text-[13px] font-bold text-black">
+                    Store pickup address
+                  </h3>
+                  <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
+                    Select your store location and optionally add a Google Maps
+                    link for customers.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <CambodiaLocationSelector
+                    province={province}
+                    district={district}
+                    commune={commune}
+                    required={false}
+                    onChange={(loc) => {
+                      setProvince(loc.province);
+                      setDistrict(loc.district);
+                      setCommune(loc.commune);
+                    }}
+                  />
+
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-semibold text-black">
+                      Google Maps link (optional)
+                    </span>
+                    <input
+                      type="url"
+                      value={googleMapsUrl}
+                      onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                      placeholder="https://maps.google.com/..."
+                      className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
+                    />
+                  </label>
+                </div>
+
+                {(() => {
+                  const locationPreview = [
+                    commune.trim(),
+                    district.trim(),
+                    province.trim(),
+                  ]
+                    .filter(Boolean)
+                    .join(', ');
+                  if (!locationPreview && !googleMapsUrl.trim()) return null;
+                  return (
+                    <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 text-[13px] text-[#555555]">
+                        <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
+                        <span className="truncate">
+                          <strong className="text-black">
+                            Location preview:
+                          </strong>{' '}
+                          {locationPreview || 'No area selected yet'}
+                        </span>
+                      </div>
+                      {googleMapsUrl.trim() && (
+                        <a
+                          href={googleMapsUrl.trim()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[12px] font-semibold text-[#ff6e20] hover:underline shrink-0"
+                        >
+                          Open Google Maps
+                        </a>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </section>
 

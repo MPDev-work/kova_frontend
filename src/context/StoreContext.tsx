@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   ApiError,
   authApi,
@@ -53,6 +54,22 @@ interface PrivacyPrefs {
   browsingHistory: boolean;
 }
 
+export interface LoginChallenge {
+  requires_verification: true;
+  challenge_token: string;
+  channel: 'email' | 'phone';
+  masked_target: string;
+  available_channels: ('email' | 'phone')[];
+  expires_in_seconds: number;
+}
+
+export type LoginResult =
+  | LoginChallenge
+  | {
+      requires_verification: false;
+      user: UserProfile;
+    };
+
 interface StoreContextValue {
   bootstrapping: boolean;
   settings: PlatformSettings;
@@ -69,7 +86,15 @@ interface StoreContextValue {
   // Auth & Profile
   isSignedIn: boolean;
   user: UserProfile | null;
-  login: (email: string, password: string) => Promise<UserProfile>;
+  login: (identifier: string, password: string) => Promise<LoginResult>;
+  verifyLoginOtp: (
+    challengeToken: string,
+    code: string,
+  ) => Promise<UserProfile>;
+  resendLoginOtp: (
+    challengeToken: string,
+    channel?: 'email' | 'phone',
+  ) => Promise<LoginChallenge>;
   register: (payload: {
     name: string;
     email: string;
@@ -80,6 +105,10 @@ interface StoreContextValue {
     store_name?: string;
     store_description?: string;
     store_address?: string;
+    province?: string;
+    district?: string;
+    commune?: string;
+    google_maps_url?: string;
   }) => Promise<void>;
   refreshUser: () => Promise<void>;
   completeGoogleAuth: (token: string) => Promise<void>;
@@ -543,50 +572,95 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  const location = useLocation();
+  const isAuthRoute =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/forgot-password' ||
+    location.pathname === '/reset-password';
+
+  const catalogBootedRef = useRef(false);
+  const sessionBootedRef = useRef(false);
+
   useEffect(() => {
     let mounted = true;
     const init = async () => {
       const token = getAuthToken();
 
-      const restoreSession = async () => {
-        if (!token) {
-          await refreshCart();
-          return;
+      // Keep auth screens lean: do not fetch marketplace catalog, cart, or extra data while on /login or /register
+      if (isAuthRoute) {
+        if (token && !sessionBootedRef.current) {
+          try {
+            const meRes = await authApi.me();
+            if (mounted) {
+              setUser(meRes.data);
+            }
+          } catch (err) {
+            if (
+              err instanceof ApiError &&
+              (err.status === 401 || err.status === 403)
+            ) {
+              setAuthToken(null);
+              if (mounted) setUser(null);
+            }
+          }
         }
-        try {
-          const meRes = await authApi.me();
-          if (mounted) {
-            setUser(meRes.data);
-            if (fromGoogleOAuth) {
-              try {
-                const syncedCart = await cartApi.syncGuestCart();
-                setCart(syncedCart);
-              } catch {
+        if (mounted) setBootstrapping(false);
+        return;
+      }
+
+      const tasks: Promise<void>[] = [];
+
+      if (!catalogBootedRef.current) {
+        catalogBootedRef.current = true;
+        tasks.push(refreshCatalog());
+      }
+
+      if (!sessionBootedRef.current) {
+        sessionBootedRef.current = true;
+        const restoreSession = async () => {
+          if (!token) {
+            await refreshCart();
+            return;
+          }
+          try {
+            const meRes = await authApi.me();
+            if (mounted) {
+              setUser(meRes.data);
+              if (fromGoogleOAuth) {
+                try {
+                  const syncedCart = await cartApi.syncGuestCart();
+                  setCart(syncedCart);
+                } catch {
+                  await refreshCart();
+                }
+                await loadAuthenticatedData();
+                showToast(`Signed in with Google as ${meRes.data.name}`);
+              } else {
+                await Promise.all([refreshCart(), loadAuthenticatedData()]);
+              }
+            }
+          } catch (err) {
+            // Only clear persistent session when token is explicitly rejected (401/403).
+            // Keep saved token intact on transient network/server errors.
+            if (
+              err instanceof ApiError &&
+              (err.status === 401 || err.status === 403)
+            ) {
+              setAuthToken(null);
+              if (mounted) {
+                setUser(null);
                 await refreshCart();
               }
-              await loadAuthenticatedData();
-              showToast(`Signed in with Google as ${meRes.data.name}`);
-            } else {
-              await Promise.all([refreshCart(), loadAuthenticatedData()]);
             }
           }
-        } catch (err) {
-          // Only clear persistent session when token is explicitly rejected (401/403).
-          // Keep saved token intact on transient network/server errors.
-          if (
-            err instanceof ApiError &&
-            (err.status === 401 || err.status === 403)
-          ) {
-            setAuthToken(null);
-            if (mounted) {
-              setUser(null);
-              await refreshCart();
-            }
-          }
-        }
-      };
+        };
+        tasks.push(restoreSession());
+      }
 
-      await Promise.all([refreshCatalog(), restoreSession()]);
+      if (tasks.length > 0) {
+        await Promise.all(tasks);
+      }
 
       if (mounted) setBootstrapping(false);
     };
@@ -595,6 +669,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
     };
   }, [
+    isAuthRoute,
     refreshCatalog,
     refreshCart,
     loadAuthenticatedData,
@@ -606,6 +681,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     async (authedUser: UserProfile, token: string, message: string) => {
       setAuthToken(token);
       setUser(authedUser);
+      sessionBootedRef.current = true;
       try {
         const syncedCart = await cartApi.syncGuestCart();
         setCart(syncedCart);
@@ -618,17 +694,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [refreshCart, loadAuthenticatedData, showToast],
   );
 
-  const login = async (
-    email: string,
-    password: string,
-  ): Promise<UserProfile> => {
-    const res = await authApi.login({ email, password });
+  const login: StoreContextValue['login'] = async (identifier, password) => {
+    const res = await authApi.login({ identifier, password });
+    if ('requires_verification' in res.data && res.data.requires_verification) {
+      return res.data;
+    }
+    const authData = res.data as { user: UserProfile; token: string };
+    await afterAuthSuccess(
+      authData.user,
+      authData.token,
+      `Welcome back, ${authData.user.name}`,
+    );
+    return { requires_verification: false, user: authData.user };
+  };
+
+  const verifyLoginOtp: StoreContextValue['verifyLoginOtp'] = async (
+    challengeToken,
+    code,
+  ) => {
+    const res = await authApi.verifyLoginOtp({
+      challenge_token: challengeToken,
+      code,
+    });
     await afterAuthSuccess(
       res.data.user,
       res.data.token,
       `Welcome back, ${res.data.user.name}`,
     );
     return res.data.user;
+  };
+
+  const resendLoginOtp: StoreContextValue['resendLoginOtp'] = async (
+    challengeToken,
+    channel,
+  ) => {
+    const res = await authApi.resendLoginOtp({
+      challenge_token: challengeToken,
+      channel,
+    });
+    showToast(res.message || 'Verification code sent.');
+    return res.data;
   };
 
   const register: StoreContextValue['register'] = async (payload) => {
@@ -1089,6 +1194,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         isSignedIn: Boolean(user),
         user,
         login,
+        verifyLoginOtp,
+        resendLoginOtp,
         register,
         refreshUser,
         completeGoogleAuth,

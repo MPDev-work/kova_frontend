@@ -168,8 +168,8 @@ function GlobalToast() {
 
 export default function App() {
   return (
-    <StoreProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <StoreProvider>
         <RoleNavigationGate />
         <Routes>
           {/* Storefront Shell */}
@@ -313,7 +313,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <GlobalToast />
-      </BrowserRouter>
-    </StoreProvider>
+      </StoreProvider>
+    </BrowserRouter>
   );
 }
