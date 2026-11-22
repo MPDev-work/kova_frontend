@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { useStore } from '../../context/StoreContext';
 import { ApiError } from '../../services/api';
 import {
@@ -60,7 +65,10 @@ function buildSellerTrendPoints(
     const label =
       range === 'today'
         ? endDate.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
-        : endDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
+        : endDate.toLocaleDateString('en-US', {
+            day: '2-digit',
+            month: 'short',
+          });
     return {
       label,
       start: startMs + stepMs * i,
@@ -268,7 +276,8 @@ export function SellerOverviewPage() {
       label: 'Low stock alerts',
       value: String(inv.low_stock_count),
       sub: `${outOfStockCount} out of stock · ${inv.low_stock_count} low`,
-      badge: inv.low_stock_count > 0 ? `${inv.low_stock_count} alerts` : 'Healthy',
+      badge:
+        inv.low_stock_count > 0 ? `${inv.low_stock_count} alerts` : 'Healthy',
       tone: inv.low_stock_count > 0 ? 'red' : 'green',
     },
   ];
@@ -493,7 +502,10 @@ export function SellerOverviewPage() {
                 </p>
               </div>
               {inv.low_stock_count > 0 && (
-                <StatusPill label={`${inv.low_stock_count} low stock`} tone="red" />
+                <StatusPill
+                  label={`${inv.low_stock_count} low stock`}
+                  tone="red"
+                />
               )}
             </div>
             {lowStockProducts.length === 0 ? (
@@ -538,7 +550,12 @@ export function SellerOverviewPage() {
 // ==========================================
 // 2. Seller Products List (/seller/products) — Exact Figma Seller · 02
 // ==========================================
-type ProductFilterTab = 'all' | 'published' | 'draft' | 'out_of_stock' | 'archived';
+type ProductFilterTab =
+  | 'all'
+  | 'published'
+  | 'draft'
+  | 'out_of_stock'
+  | 'archived';
 
 export function SellerProductsPage() {
   const [searchParams] = useSearchParams();
@@ -647,9 +664,7 @@ export function SellerProductsPage() {
       setSelectedIds([]);
       await Promise.all([loadProducts(), refreshCatalog()]);
     } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Bulk update failed.',
-      );
+      showToast(err instanceof ApiError ? err.message : 'Bulk update failed.');
     } finally {
       setBulkBusy(false);
     }
@@ -674,7 +689,15 @@ export function SellerProductsPage() {
   const handleExport = () => {
     exportRowsToCsv(
       `kova-products-${new Date().toISOString().slice(0, 10)}.csv`,
-      ['Name', 'SKU', 'Category', 'Regular USD', 'Discount USD', 'Stock', 'Status'],
+      [
+        'Name',
+        'SKU',
+        'Category',
+        'Regular USD',
+        'Discount USD',
+        'Stock',
+        'Status',
+      ],
       filtered.map((p) => [
         p.name,
         p.sku,
@@ -891,7 +914,7 @@ export function SellerProductsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 px-3 font-mono text-[12px] text-[#555555]">
+                      <td className="py-3.5 px-3 font-mono text-[12px] text-[#555555] whitespace-nowrap">
                         {p.sku}
                       </td>
                       <td className="py-3.5 px-3 text-[#555555]">
@@ -942,12 +965,12 @@ export function SellerProductsPage() {
                           >
                             Edit
                           </Link>
-                          <Link
+                          {/* <Link
                             to={`/product/${p.slug}`}
                             className="text-[12.5px] font-semibold text-[#555555] hover:text-black"
                           >
                             View
-                          </Link>
+                          </Link> */}
                           <button
                             type="button"
                             disabled={deletingId === p.id}
@@ -1088,9 +1111,7 @@ export function SellerProductFormPage() {
       }
       showToast('Image uploaded successfully.');
     } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Image upload failed.',
-      );
+      showToast(err instanceof ApiError ? err.message : 'Image upload failed.');
     } finally {
       setUploadingImg(false);
       e.target.value = '';
@@ -1303,7 +1324,8 @@ export function SellerProductFormPage() {
                   Product media
                 </h2>
                 <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                  Upload up to 8 images (PNG, JPG, WebP) and choose a primary cover image.
+                  Upload up to 8 images (PNG, JPG, WebP) and choose a primary
+                  cover image.
                 </p>
               </div>
               <span className="text-[11.5px] font-semibold text-[#8a8a8a] tabular-nums">
@@ -1435,7 +1457,9 @@ export function SellerProductFormPage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-black">SKU</span>
+                <span className="text-[12px] font-semibold text-black">
+                  SKU
+                </span>
                 <input
                   type="text"
                   required
@@ -1493,7 +1517,9 @@ export function SellerProductFormPage() {
                 }
                 className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] bg-white outline-none"
               >
-                <option value="published">Active — Visible on Marketplace</option>
+                <option value="published">
+                  Active — Visible on Marketplace
+                </option>
                 <option value="draft">Draft — Hidden from buyers</option>
                 <option value="archived">Archived</option>
               </select>
@@ -1523,7 +1549,8 @@ export function SellerProductFormPage() {
                   Free shipping
                 </p>
                 <p className="text-[11px] text-[#8a8a8a] leading-snug mt-0.5">
-                  Offer free delivery for this product regardless of minimum order amount.
+                  Offer free delivery for this product regardless of minimum
+                  order amount.
                 </p>
               </div>
               <ToggleSwitch
@@ -1536,7 +1563,9 @@ export function SellerProductFormPage() {
 
           <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
             <div>
-              <h2 className="text-[15.5px] font-bold text-black">Organization</h2>
+              <h2 className="text-[15.5px] font-bold text-black">
+                Organization
+              </h2>
               <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
                 Optional — leave blank if not applicable.
               </p>
@@ -1937,7 +1966,9 @@ export function SellerInventoryPage() {
                             type="button"
                             onClick={() => {
                               setSelectedProductId(p.id);
-                              setType(isOut || isLow ? 'restock' : 'adjustment');
+                              setType(
+                                isOut || isLow ? 'restock' : 'adjustment',
+                              );
                               setQtyChange(isOut || isLow ? '20' : '5');
                             }}
                             className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
@@ -1984,7 +2015,9 @@ export function SellerInventoryPage() {
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-semibold text-black">Product</span>
+            <span className="text-[12px] font-semibold text-black">
+              Product
+            </span>
             <select
               required
               value={selectedProductId}

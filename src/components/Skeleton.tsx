@@ -350,6 +350,146 @@ export function CartSkeleton() {
   );
 }
 
+export function CheckoutSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="kova-container px-4 lg:px-6 pt-5 pb-12 flex flex-col gap-5"
+    >
+      <Skeleton className="h-3.5 w-32 rounded-full" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-9 w-44 rounded-full" />
+        <Skeleton className="h-4 w-80 max-w-full rounded-full" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-8 items-start">
+        <div className="flex flex-col gap-6">
+          {/* Shipping Address Card */}
+          <div className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-6 w-40 rounded-full" />
+                <Skeleton className="h-3.5 w-56 rounded-full" />
+              </div>
+              <Skeleton className="h-10 w-36 rounded-full shrink-0" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Array.from({ length: 2 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="bg-[#f7f7f7] rounded-[16px] p-4 flex flex-col gap-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <Skeleton className="h-4 w-32 rounded-full" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3.5 w-28 rounded-full" />
+                  <Skeleton className="h-3 w-[85%] rounded-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Delivery Options Section */}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Skeleton className="h-6 w-52 rounded-full" />
+              <Skeleton className="h-3.5 w-64 rounded-full" />
+            </div>
+            <div className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-5">
+              <div className="flex items-center justify-between gap-3 pb-4 border-b border-[#ececec]">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                  <div className="flex flex-col gap-1.5">
+                    <Skeleton className="h-4 w-44 rounded-full" />
+                    <Skeleton className="h-3 w-16 rounded-full" />
+                  </div>
+                </div>
+                <Skeleton className="h-4 w-20 rounded-full" />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {Array.from({ length: 2 }).map((_, idx) => (
+                  <div key={idx} className="flex items-center gap-3.5">
+                    <Skeleton className="w-14 h-14 rounded-[12px] shrink-0" />
+                    <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                      <Skeleton className="h-4 w-[65%] rounded-full" />
+                      <Skeleton className="h-3 w-20 rounded-full" />
+                    </div>
+                    <Skeleton className="h-4 w-16 rounded-full shrink-0" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {Array.from({ length: 2 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-[#f7f7f7] rounded-[14px] p-4 flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Skeleton className="h-4 w-32 rounded-full" />
+                      <Skeleton className="h-4 w-14 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-40 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Order Summary + Action Card */}
+        <div className="flex flex-col gap-4">
+          <div className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-5">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-36 rounded-full" />
+              <Skeleton className="h-3.5 w-16 rounded-full" />
+            </div>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Skeleton className="w-4 h-4 rounded-full" />
+                <Skeleton className="h-3.5 w-28 rounded-full" />
+              </div>
+              <div className="flex justify-between pl-5">
+                <Skeleton className="h-3.5 w-48 rounded-full" />
+                <Skeleton className="h-3.5 w-14 rounded-full" />
+              </div>
+              <div className="flex justify-between pl-5">
+                <Skeleton className="h-3.5 w-40 rounded-full" />
+                <Skeleton className="h-3.5 w-14 rounded-full" />
+              </div>
+            </div>
+            <div className="border-t border-[#ececec] pt-4 flex flex-col gap-2.5">
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-20 rounded-full" />
+                <Skeleton className="h-4 w-16 rounded-full" />
+              </div>
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-28 rounded-full" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+              </div>
+              <div className="border-t border-[#ececec] pt-3 flex items-baseline justify-between">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <div className="flex flex-col items-end gap-1">
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                  <Skeleton className="h-3 w-20 rounded-full" />
+                </div>
+              </div>
+            </div>
+            <Skeleton className="h-14 w-full rounded-[14px]" />
+          </div>
+
+          <div className="bg-white border border-[#ececec] rounded-[20px] p-4 flex flex-col gap-2.5">
+            <Skeleton className="h-12 w-full rounded-full" />
+            <Skeleton className="h-11 w-full rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function NotificationsSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div aria-hidden="true" className="flex flex-col gap-3">

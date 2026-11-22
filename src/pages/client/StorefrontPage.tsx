@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FigmaIcon } from '../../components/FigmaIcon';
+import { useStore } from '../../context/StoreContext';
 import { catalogApi } from '../../services/api';
 import { ProductCard } from '../../components/ProductCard';
 import { StorefrontSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
-import type { Product, Store } from '../../types/marketplace';
+import { VoucherCard } from '../../components/VoucherCard';
+import type { Product, Promotion, Store } from '../../types/marketplace';
 
 export function StorefrontPage() {
   const { slug } = useParams<{ slug: string }>();
+  const { appliedCoupon, applyCoupon, removeCoupon } = useStore();
   const [store, setStore] = useState<Store | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [storeVouchers, setStoreVouchers] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -25,9 +29,13 @@ export function StorefrontPage() {
           catalogApi.getStore(slug),
           catalogApi.getStoreProducts(slug, 40),
         ]);
+        const vouchers = await catalogApi
+          .getPromotions(storeRes.data.id)
+          .catch(() => [] as Promotion[]);
         if (active) {
           setStore(storeRes.data);
           setProducts(prodRes.products);
+          setStoreVouchers(vouchers);
         }
       } catch {
         if (active) setNotFound(true);
@@ -110,10 +118,10 @@ export function StorefrontPage() {
           </div>
 
           <Link
-            to="/help/contact"
+            to={`/help/contact?storeId=${store.id}&storeName=${encodeURIComponent(store.name)}&storeSlug=${encodeURIComponent(store.slug)}`}
             className="bg-[#ffefe6] hover:bg-[#ffdfcd] text-[#ff6e20] text-[13px] font-semibold px-4 py-2 rounded-full transition-colors"
           >
-            Contact support
+            Contact store
           </Link>
         </div>
 
@@ -123,6 +131,31 @@ export function StorefrontPage() {
           </p>
         )}
       </section>
+
+      {storeVouchers.length > 0 && (
+        <section className="flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <h2 className="text-[17px] font-bold text-black">
+              Store Vouchers ({storeVouchers.length})
+            </h2>
+            <span className="text-[12px] text-[#767676]">
+              Applies to {store.name} products only
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {storeVouchers.map((promo) => (
+              <VoucherCard
+                key={promo.id}
+                promo={promo}
+                isApplied={appliedCoupon?.code === promo.code}
+                onApply={(code) => void applyCoupon(code)}
+                onRemove={removeCoupon}
+                showStoreHeader={false}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {products.length === 0 ? (
         <div className="bg-white border border-[#ececec] rounded-[20px] py-14 px-6 flex flex-col items-center text-center gap-3">

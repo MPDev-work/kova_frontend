@@ -8,15 +8,7 @@ import { ProfilePillSkeleton } from './Skeleton';
 import { VerifiedBadge } from './VerifiedBadge';
 
 export function Header() {
-  const {
-    bootstrapping,
-    isSignedIn,
-    user,
-    products,
-    cartCount,
-    wishlistIds,
-    signOut,
-  } = useStore();
+  const { bootstrapping, isSignedIn, user, products, signOut } = useStore();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
@@ -174,46 +166,8 @@ export function Header() {
             )}
           </div>
 
-          {/* Right Icons & Profile / Guest Auth */}
-          <div className="flex items-center gap-5 lg:gap-[26px] shrink-0">
-            <div className="flex items-center gap-5 lg:gap-[26px]">
-              <Link
-                to="/wishlist"
-                className="relative inline-flex items-center justify-center text-black hover:text-[#ff6e20] transition-colors"
-                aria-label="Wishlist"
-              >
-                <FigmaIcon name="heart" className="w-6 h-6" />
-                {!bootstrapping && isSignedIn && wishlistIds.length > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[11px] leading-none flex items-center justify-center font-medium">
-                    {wishlistIds.length}
-                  </span>
-                )}
-              </Link>
-
-              <Link
-                to="/notifications"
-                className="relative inline-flex items-center justify-center text-black hover:text-[#ff6e20] transition-colors"
-                aria-label="Notifications"
-              >
-                <FigmaIcon name="bell" className="w-[23px] h-[23px]" />
-              </Link>
-
-              <Link
-                to="/cart"
-                className="relative inline-flex items-center justify-center text-black hover:text-[#ff6e20] transition-colors"
-                aria-label="Shopping cart"
-              >
-                <FigmaIcon name="shopping-cart" className="w-6 h-6" />
-                {!bootstrapping && cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[11px] leading-none flex items-center justify-center font-medium">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-            </div>
-
-            <div className="hidden sm:block h-[32px] w-[1px] bg-[#ececec]" />
-
+          {/* Right Profile / Guest Auth */}
+          <div className="flex items-center shrink-0">
             {bootstrapping && (isSignedIn || Boolean(getAuthToken())) ? (
               <ProfilePillSkeleton />
             ) : isSignedIn && user ? (
@@ -282,6 +236,7 @@ export function Header() {
                     {[
                       { label: 'Account settings', to: '/account/profile' },
                       { label: 'Order history', to: '/account/orders' },
+                      { label: 'Messages', to: '/help/tickets' },
                       { label: 'Wishlist', to: '/wishlist' },
                       { label: 'Notifications', to: '/notifications' },
                       { label: 'Address book', to: '/account/addresses' },

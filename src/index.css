@@ -227,3 +227,18 @@
   transform-origin: left center;
   animation: khqr-progress-fill 2.1s linear 0.15s both;
 }
+
+@keyframes kova-toast-in {
+  0% {
+    transform: translateY(12px) scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.kova-toast-in {
+  animation: kova-toast-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}

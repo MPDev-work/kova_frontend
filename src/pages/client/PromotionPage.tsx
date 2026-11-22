@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
 import { ProductCard } from '../../components/ProductCard';
+import { VoucherCard } from '../../components/VoucherCard';
 import {
   ProductGridSkeleton,
   Skeleton,
@@ -10,8 +11,14 @@ import {
 } from '../../components/Skeleton';
 
 export function PromotionPage() {
-  const { bootstrapping, products, promotions, applyCoupon, appliedCoupon } =
-    useStore();
+  const {
+    bootstrapping,
+    products,
+    promotions,
+    applyCoupon,
+    removeCoupon,
+    appliedCoupon,
+  } = useStore();
 
   const promoProducts = useMemo(
     () => products.filter((p) => p.discount_percent > 0),
@@ -120,46 +127,17 @@ export function PromotionPage() {
               or admins will appear here.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {promotions.map((promo) => {
-                const isApplied = appliedCoupon?.code === promo.code;
-                const valueText =
-                  promo.discount_type === 'percentage'
-                    ? `${promo.discount_value}% OFF`
-                    : promo.discount_type === 'free_shipping'
-                      ? 'FREE SHIP'
-                      : `$${promo.discount_value} OFF`;
-                return (
-                  <div
-                    key={promo.id}
-                    className="bg-white border-[1.5px] border-[#ffdfcd] rounded-[16px] px-4 py-3.5 flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[16px] font-bold text-[#ff6e20] leading-tight">
-                        {valueText}
-                      </p>
-                      <p className="text-[12px] text-[#767676] truncate mt-0.5">
-                        Code:{' '}
-                        <strong className="text-black">{promo.code}</strong>
-                        {promo.min_order_amount
-                          ? ` · Min $${promo.min_order_amount}`
-                          : ''}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void applyCoupon(promo.code)}
-                      className={`text-[12px] font-semibold px-3.5 py-1.5 rounded-full transition-colors shrink-0 ${
-                        isApplied
-                          ? 'bg-[#029500] text-white'
-                          : 'bg-[#ff6e20] hover:bg-[#e85d12] text-white'
-                      }`}
-                    >
-                      {isApplied ? 'Applied' : 'Apply'}
-                    </button>
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {promotions.map((promo) => (
+                <VoucherCard
+                  key={promo.id}
+                  promo={promo}
+                  isApplied={appliedCoupon?.code === promo.code}
+                  onApply={(code) => void applyCoupon(code)}
+                  onRemove={removeCoupon}
+                  showStoreHeader
+                />
+              ))}
             </div>
           )}
         </section>

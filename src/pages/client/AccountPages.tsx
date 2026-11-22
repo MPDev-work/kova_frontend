@@ -1,14 +1,16 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Link,
   useNavigate,
   useParams,
   useSearchParams,
 } from 'react-router-dom';
+import { Package, Star, Trash2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { ApiError } from '../../services/api';
-import type { Address } from '../../types/marketplace';
+import type { Address, ReviewItem } from '../../types/marketplace';
 import { formatShortDate } from '../../utils/currency';
+import { DashboardModal } from '../../components/DashboardPrimitives';
 import { ProductCard } from '../../components/ProductCard';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
@@ -611,9 +613,158 @@ export function RecentlyViewedPage() {
   );
 }
 
+const REVIEW_RATING_LABELS: Record<number, string> = {
+  1: 'Poor',
+  2: 'Fair',
+  3: 'Good',
+  4: 'Very good',
+  5: 'Excellent',
+};
+
+interface PendingReviewItem {
+  key: string;
+  orderItemId: number;
+  productId: number;
+  productName: string;
+  productImage?: string | null;
+  storeName?: string | null;
+  orderNumber: string;
+  orderDate: string;
+  orderStatus: string;
+}
+
 // My Reviews
 export function MyReviewsPage() {
-  const { reviews } = useStore();
+  const {
+    orders,
+    reviews,
+    addReview,
+    deleteReview,
+    refreshOrders,
+    refreshReviews,
+    showToast,
+  } = useStore();
+  const [activeTab, setActiveTab] = useState<'reviewed' | 'to_review'>(
+    'reviewed',
+  );
+  const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const [reviewTarget, setReviewTarget] = useState<PendingReviewItem | null>(
+    null,
+  );
+  const [rating, setRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const [title, setTitle] = useState('');
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    void refreshOrders();
+    void refreshReviews();
+  }, [refreshOrders, refreshReviews]);
+
+  const toReviewItems = useMemo<PendingReviewItem[]>(() => {
+    const eligibleStatuses = new Set(['completed', 'delivered', 'shipped']);
+    const list: PendingReviewItem[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const order of orders) {
+      if (order.status === 'cancelled') continue;
+      for (const child of order.children || []) {
+        if (child.status === 'cancelled') continue;
+        const effectiveStatus = eligibleStatuses.has(child.status)
+          ? child.status
+          : eligibleStatuses.has(order.status)
+            ? order.status
+            : null;
+        if (!effectiveStatus) continue;
+
+        for (const item of child.items || []) {
+          if (!item.product_id) continue;
+          const alreadyReviewed = reviews.some(
+            (r) =>
+              (r.order_item_id && r.order_item_id === item.id) ||
+              r.product_id === item.product_id,
+          );
+          if (alreadyReviewed) continue;
+
+          const dedupeKey = `${order.id}-${item.id}`;
+          if (seenKeys.has(dedupeKey)) continue;
+          seenKeys.add(dedupeKey);
+
+          list.push({
+            key: dedupeKey,
+            orderItemId: item.id,
+            productId: item.product_id,
+            productName: item.product_name,
+            productImage: item.image ?? null,
+            storeName: child.store?.name ?? null,
+            orderNumber: order.order_number,
+            orderDate: order.created_at,
+            orderStatus: effectiveStatus,
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [orders, reviews]);
+
+  const openWriteModal = (item: PendingReviewItem) => {
+    setReviewTarget(item);
+    setRating(5);
+    setHoverRating(null);
+    setTitle('');
+    setComment('');
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewTarget) return;
+    if (comment.trim().length < 5) {
+      showToast('Please write at least 5 characters for your review.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await addReview({
+        product_id: reviewTarget.productId,
+        order_item_id: reviewTarget.orderItemId,
+        rating,
+        title: title.trim() || undefined,
+        comment: comment.trim(),
+      });
+      setReviewTarget(null);
+      setActiveTab('reviewed');
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to submit review.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (reviewId: number) => {
+    setDeletingId(reviewId);
+    try {
+      await deleteReview(reviewId);
+      setConfirmDeleteId(null);
+      if (selectedReview?.id === reviewId) {
+        setSelectedReview(null);
+      }
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to delete review.',
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const displayRating = hoverRating ?? rating;
 
   return (
     <div className="flex flex-col gap-[18px]">
@@ -621,59 +772,436 @@ export function MyReviewsPage() {
         <div>
           <h1 className="text-[22px] font-bold text-black">My reviews</h1>
           <p className="text-[12.5px] text-[#767676] mt-0.5">
-            Reviews you submitted for Kova products.
+            Track products waiting for your feedback and review your past ratings.
           </p>
         </div>
-        <Link
-          to="/account/reviews/write"
-          className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full"
-        >
-          Write a review
-        </Link>
       </div>
 
-      {reviews.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[16px] p-10 text-center text-[14px] text-[#767676]">
-          You have not submitted any reviews yet.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3.5">
-          {reviews.map((rev) => (
-            <div
-              key={rev.id}
-              className="bg-white border border-[#ececec] rounded-[16px] p-5 flex flex-col sm:flex-row gap-4 items-start"
-            >
-              {rev.product_image && (
-                <img
-                  src={rev.product_image}
-                  alt={rev.product_name || 'Product'}
-                  className="w-[74px] h-[74px] rounded-[12px] object-cover border border-[#ececec] shrink-0"
-                />
-              )}
-              <div className="flex-1 flex flex-col gap-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[15px] font-semibold text-black flex items-center gap-1.5">
-                    <span>
-                      {rev.product_name || `Product #${rev.product_id}`}
-                    </span>
-                    {rev.is_verified_purchase && <VerifiedBadge size="xs" />}
-                  </p>
-                  <span className="text-[12px] text-[#767676]">
-                    {formatShortDate(rev.created_at)}
+      {/* Top Switch Bar: Reviewed | To review */}
+      <div className="bg-white border border-[#ececec] rounded-[16px] p-1.5 inline-flex items-center gap-1.5 self-start">
+        <button
+          type="button"
+          onClick={() => setActiveTab('reviewed')}
+          className={`px-4 py-2 rounded-[12px] text-[13px] font-semibold transition-colors flex items-center gap-2 ${
+            activeTab === 'reviewed'
+              ? 'bg-[#ff6e20] text-white shadow-[0_4px_12px_rgba(255,110,32,0.25)]'
+              : 'text-[#555555] hover:bg-[#f7f7f7] hover:text-black'
+          }`}
+        >
+          <span>Reviewed</span>
+          <span
+            className={`text-[11px] px-2 py-0.5 rounded-full ${
+              activeTab === 'reviewed'
+                ? 'bg-white/20 text-white'
+                : 'bg-[#f4f4f4] text-[#767676]'
+            }`}
+          >
+            {reviews.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('to_review')}
+          className={`px-4 py-2 rounded-[12px] text-[13px] font-semibold transition-colors flex items-center gap-2 ${
+            activeTab === 'to_review'
+              ? 'bg-[#ff6e20] text-white shadow-[0_4px_12px_rgba(255,110,32,0.25)]'
+              : 'text-[#555555] hover:bg-[#f7f7f7] hover:text-black'
+          }`}
+        >
+          <span>To review</span>
+          <span
+            className={`text-[11px] px-2 py-0.5 rounded-full ${
+              activeTab === 'to_review'
+                ? 'bg-white/20 text-white'
+                : toReviewItems.length > 0
+                  ? 'bg-[#ffefe6] text-[#ff6e20]'
+                  : 'bg-[#f4f4f4] text-[#767676]'
+            }`}
+          >
+            {toReviewItems.length}
+          </span>
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'reviewed' ? (
+        reviews.length === 0 ? (
+          <div className="bg-white border border-[#ececec] rounded-[18px] p-12 text-center flex flex-col items-center gap-2">
+            <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+              <Star className="w-5 h-5" />
+            </span>
+            <p className="text-[15px] font-semibold text-black">
+              No reviews yet
+            </p>
+            <p className="text-[13px] text-[#767676]">
+              Switch to &ldquo;To review&rdquo; to rate your shipped or completed orders.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {reviews.map((rev) => (
+              <button
+                key={rev.id}
+                type="button"
+                onClick={() => {
+                  setConfirmDeleteId(null);
+                  setSelectedReview(rev);
+                }}
+                className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex flex-col transition-all"
+              >
+                <div className="relative h-[168px] w-full bg-[#f7f7f7] overflow-hidden flex items-center justify-center border-b border-[#f0f0f0]">
+                  {rev.product_image ? (
+                    <img
+                      src={rev.product_image}
+                      alt={rev.product_name || 'Product'}
+                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                    />
+                  ) : (
+                    <Package className="w-8 h-8 text-[#c4c4c4]" />
+                  )}
+                  <span className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm border border-[#ececec] text-[#ff6e20] text-[11.5px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+                    ★ {rev.rating}.0
                   </span>
                 </div>
-                <p className="text-[12.5px] text-[#ff6e20]">
-                  {'★'.repeat(rev.rating)}
-                  {'☆'.repeat(5 - rev.rating)}
-                </p>
-                <p className="text-[13.5px] text-[#767676] leading-[1.5]">
-                  {rev.comment}
-                </p>
+
+                <div className="p-4 flex-1 flex flex-col gap-2">
+                  <div className="flex items-start gap-1.5">
+                    <p className="text-[14px] font-semibold text-black line-clamp-1 flex-1">
+                      {rev.product_name || `Product #${rev.product_id}`}
+                    </p>
+                    {rev.is_verified_purchase && (
+                      <span className="shrink-0 mt-0.5">
+                        <VerifiedBadge size="xs" />
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[13px] text-[#ff6e20] leading-none">
+                    {'★'.repeat(rev.rating)}
+                    {'☆'.repeat(5 - rev.rating)}
+                  </p>
+
+                  {rev.title && (
+                    <p className="text-[13px] font-semibold text-black line-clamp-1">
+                      {rev.title}
+                    </p>
+                  )}
+
+                  <p className="text-[12.5px] text-[#767676] leading-[1.5] line-clamp-2 flex-1">
+                    {rev.comment}
+                  </p>
+
+                  <div className="pt-2 mt-auto border-t border-[#f4f4f4] flex items-center justify-between text-[11.5px]">
+                    <span className="text-[#8a8a8a]">
+                      {formatShortDate(rev.created_at)}
+                    </span>
+                    <span className="font-semibold text-[#ff6e20] group-hover:underline">
+                      View detail
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )
+      ) : toReviewItems.length === 0 ? (
+        <div className="bg-white border border-[#ececec] rounded-[18px] p-12 text-center flex flex-col items-center gap-2">
+          <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+            <Package className="w-5 h-5" />
+          </span>
+          <p className="text-[15px] font-semibold text-black">
+            All caught up!
+          </p>
+          <p className="text-[13px] text-[#767676]">
+            Products from your shipped or completed orders will appear here to review.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {toReviewItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => openWriteModal(item)}
+              className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex flex-col transition-all"
+            >
+              <div className="relative h-[168px] w-full bg-[#f7f7f7] overflow-hidden flex items-center justify-center border-b border-[#f0f0f0]">
+                {item.productImage ? (
+                  <img
+                    src={item.productImage}
+                    alt={item.productName}
+                    className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                  />
+                ) : (
+                  <Package className="w-8 h-8 text-[#c4c4c4]" />
+                )}
+                <span className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm border border-[#ececec] text-black text-[11px] font-semibold px-2.5 py-0.5 rounded-full capitalize shadow-sm">
+                  {item.orderStatus}
+                </span>
               </div>
-            </div>
+
+              <div className="p-4 flex-1 flex flex-col gap-2">
+                <p className="text-[14px] font-semibold text-black line-clamp-2">
+                  {item.productName}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-[#767676]">
+                  {item.storeName && <span>{item.storeName}</span>}
+                  <span>·</span>
+                  <span>#{item.orderNumber}</span>
+                </div>
+
+                <div className="pt-2.5 mt-auto border-t border-[#f4f4f4] flex items-center justify-between gap-2">
+                  <span className="text-[11.5px] text-[#8a8a8a]">
+                    {formatShortDate(item.orderDate)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 bg-[#ffefe6] group-hover:bg-[#ff6e20] text-[#ff6e20] group-hover:text-white text-[12px] font-semibold px-3 py-1 rounded-full transition-colors">
+                    <Star className="w-3.5 h-3.5" />
+                    <span>Write review</span>
+                  </span>
+                </div>
+              </div>
+            </button>
           ))}
         </div>
       )}
+
+      {/* Review Detail Modal (Reviewed card click) */}
+      <DashboardModal
+        open={Boolean(selectedReview)}
+        onClose={() => {
+          setSelectedReview(null);
+          setConfirmDeleteId(null);
+        }}
+        title="Review details"
+        subtitle={
+          selectedReview
+            ? `Submitted on ${formatShortDate(selectedReview.created_at)}`
+            : undefined
+        }
+        widthClass="max-w-[540px]"
+        footer={
+          selectedReview && (
+            <div className="w-full flex items-center justify-between gap-2">
+              {confirmDeleteId === selectedReview.id ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={deletingId === selectedReview.id}
+                    onClick={() => void handleDelete(selectedReview.id)}
+                    className="bg-[#e5322d] hover:bg-[#c8231e] disabled:opacity-60 text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
+                  >
+                    {deletingId === selectedReview.id
+                      ? 'Deleting...'
+                      : 'Confirm delete'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deletingId === selectedReview.id}
+                    onClick={() => setConfirmDeleteId(null)}
+                    className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-3.5 py-2 rounded-full transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteId(selectedReview.id)}
+                  className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#e5322d] hover:bg-[#fdecec] px-3.5 py-2 rounded-full transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete review</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedReview(null);
+                  setConfirmDeleteId(null);
+                }}
+                className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-5 py-2 rounded-full transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          )
+        }
+      >
+        {selectedReview && (
+          <div className="flex flex-col gap-4">
+            <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3.5 flex items-center gap-3.5">
+              <div className="w-16 h-16 rounded-[12px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
+                {selectedReview.product_image ? (
+                  <img
+                    src={selectedReview.product_image}
+                    alt={selectedReview.product_name || 'Product'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Package className="w-6 h-6 text-[#979797]" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14.5px] font-semibold text-black flex items-center gap-1.5">
+                  <span className="truncate">
+                    {selectedReview.product_name ||
+                      `Product #${selectedReview.product_id}`}
+                  </span>
+                  {selectedReview.is_verified_purchase && (
+                    <VerifiedBadge size="xs" />
+                  )}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[16px] text-[#ff6e20] leading-none">
+                    {'★'.repeat(selectedReview.rating)}
+                    {'☆'.repeat(5 - selectedReview.rating)}
+                  </span>
+                  <span className="text-[12px] font-semibold text-[#ff6e20]">
+                    {selectedReview.rating}/5 ·{' '}
+                    {REVIEW_RATING_LABELS[selectedReview.rating] || 'Rated'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              {selectedReview.title && (
+                <h3 className="text-[15px] font-semibold text-black">
+                  {selectedReview.title}
+                </h3>
+              )}
+              <p className="text-[13.5px] text-[#555555] leading-[1.65] whitespace-pre-wrap">
+                {selectedReview.comment}
+              </p>
+            </div>
+          </div>
+        )}
+      </DashboardModal>
+
+      {/* Write Review Popup Modal (To review card click) */}
+      <DashboardModal
+        open={Boolean(reviewTarget)}
+        onClose={() => setReviewTarget(null)}
+        title="Write a product review"
+        subtitle="Share your experience to help other Kova shoppers."
+        widthClass="max-w-[540px]"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setReviewTarget(null)}
+              className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4.5 py-2 rounded-full transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="my-reviews-write-form"
+              disabled={submitting}
+              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
+            >
+              {submitting ? 'Submitting...' : 'Submit review'}
+            </button>
+          </>
+        }
+      >
+        {reviewTarget && (
+          <form
+            id="my-reviews-write-form"
+            onSubmit={handleSubmitReview}
+            className="flex flex-col gap-4"
+          >
+            <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3 flex items-center gap-3">
+              <div className="w-12 h-12 rounded-[10px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
+                {reviewTarget.productImage ? (
+                  <img
+                    src={reviewTarget.productImage}
+                    alt={reviewTarget.productName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Package className="w-5 h-5 text-[#979797]" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[13.5px] font-semibold text-black truncate">
+                  {reviewTarget.productName}
+                </p>
+                <p className="text-[12px] text-[#767676] truncate">
+                  {reviewTarget.storeName
+                    ? `Sold by ${reviewTarget.storeName} · `
+                    : ''}
+                  #{reviewTarget.orderNumber}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[12.5px] font-semibold text-black">
+                  Your rating
+                </span>
+                <span className="text-[12px] font-semibold text-[#ff6e20]">
+                  {displayRating}/5 · {REVIEW_RATING_LABELS[displayRating]}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(null)}
+                    onClick={() => setRating(star)}
+                    aria-label={`Rate ${star} out of 5`}
+                    className={`text-[30px] leading-none transition-transform hover:scale-110 ${
+                      star <= displayRating
+                        ? 'text-[#ff6e20]'
+                        : 'text-[#dfdfdf]'
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12.5px] font-semibold text-black">
+                Review title{' '}
+                <span className="font-normal text-[#8a8a8a]">(optional)</span>
+              </span>
+              <input
+                type="text"
+                maxLength={255}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Summarize your experience..."
+                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] text-black outline-none"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12.5px] font-semibold text-black">
+                Your review
+              </span>
+              <textarea
+                required
+                minLength={5}
+                maxLength={2000}
+                rows={4}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Share what you liked about product quality, packaging, and delivery..."
+                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] px-3.5 py-2.5 text-[13px] text-black outline-none resize-none"
+              />
+            </label>
+          </form>
+        )}
+      </DashboardModal>
     </div>
   );
 }

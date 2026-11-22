@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { MessageCircle } from 'lucide-react';
 import {
   BrowserRouter,
   Navigate,
@@ -82,6 +83,8 @@ import {
   SellerShippingPage,
   SellerStorefrontPage,
 } from './pages/seller/SellerOperationsPages';
+import { SellerReviewsPage } from './pages/seller/SellerReviewsPage';
+import { TicketInboxPanel } from './components/TicketInboxPanel';
 
 function LegacyOrderRedirect({ suffix = '' }: { suffix?: string }) {
   const { orderId } = useParams<{ orderId: string }>();
@@ -132,9 +135,16 @@ function GlobalToast() {
   const { toast } = useStore();
   if (!toast) return null;
   return (
-    <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-5 py-3 rounded-full shadow-2xl text-[13.5px] font-medium flex items-center gap-2 border border-white/10">
-      <span className="w-2 h-2 rounded-full bg-[#ff6e20]" />
-      {toast}
+    <div
+      key={toast}
+      role="status"
+      aria-live="polite"
+      className="kova-toast-in fixed bottom-6 right-6 z-50 max-w-[calc(100vw-3rem)] bg-[#ff6e20] text-white pl-2.5 pr-5 py-2.5 rounded-full shadow-[0_12px_32px_rgba(255,110,32,0.34)] border border-white/15 text-[13.5px] font-medium flex items-center gap-2.5"
+    >
+      <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+        <MessageCircle className="w-4 h-4 text-white" strokeWidth={2.2} />
+      </span>
+      <span className="leading-snug">{toast}</span>
     </div>
   );
 }
@@ -164,11 +174,6 @@ export default function App() {
             {/* Help & Support */}
             <Route path="/help" element={<HelpCenterPage />} />
             <Route path="/help/contact" element={<ContactSupportPage />} />
-            <Route path="/help/tickets" element={<SupportTicketsPage />} />
-            <Route
-              path="/help/tickets/:ticketId"
-              element={<TicketDetailPage />}
-            />
 
             {/* Info & Seller Application */}
             <Route path="/about" element={<AboutPage mode="about" />} />
@@ -177,6 +182,13 @@ export default function App() {
               element={<AboutPage mode="seller" />}
             />
           </Route>
+
+          {/* Standalone Full-Screen Message Portal (no storefront header or footer) */}
+          <Route path="/help/tickets" element={<SupportTicketsPage />} />
+          <Route
+            path="/help/tickets/:ticketId"
+            element={<TicketDetailPage />}
+          />
 
           {/* Standalone Authentication Pages (no navbar or footer) */}
           <Route path="/login" element={<LoginPage />} />
@@ -229,6 +241,7 @@ export default function App() {
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="catalog" element={<AdminCatalogPage />} />
             <Route path="bakong" element={<AdminBakongPage />} />
+            <Route path="tickets" element={<TicketInboxPanel mode="admin" />} />
             <Route path="disputes" element={<AdminDisputesPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="audit-logs" element={<AdminAuditLogsPage />} />
@@ -245,6 +258,8 @@ export default function App() {
             />
             <Route path="inventory" element={<SellerInventoryPage />} />
             <Route path="orders" element={<SellerOrdersPage />} />
+            <Route path="reviews" element={<SellerReviewsPage />} />
+            <Route path="messages" element={<TicketInboxPanel mode="seller" />} />
             <Route path="shipping" element={<SellerShippingPage />} />
             <Route path="promotions" element={<SellerPromotionsPage />} />
             <Route path="bakong" element={<SellerBakongPage />} />

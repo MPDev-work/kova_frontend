@@ -4,6 +4,7 @@ import { useStore } from '../../context/StoreContext';
 import { adminApi } from '../../services/dashboardApi';
 import { FigmaIcon, type FigmaIconName } from '../../components/FigmaIcon';
 import { KovaLogo } from '../../components/KovaLogo';
+import { NotificationModal } from '../../components/NotificationModal';
 import { CustomerSettingsSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 
@@ -38,6 +39,9 @@ function getAdminBreadcrumbs(pathname: string): string[] {
   if (pathname.startsWith('/admin/disputes')) {
     return ['Kova Global', 'Support & Disputes'];
   }
+  if (pathname.startsWith('/admin/tickets')) {
+    return ['Kova Global', 'Support Tickets'];
+  }
   if (pathname.startsWith('/admin/settings')) {
     return ['Kova Global', 'Settings', 'Platform Config'];
   }
@@ -48,15 +52,23 @@ function getAdminBreadcrumbs(pathname: string): string[] {
 }
 
 export function AdminLayout() {
-  const { bootstrapping, isSignedIn, user, signOut } = useStore();
+  const {
+    bootstrapping,
+    isSignedIn,
+    user,
+    unreadNotificationsCount,
+    signOut,
+  } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickQuery, setQuickQuery] = useState('');
+  const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [pendingAppsCount, setPendingAppsCount] = useState(0);
   const [openDisputesCount, setOpenDisputesCount] = useState(0);
+  const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0);
 
   const isAdmin = Boolean(
@@ -80,7 +92,8 @@ export function AdminLayout() {
     Promise.allSettled([
       adminApi.getDashboard(),
       adminApi.getDisputes({ status: 'open' }),
-    ]).then(([dashRes, dispRes]) => {
+      adminApi.getTickets({ status: 'open', per_page: 1 }),
+    ]).then(([dashRes, dispRes, ticketRes]) => {
       if (!active) return;
       if (dashRes.status === 'fulfilled') {
         setPendingAppsCount(dashRes.value.metrics.pending_store_applications);
@@ -88,6 +101,9 @@ export function AdminLayout() {
       }
       if (dispRes.status === 'fulfilled') {
         setOpenDisputesCount(dispRes.value.total);
+      }
+      if (ticketRes.status === 'fulfilled') {
+        setOpenTicketsCount(ticketRes.value.stats?.open ?? 0);
       }
     });
     return () => {
@@ -171,7 +187,10 @@ export function AdminLayout() {
     .slice(0, 2)
     .toUpperCase();
 
-  const totalAlerts = pendingAppsCount + openDisputesCount;
+  const totalAlerts =
+    unreadNotificationsCount > 0
+      ? unreadNotificationsCount
+      : openTicketsCount + openDisputesCount;
 
   const navGroups: AdminNavGroup[] = [
     {
@@ -208,6 +227,13 @@ export function AdminLayout() {
     {
       title: 'TRUST & SYSTEM',
       items: [
+        {
+          label: 'Support Tickets',
+          to: '/admin/tickets',
+          icon: 'mail',
+          badge: openTicketsCount > 0 ? openTicketsCount : undefined,
+          badgeTone: 'orange',
+        },
         {
           label: 'Support & Disputes',
           to: '/admin/disputes',
@@ -405,18 +431,19 @@ export function AdminLayout() {
               Review stores
             </Link>
 
-            <Link
-              to="/admin/disputes"
-              aria-label="Alerts and disputes"
+            <button
+              type="button"
+              onClick={() => setNotifModalOpen(true)}
+              aria-label="Notifications"
               className="relative inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] text-black h-9 px-2.5 rounded-full gap-1.5 transition-colors"
             >
               <FigmaIcon name="bell" className="w-4 h-4 text-black" />
               {totalAlerts > 0 && (
-                <span className="bg-[#e5322d] text-white text-[10px] font-bold px-1.5 py-[1px] rounded-full leading-tight">
+                <span className="bg-[#ff6e20] text-white text-[10px] font-bold px-1.5 py-[1px] rounded-full leading-tight">
                   {totalAlerts}
                 </span>
               )}
-            </Link>
+            </button>
 
             <Link
               to="/account/profile"
@@ -473,6 +500,10 @@ export function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <NotificationModal
+        open={notifModalOpen}
+        onClose={() => setNotifModalOpen(false)}
+      />
     </div>
   );
 }

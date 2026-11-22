@@ -16,6 +16,7 @@ import type {
   Store,
   StoreApplication,
   SupportTicket,
+  UserNotificationItem,
   UserProfile,
 } from '../types/marketplace';
 
@@ -297,8 +298,9 @@ export function normalizeOrder(raw: any): OrderRecord {
   }));
 
   return {
-    id: Number(raw.id),
-    order_number: String(raw.order_number || raw.id),
+    id: Number(raw.id ?? 0),
+    order_number: String(raw.order_number || (raw.id ? raw.id : '')),
+    checkout_session_token: raw.checkout_session_token ?? null,
     customer_name: String(raw.customer_name || ''),
     customer_email: String(raw.customer_email || ''),
     customer_phone: String(raw.customer_phone || ''),
@@ -505,15 +507,25 @@ export const catalogApi = {
     return (Array.isArray(res.data) ? res.data : []).map(normalizeProduct);
   },
 
-  async getPromotions() {
-    const res = await apiRequest<Promotion[]>('/promotions');
+  async getPromotions(storeId?: number) {
+    const qs = storeId ? `?store_id=${storeId}` : '';
+    const res = await apiRequest<Promotion[]>(`/promotions${qs}`);
     return Array.isArray(res.data) ? res.data : [];
   },
 
-  async validateCoupon(code: string, subtotal?: number) {
+  async validateCoupon(
+    code: string,
+    subtotal?: number,
+    storeSubtotals?: Record<number, number>,
+  ) {
+    const body: Record<string, unknown> = { code };
+    if (subtotal !== undefined) body.subtotal = subtotal;
+    if (storeSubtotals && Object.keys(storeSubtotals).length > 0) {
+      body.store_subtotals = storeSubtotals;
+    }
     return apiRequest<AppliedCoupon>('/promotions/validate', {
       method: 'POST',
-      body: JSON.stringify({ code, subtotal }),
+      body: JSON.stringify(body),
     });
   },
 };
@@ -621,8 +633,18 @@ export const checkoutApi = {
       verified_at?: string;
       seconds_remaining?: number;
       order_number?: string;
+      parent_order_number?: string;
       parent_order_status?: string;
     }>(`/payments/bakong/${encodeURIComponent(billNumberOrMd5)}/status`);
+  },
+
+  async cancelCheckoutSession(sessionToken: string) {
+    return apiRequest<null>(
+      `/checkout/sessions/${encodeURIComponent(sessionToken)}/cancel`,
+      {
+        method: 'POST',
+      },
+    );
   },
 };
 
@@ -754,6 +776,7 @@ export const customerApi = {
     return list.map((r: any): ReviewItem => ({
       id: Number(r.id),
       product_id: Number(r.product_id),
+      order_item_id: r.order_item_id ? Number(r.order_item_id) : null,
       product_name: r.product?.name,
       product_image:
         r.product?.primary_image?.image_url ||
@@ -795,6 +818,7 @@ export const customerApi = {
 
   async createReview(payload: {
     product_id: number;
+    order_item_id?: number | null;
     rating: number;
     title?: string;
     comment: string;
@@ -803,6 +827,12 @@ export const customerApi = {
     return apiRequest<unknown>('/reviews', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteReview(reviewId: number) {
+    return apiRequest<null>(`/reviews/${reviewId}`, {
+      method: 'DELETE',
     });
   },
 
@@ -819,9 +849,12 @@ export const customerApi = {
   },
 
   async createTicket(payload: {
-    subject: string;
-    message: string;
+    subject?: string;
+    message?: string;
+    attachments?: string[];
     priority?: 'low' | 'medium' | 'high';
+    store_id?: number | null;
+    order_id?: number | null;
   }) {
     const res = await apiRequest<SupportTicket>('/customer/tickets', {
       method: 'POST',
@@ -830,10 +863,69 @@ export const customerApi = {
     return res.data;
   },
 
-  async replyTicket(id: number, message: string) {
+  async replyTicket(id: number, message: string, attachments?: string[]) {
     return apiRequest<unknown>(`/customer/tickets/${id}/reply`, {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({
+        message,
+        attachments: attachments && attachments.length > 0 ? attachments : undefined,
+      }),
+    });
+  },
+
+  async bulkTicketAction(
+    action: 'mark_read' | 'delete' | 'block' | 'unblock',
+    ticketIds: number[],
+  ) {
+    return apiRequest<{ affected_ids: number[] }>('/customer/tickets/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ action, ticket_ids: ticketIds }),
+    });
+  },
+
+  async markAllTicketsRead() {
+    return apiRequest<null>('/customer/tickets/mark-all-read', {
+      method: 'POST',
+    });
+  },
+
+  async uploadChatImage(file: File) {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'messages');
+    const res = await apiRequest<{ id: number; secure_url: string }>(
+      '/media/upload',
+      {
+        method: 'POST',
+        body: fd,
+        isFormData: true,
+      },
+    );
+    return res.data.secure_url;
+  },
+
+  async getNotifications(limit = 30) {
+    const res = await apiRequest<{
+      unread_count: number;
+      notifications: UserNotificationItem[];
+    }>(`/notifications?limit=${limit}`);
+    return {
+      unread_count: Number(res.data?.unread_count || 0),
+      notifications: Array.isArray(res.data?.notifications)
+        ? res.data.notifications
+        : [],
+    };
+  },
+
+  async markNotificationRead(id: number) {
+    return apiRequest<UserNotificationItem>(`/notifications/${id}/read`, {
+      method: 'POST',
+    });
+  },
+
+  async markAllNotificationsRead() {
+    return apiRequest<null>('/notifications/read-all', {
+      method: 'POST',
     });
   },
 

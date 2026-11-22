@@ -443,6 +443,77 @@ export const adminApi = {
     });
   },
 
+  async getTickets(params?: {
+    status?: string;
+    scope?: 'all' | 'platform' | 'store';
+    search?: string;
+    page?: number;
+    per_page?: number;
+  }) {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.scope && params.scope !== 'all') qs.set('scope', params.scope);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.per_page) qs.set('per_page', String(params.per_page));
+    const q = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiRequest<{
+      stats: DashboardTicketStats;
+      tickets: PaginatedResult<DashboardTicketItem> | DashboardTicketItem[];
+    }>(`/admin/tickets${q}`);
+    return {
+      stats: res.data.stats,
+      tickets: normalizePaginated(res.data.tickets),
+    };
+  },
+
+  async getTicket(id: number) {
+    const res = await apiRequest<DashboardTicketItem>(`/admin/tickets/${id}`);
+    return res.data;
+  },
+
+  async replyTicket(id: number, message: string, attachments?: string[]) {
+    const res = await apiRequest<{
+      message: DashboardTicketMessage;
+      ticket: DashboardTicketItem;
+    }>(`/admin/tickets/${id}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({
+        message,
+        attachments:
+          attachments && attachments.length > 0 ? attachments : undefined,
+      }),
+    });
+    return res.data;
+  },
+
+  async updateTicketStatus(
+    id: number,
+    status: 'open' | 'in_progress' | 'resolved' | 'closed',
+  ) {
+    const res = await apiRequest<DashboardTicketItem>(`/admin/tickets/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+    return res.data;
+  },
+
+  async bulkTicketAction(
+    action: 'mark_read' | 'delete' | 'block' | 'unblock',
+    ticketIds: number[],
+  ) {
+    return apiRequest<{ affected_ids: number[] }>('/admin/tickets/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ action, ticket_ids: ticketIds }),
+    });
+  },
+
+  async markAllTicketsRead() {
+    return apiRequest<null>('/admin/tickets/mark-all-read', {
+      method: 'POST',
+    });
+  },
+
   async getSettings() {
     const res = await apiRequest<Record<string, PlatformSettingItem[]>>('/admin/settings');
     return res.data || {};
@@ -570,6 +641,8 @@ export interface InventoryMovementItem {
 export interface SellerOrderItem {
   id: number;
   order_number: string;
+  parent_order_number?: string;
+  child_order_number?: string;
   customer_name: string;
   customer_email?: string;
   customer_phone?: string;
@@ -660,6 +733,106 @@ export interface SellerPayoutItem {
   status: string;
   payment_method: string;
   created_at: string;
+}
+
+export interface DashboardTicketStats {
+  total: number;
+  open: number;
+  in_progress: number;
+  resolved: number;
+  closed: number;
+  platform_count?: number;
+  store_count?: number;
+}
+
+export interface DashboardTicketMessage {
+  id: number;
+  ticket_id: number;
+  user_id: number;
+  message: string;
+  attachments?: string[] | null;
+  is_admin_reply: boolean;
+  created_at: string;
+  user?: {
+    id: number;
+    name: string;
+    avatar?: string | null;
+  } | null;
+}
+
+export interface DashboardTicketItem {
+  id: number;
+  ticket_number: string;
+  user_id: number;
+  store_id?: number | null;
+  order_id?: number | null;
+  subject: string;
+  message: string;
+  attachments?: string[] | null;
+  priority: 'low' | 'medium' | 'high' | string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed' | string;
+  is_unread?: boolean;
+  is_blocked?: boolean;
+  blocked_by_me?: boolean;
+  peer_is_online?: boolean;
+  peer_last_active_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  messages_count?: number;
+  user?: {
+    id: number;
+    name: string;
+    email?: string | null;
+    avatar?: string | null;
+  } | null;
+  store?: {
+    id: number;
+    name: string;
+    slug: string;
+    logo?: string | null;
+    is_verified?: boolean;
+  } | null;
+  order?: {
+    id: number;
+    order_number: string;
+  } | null;
+  latest_message?: DashboardTicketMessage | null;
+  messages?: DashboardTicketMessage[];
+}
+
+export interface SellerReviewStats {
+  total_reviews: number;
+  average_rating: number;
+  five_star_count: number;
+  verified_count: number;
+  rating_breakdown: Record<number, number>;
+}
+
+export interface SellerReviewItem {
+  id: number;
+  product_id: number;
+  user_id: number;
+  order_item_id?: number | null;
+  rating: number;
+  title?: string | null;
+  comment: string;
+  is_verified_purchase: boolean;
+  status: string;
+  created_at: string;
+  user?: {
+    id: number;
+    name: string;
+    email?: string | null;
+    avatar?: string | null;
+  } | null;
+  product?: {
+    id: number;
+    name: string;
+    slug: string;
+    sku?: string | null;
+    primary_image?: { image_url: string } | null;
+  } | null;
+  images?: { id: number; image_url: string }[];
 }
 
 export const storeOwnerApi = {
@@ -809,7 +982,15 @@ export const storeOwnerApi = {
     const res = await apiRequest<PaginatedResult<SellerOrderItem> | SellerOrderItem[]>(
       `/store-owner/orders${q}`,
     );
-    return normalizePaginated(res.data);
+    const paged = normalizePaginated(res.data);
+    return {
+      ...paged,
+      data: paged.data.map((o) => ({
+        ...o,
+        order_number:
+          o.parent_order_number || o.order_number.replace(/-S\d+$/, ''),
+      })),
+    };
   },
 
   async updateOrderStatus(
@@ -989,6 +1170,103 @@ export const storeOwnerApi = {
     return apiRequest<SellerPayoutItem>('/store-owner/payouts', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+
+  async getReviews(params?: {
+    rating?: number;
+    search?: string;
+    page?: number;
+    per_page?: number;
+  }) {
+    const qs = new URLSearchParams();
+    if (params?.rating) qs.set('rating', String(params.rating));
+    if (params?.search) qs.set('search', params.search);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.per_page) qs.set('per_page', String(params.per_page));
+    const q = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiRequest<{
+      stats: SellerReviewStats;
+      reviews: PaginatedResult<SellerReviewItem> | SellerReviewItem[];
+    }>(`/store-owner/reviews${q}`);
+    return {
+      stats: res.data.stats,
+      reviews: normalizePaginated(res.data.reviews),
+    };
+  },
+
+  async getTickets(params?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    per_page?: number;
+  }) {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.per_page) qs.set('per_page', String(params.per_page));
+    const q = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiRequest<{
+      stats: DashboardTicketStats;
+      tickets: PaginatedResult<DashboardTicketItem> | DashboardTicketItem[];
+    }>(`/store-owner/tickets${q}`);
+    return {
+      stats: res.data.stats,
+      tickets: normalizePaginated(res.data.tickets),
+    };
+  },
+
+  async getTicket(id: number) {
+    const res = await apiRequest<DashboardTicketItem>(`/store-owner/tickets/${id}`);
+    return res.data;
+  },
+
+  async replyTicket(id: number, message: string, attachments?: string[]) {
+    const res = await apiRequest<{
+      message: DashboardTicketMessage;
+      ticket: DashboardTicketItem;
+    }>(`/store-owner/tickets/${id}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({
+        message,
+        attachments:
+          attachments && attachments.length > 0 ? attachments : undefined,
+      }),
+    });
+    return res.data;
+  },
+
+  async updateTicketStatus(
+    id: number,
+    status: 'open' | 'in_progress' | 'resolved' | 'closed',
+  ) {
+    const res = await apiRequest<DashboardTicketItem>(
+      `/store-owner/tickets/${id}/status`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      },
+    );
+    return res.data;
+  },
+
+  async bulkTicketAction(
+    action: 'mark_read' | 'delete' | 'block' | 'unblock',
+    ticketIds: number[],
+  ) {
+    return apiRequest<{ affected_ids: number[] }>(
+      '/store-owner/tickets/bulk-action',
+      {
+        method: 'POST',
+        body: JSON.stringify({ action, ticket_ids: ticketIds }),
+      },
+    );
+  },
+
+  async markAllTicketsRead() {
+    return apiRequest<null>('/store-owner/tickets/mark-all-read', {
+      method: 'POST',
     });
   },
 

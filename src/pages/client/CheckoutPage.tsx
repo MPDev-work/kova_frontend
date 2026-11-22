@@ -7,6 +7,7 @@ import { formatRiel } from '../../utils/currency';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { KhqrModal } from '../../components/KhqrModal';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
+import { CheckoutSkeleton } from '../../components/Skeleton';
 import type {
   Address,
   ChildOrderRecord,
@@ -15,6 +16,7 @@ import type {
 
 export function CheckoutPage() {
   const {
+    bootstrapping,
     isSignedIn,
     user,
     cart,
@@ -23,9 +25,11 @@ export function CheckoutPage() {
     addAddress,
     appliedCoupon,
     couponDiscount,
+    removeCoupon,
     khrRate,
     submitCheckout,
     cancelOrder,
+    refreshCart,
     refreshOrders,
     showToast,
   } = useStore();
@@ -57,6 +61,9 @@ export function CheckoutPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [khqrOrders, setKhqrOrders] = useState<ChildOrderRecord[]>([]);
   const [khqrOpen, setKhqrOpen] = useState(false);
+  const [checkoutSessionToken, setCheckoutSessionToken] = useState<
+    string | null
+  >(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(
     null,
@@ -163,24 +170,77 @@ export function CheckoutPage() {
   };
 
   const subtotal = cart.total_amount;
-  const estimatedShipping = cart.stores.reduce((sum, g) => {
-    const allItemsFree =
-      g.all_free_shipping ??
-      (g.items.length > 0 && g.items.every((i) => Boolean(i.free_shipping)));
-    if (allItemsFree) return sum;
-    const methods = shippingMethodsByStore[g.store.id] || [];
-    const chosen =
-      methods.find((m) => m.id === selectedMethodByStore[g.store.id]) ||
-      methods[0];
-    if (!chosen) return sum;
-    const { fee } = computeShippingOption(
-      chosen,
-      Number(g.store_subtotal || 0),
-      allItemsFree,
-    );
-    return sum + fee;
-  }, 0);
-  const total = Math.max(0, subtotal + estimatedShipping - couponDiscount);
+  const shippingByStore = cart.stores.reduce<Record<number, number>>(
+    (acc, g) => {
+      const allItemsFree =
+        g.all_free_shipping ??
+        (g.items.length > 0 && g.items.every((i) => Boolean(i.free_shipping)));
+      if (allItemsFree) {
+        acc[g.store.id] = 0;
+        return acc;
+      }
+      const methods = shippingMethodsByStore[g.store.id] || [];
+      const chosen =
+        methods.find((m) => m.id === selectedMethodByStore[g.store.id]) ||
+        methods[0];
+      if (!chosen) {
+        acc[g.store.id] = 0;
+        return acc;
+      }
+      const { fee } = computeShippingOption(
+        chosen,
+        Number(g.store_subtotal || 0),
+        allItemsFree,
+      );
+      acc[g.store.id] = fee;
+      return acc;
+    },
+    {},
+  );
+  const estimatedShipping = Object.values(shippingByStore).reduce(
+    (sum, fee) => sum + fee,
+    0,
+  );
+  const freeShippingCouponDiscount = (() => {
+    if (!appliedCoupon || appliedCoupon.discount_type !== 'free_shipping') {
+      return 0;
+    }
+    if (appliedCoupon.store_id) {
+      const targetGroup = cart.stores.find(
+        (g) => g.store.id === appliedCoupon.store_id,
+      );
+      if (!targetGroup) return 0;
+      if (
+        appliedCoupon.min_order_amount &&
+        targetGroup.store_subtotal < appliedCoupon.min_order_amount
+      ) {
+        return 0;
+      }
+      const waived = shippingByStore[targetGroup.store.id] || 0;
+      return appliedCoupon.max_discount_amount &&
+        appliedCoupon.max_discount_amount > 0
+        ? Math.min(waived, appliedCoupon.max_discount_amount)
+        : waived;
+    }
+    if (
+      appliedCoupon.min_order_amount &&
+      cart.total_amount < appliedCoupon.min_order_amount
+    ) {
+      return 0;
+    }
+    return appliedCoupon.max_discount_amount &&
+      appliedCoupon.max_discount_amount > 0
+      ? Math.min(estimatedShipping, appliedCoupon.max_discount_amount)
+      : estimatedShipping;
+  })();
+  const effectiveCouponDiscount =
+    appliedCoupon?.discount_type === 'free_shipping'
+      ? freeShippingCouponDiscount
+      : couponDiscount;
+  const total = Math.max(
+    0,
+    subtotal + estimatedShipping - effectiveCouponDiscount,
+  );
 
   const handleSaveNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,8 +295,10 @@ export function CheckoutPage() {
       const payableChildren = order.children.filter((c) =>
         Boolean(c.khqr?.khqr_payload),
       );
-      setCreatedOrderId(order.id);
-      setCreatedOrderNumber(order.order_number);
+      document.body.style.overflow = 'hidden';
+      setCheckoutSessionToken(order.checkout_session_token || null);
+      setCreatedOrderId(order.id > 0 ? order.id : null);
+      setCreatedOrderNumber(order.order_number || null);
       if (payableChildren.length > 0) {
         setKhqrOrders(payableChildren);
         setKhqrOpen(true);
@@ -255,6 +317,10 @@ export function CheckoutPage() {
       setSubmitting(false);
     }
   };
+
+  if (bootstrapping) {
+    return <CheckoutSkeleton />;
+  }
 
   if (!isSignedIn) {
     return (
@@ -778,13 +844,17 @@ export function CheckoutPage() {
                   ${estimatedShipping.toFixed(2)}
                 </span>
               </div>
-              {appliedCoupon && couponDiscount > 0 && (
-                <div className="flex justify-between">
+              {appliedCoupon && effectiveCouponDiscount > 0 && (
+                <div className="flex justify-between gap-2">
                   <span className="text-[#767676]">
-                    Voucher ({appliedCoupon.code})
+                    Voucher ({appliedCoupon.code}
+                    {appliedCoupon.store?.name
+                      ? ` · ${appliedCoupon.store.name}`
+                      : ''}
+                    )
                   </span>
-                  <span className="font-medium text-[#029500]">
-                    −${couponDiscount.toFixed(2)}
+                  <span className="font-medium text-[#029500] shrink-0">
+                    −${effectiveCouponDiscount.toFixed(2)}
                   </span>
                 </div>
               )}
@@ -825,7 +895,9 @@ export function CheckoutPage() {
               onClick={() => void handlePurchase()}
               className="w-full bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[14.5px] font-semibold py-3.5 px-5 rounded-full transition-colors"
             >
-              {submitting ? 'Creating order...' : 'Purchase'}
+              {submitting
+                ? 'Creating order...'
+                : `Purchase - $${total.toFixed(2)}`}
             </button>
             <Link
               to="/cart"
@@ -843,59 +915,66 @@ export function CheckoutPage() {
         storeOrders={khqrOrders}
         allowBackdropClose={false}
         onCancel={async () => {
-          if (createdOrderId) {
-            try {
+          try {
+            if (checkoutSessionToken) {
+              // Deferred KHQR session: cancel session cleanly without ever creating an Order row!
+              await checkoutApi.cancelCheckoutSession(checkoutSessionToken);
+              showToast(
+                'Payment cancelled. Your items are still in your cart.',
+              );
+            } else if (createdOrderId) {
               await cancelOrder(
                 createdOrderId,
                 'Payment cancelled by customer at checkout',
-                true,
+                false,
               );
-              setKhqrOpen(false);
-              setKhqrOrders([]);
-              setCreatedOrderId(null);
-              setCreatedOrderNumber(null);
-              navigate('/cart');
-              return;
-            } catch (err) {
+              await refreshCart();
               showToast(
-                err instanceof ApiError
-                  ? err.message
-                  : 'Unable to cancel payment.',
+                'Payment cancelled. Your items are still in your cart.',
               );
             }
+          } catch (err) {
+            showToast(
+              err instanceof ApiError
+                ? err.message
+                : 'Unable to cancel payment.',
+            );
           }
           setKhqrOpen(false);
-          navigate('/cart');
+          setKhqrOrders([]);
+          setCheckoutSessionToken(null);
+          setCreatedOrderId(null);
+          setCreatedOrderNumber(null);
         }}
-        onTimeout={() => {
+        onTimeout={(timedOutOrderNumber) => {
+          const targetOrder = timedOutOrderNumber || createdOrderNumber;
           setKhqrOpen(false);
+          setCheckoutSessionToken(null);
           showToast(
             'Payment timed out. Your order has been saved as awaiting payment.',
           );
           void refreshOrders().finally(() => {
             navigate(
-              createdOrderNumber
-                ? `/account/orders/${createdOrderNumber}`
+              targetOrder
+                ? `/account/orders?order=${encodeURIComponent(targetOrder)}`
                 : '/account/orders',
             );
           });
         }}
         onClose={() => {
           setKhqrOpen(false);
-          void refreshOrders();
-          navigate(
-            createdOrderNumber
-              ? `/account/orders/${createdOrderNumber}`
-              : '/account/orders',
-          );
+          setCheckoutSessionToken(null);
         }}
-        onAllPaid={() => {
+        onAllPaid={(paidOrderNumber) => {
+          const targetOrder = paidOrderNumber || createdOrderNumber;
           setKhqrOpen(false);
+          setCheckoutSessionToken(null);
+          removeCoupon();
           showToast('Payment confirmed! Your order is now processing.');
-          void refreshOrders().finally(() => {
+          void Promise.all([refreshCart(), refreshOrders()]).finally(() => {
             navigate(
-              createdOrderNumber
-                ? `/account/orders/${createdOrderNumber}`
+              targetOrder
+                ? `/account/orders?order=${encodeURIComponent(targetOrder)}`
                 : '/account/orders',
             );
           });

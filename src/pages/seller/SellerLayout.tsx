@@ -8,6 +8,7 @@ import {
 } from '../../services/dashboardApi';
 import { FigmaIcon, type FigmaIconName } from '../../components/FigmaIcon';
 import { KovaLogo } from '../../components/KovaLogo';
+import { NotificationModal } from '../../components/NotificationModal';
 import { CustomerSettingsSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 
@@ -39,6 +40,12 @@ function getSellerBreadcrumbs(storeName: string, pathname: string): string[] {
   if (pathname.startsWith('/seller/orders')) {
     return [storeName, 'Orders'];
   }
+  if (pathname.startsWith('/seller/reviews')) {
+    return [storeName, 'Customer Reviews'];
+  }
+  if (pathname.startsWith('/seller/messages')) {
+    return [storeName, 'Customer Messages'];
+  }
   if (pathname.startsWith('/seller/shipping')) {
     return [storeName, 'Shipping & Logistics'];
   }
@@ -58,17 +65,25 @@ function getSellerBreadcrumbs(storeName: string, pathname: string): string[] {
 }
 
 export function SellerLayout() {
-  const { bootstrapping, isSignedIn, user, signOut } = useStore();
+  const {
+    bootstrapping,
+    isSignedIn,
+    user,
+    unreadNotificationsCount,
+    signOut,
+  } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickQuery, setQuickQuery] = useState('');
+  const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [storeProfile, setStoreProfile] = useState<SellerStoreProfile | null>(
     null,
   );
   const [summary, setSummary] = useState<SellerDashboardData | null>(null);
+  const [openMessagesCount, setOpenMessagesCount] = useState(0);
 
   const isStoreOwner = Boolean(
     user?.roles?.includes('store_owner') || user?.store,
@@ -92,10 +107,14 @@ export function SellerLayout() {
     Promise.allSettled([
       storeOwnerApi.getProfile(),
       storeOwnerApi.getDashboard(),
-    ]).then(([profRes, dashRes]) => {
+      storeOwnerApi.getTickets({ status: 'open', per_page: 1 }),
+    ]).then(([profRes, dashRes, ticketRes]) => {
       if (!active) return;
       if (profRes.status === 'fulfilled') setStoreProfile(profRes.value);
       if (dashRes.status === 'fulfilled') setSummary(dashRes.value);
+      if (ticketRes.status === 'fulfilled') {
+        setOpenMessagesCount(ticketRes.value.stats?.open ?? 0);
+      }
     });
     return () => {
       active = false;
@@ -268,6 +287,18 @@ export function SellerLayout() {
       badgeTone: 'orange',
     },
     {
+      label: 'Reviews',
+      to: '/seller/reviews',
+      icon: 'star',
+    },
+    {
+      label: 'Messages',
+      to: '/seller/messages',
+      icon: 'mail',
+      badge: openMessagesCount > 0 ? openMessagesCount : undefined,
+      badgeTone: 'orange',
+    },
+    {
       label: 'Shipping & Logistics',
       to: '/seller/shipping',
       icon: 'truck',
@@ -312,7 +343,7 @@ export function SellerLayout() {
 
   const crumbs = getSellerBreadcrumbs(storeName, location.pathname);
   const bellCount =
-    (summary?.orders.pending ?? 0) + (summary?.inventory.low_stock_count ?? 0);
+    unreadNotificationsCount > 0 ? unreadNotificationsCount : openMessagesCount;
 
   return (
     <div className="min-h-screen w-full bg-[#f7f7f7] text-black flex">
@@ -511,9 +542,10 @@ export function SellerLayout() {
               <FigmaIcon name="help-circle" className="w-4 h-4" />
             </Link>
 
-            <Link
-              to="/seller/orders"
-              aria-label="Order and inventory alerts"
+            <button
+              type="button"
+              onClick={() => setNotifModalOpen(true)}
+              aria-label="Notifications"
               className="inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] text-black h-9 px-2.5 rounded-full gap-1.5 transition-colors"
             >
               <FigmaIcon name="bell" className="w-4 h-4 text-black" />
@@ -522,7 +554,7 @@ export function SellerLayout() {
                   {bellCount}
                 </span>
               )}
-            </Link>
+            </button>
 
             <Link
               to="/account/profile"
@@ -576,6 +608,10 @@ export function SellerLayout() {
           <Outlet />
         </main>
       </div>
+      <NotificationModal
+        open={notifModalOpen}
+        onClose={() => setNotifModalOpen(false)}
+      />
     </div>
   );
 }

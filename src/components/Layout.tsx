@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { FloatingSideDock } from './FloatingSideDock';
 import { Header } from './Header';
 import { Footer } from './Footer';
 
@@ -17,6 +18,7 @@ export function Layout() {
         <Outlet />
       </main>
       <Footer />
+      <FloatingSideDock />
     </div>
   );
 }

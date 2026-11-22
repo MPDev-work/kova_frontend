@@ -155,6 +155,14 @@ export interface ShippingMethod {
   rates?: ShippingRate[];
 }
 
+export interface PromotionStoreInfo {
+  id: number;
+  name: string;
+  slug: string;
+  logo?: string | null;
+  is_verified?: boolean;
+}
+
 export interface Promotion {
   id: number;
   store_id: number | null;
@@ -166,15 +174,18 @@ export interface Promotion {
   min_order_amount: number | null;
   max_discount_amount: number | null;
   end_date?: string | null;
-  store?: { id: number; name: string; slug: string } | null;
+  store?: PromotionStoreInfo | null;
 }
 
 export interface AppliedCoupon {
   id: number;
+  store_id?: number | null;
+  store?: PromotionStoreInfo | null;
   code: string;
   name: string;
   discount_type: 'percentage' | 'fixed_amount' | 'free_shipping';
   discount_value: number;
+  min_order_amount?: number | null;
   max_discount_amount: number | null;
 }
 
@@ -228,6 +239,7 @@ export interface ChildOrderRecord {
 export interface OrderRecord {
   id: number;
   order_number: string;
+  checkout_session_token?: string | null;
   customer_name: string;
   customer_email: string;
   customer_phone: string;
@@ -276,6 +288,7 @@ export interface Address {
 export interface ReviewItem {
   id: number;
   product_id: number;
+  order_item_id?: number | null;
   product_name?: string;
   product_image?: string | null;
   author: string;
@@ -290,6 +303,7 @@ export interface ReviewItem {
 export interface SupportTicketMessage {
   id: number;
   message: string;
+  attachments?: string[] | null;
   is_admin_reply: boolean;
   created_at: string;
   user?: { id: number; name: string; avatar?: string | null } | null;
@@ -298,13 +312,59 @@ export interface SupportTicketMessage {
 export interface SupportTicket {
   id: number;
   ticket_number: string;
+  user_id?: number;
+  store_id?: number | null;
+  order_id?: number | null;
   subject: string;
   message: string;
+  attachments?: string[] | null;
   priority: string;
   status: string;
+  is_unread?: boolean;
+  is_blocked?: boolean;
+  blocked_by_me?: boolean;
+  peer_is_online?: boolean;
+  peer_last_active_at?: string | null;
   created_at: string;
   updated_at: string;
+  messages_count?: number;
+  user?: {
+    id: number;
+    name: string;
+    email?: string | null;
+    avatar?: string | null;
+  } | null;
+  store?: {
+    id: number;
+    name: string;
+    slug: string;
+    logo?: string | null;
+    is_verified?: boolean;
+  } | null;
+  order?: {
+    id: number;
+    order_number: string;
+  } | null;
+  latest_message?: SupportTicketMessage | null;
   messages?: SupportTicketMessage[];
+}
+
+export interface UserNotificationItem {
+  id: number;
+  user_id: number;
+  type: string;
+  title: string;
+  body?: string | null;
+  avatar_url?: string | null;
+  action_url?: string | null;
+  data?: {
+    ticket_id?: number;
+    store_id?: number;
+    order_number?: string | null;
+    sender_name?: string | null;
+  } | null;
+  read_at?: string | null;
+  created_at: string;
 }
 
 export interface StoreApplication {

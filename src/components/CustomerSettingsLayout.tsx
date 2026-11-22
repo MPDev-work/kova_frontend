@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { MessageCircle } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { formatShortDate } from '../utils/currency';
 import { FigmaIcon, type FigmaIconName } from './FigmaIcon';
 import { KovaLogo } from './KovaLogo';
+import { NotificationModal } from './NotificationModal';
 import { CustomerSettingsSkeleton } from './Skeleton';
 import { VerifiedBadge } from './VerifiedBadge';
 
@@ -51,13 +53,19 @@ export function CustomerSettingsLayout() {
     reviews,
     wishlistIds,
     cartCount,
+    notifications,
+    unreadNotificationsCount,
     signOut,
   } = useStore();
+  const unreadMessagesCount = notifications.filter(
+    (n) => !n.read_at && n.type === 'message',
+  ).length;
   const location = useLocation();
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickQuery, setQuickQuery] = useState('');
+  const [notifModalOpen, setNotifModalOpen] = useState(false);
 
   if (bootstrapping) {
     return <CustomerSettingsSkeleton />;
@@ -394,13 +402,33 @@ export function CustomerSettingsLayout() {
             </Link>
 
             <Link
-              to="/notifications"
+              to="/help/tickets"
+              title="Messages"
+              aria-label="Messages"
+              className="relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+            >
+              <MessageCircle className="w-4 h-4" />
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[10px] font-semibold flex items-center justify-center">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setNotifModalOpen(true)}
               title="Notifications"
               aria-label="Notifications"
               className="relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
             >
               <FigmaIcon name="bell" className="w-4 h-4" />
-            </Link>
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[10px] font-semibold flex items-center justify-center">
+                  {unreadNotificationsCount}
+                </span>
+              )}
+            </button>
 
             <Link
               to="/cart"
@@ -481,6 +509,10 @@ export function CustomerSettingsLayout() {
           <Outlet />
         </main>
       </div>
+      <NotificationModal
+        open={notifModalOpen}
+        onClose={() => setNotifModalOpen(false)}
+      />
     </div>
   );
 }

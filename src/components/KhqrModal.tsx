@@ -8,6 +8,7 @@ import {
 } from 'react';
 import QRCode from 'qrcode';
 import { ApiError, checkoutApi } from '../services/api';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import type { ChildOrderRecord } from '../types/marketplace';
 
 const SUCCESS_SPARKS = [
@@ -26,8 +27,8 @@ interface KhqrModalProps {
   storeOrders: ChildOrderRecord[];
   onClose: () => void;
   onCancel?: () => Promise<void> | void;
-  onTimeout?: () => void;
-  onAllPaid: () => void;
+  onTimeout?: (orderNumber?: string) => void;
+  onAllPaid: (orderNumber?: string) => void;
   allowBackdropClose?: boolean;
 }
 
@@ -41,7 +42,9 @@ export function KhqrModal({
   allowBackdropClose = true,
 }: KhqrModalProps) {
   const payableOrders = storeOrders.filter((o) => Boolean(o.khqr?.khqr_payload));
-  if (!open || payableOrders.length === 0) return null;
+  const isVisible = open && payableOrders.length > 0;
+  useBodyScrollLock(isVisible);
+  if (!isVisible) return null;
 
   return (
     <KhqrModalContent
@@ -69,8 +72,8 @@ function KhqrModalContent({
   payableOrders: ChildOrderRecord[];
   onClose: () => void;
   onCancel?: () => Promise<void> | void;
-  onTimeout?: () => void;
-  onAllPaid: () => void;
+  onTimeout?: (orderNumber?: string) => void;
+  onAllPaid: (orderNumber?: string) => void;
   allowBackdropClose: boolean;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -86,6 +89,7 @@ function KhqrModalContent({
   const inFlightRef = useRef(false);
   const completedRef = useRef(false);
   const timeoutHandledRef = useRef(false);
+  const timedOutOrderRef = useRef<string | undefined>(undefined);
 
   const currentOrder = payableOrders[activeIndex] || payableOrders[0];
   const khqr = currentOrder.khqr!;
@@ -140,17 +144,21 @@ function KhqrModalContent({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose, allowBackdropClose, statusTone, cancelling]);
 
-  const triggerTimeoutState = useCallback(() => {
-    if (timeoutHandledRef.current || completedRef.current) return;
-    timeoutHandledRef.current = true;
-    setStatusTone('timeout');
-    setStatusMessage(
-      'Payment timed out. Your order has been saved as Awaiting Payment.',
-    );
-    if (onTimeout) {
-      window.setTimeout(() => onTimeout(), 2000);
-    }
-  }, [onTimeout]);
+  const triggerTimeoutState = useCallback(
+    (timedOutOrderNumber?: string) => {
+      if (timeoutHandledRef.current || completedRef.current) return;
+      timeoutHandledRef.current = true;
+      timedOutOrderRef.current = timedOutOrderNumber;
+      setStatusTone('timeout');
+      setStatusMessage(
+        'Payment timed out. Your order has been saved as Awaiting Payment.',
+      );
+      if (onTimeout) {
+        window.setTimeout(() => onTimeout(timedOutOrderNumber), 2000);
+      }
+    },
+    [onTimeout],
+  );
 
   const checkStatus = useCallback(
     async (isFinalTimeoutCheck = false) => {
@@ -169,6 +177,8 @@ function KhqrModalContent({
       try {
         const res = await checkoutApi.checkBakongStatus(khqr.bill_number);
         if (res.data.payment_status === 'successful') {
+          const confirmedOrderNumber =
+            res.data.parent_order_number || res.data.order_number;
           const nextPaid = { ...paidMap, [khqr.bill_number]: true };
           setPaidMap(nextPaid);
           setStatusTone('paid');
@@ -180,7 +190,7 @@ function KhqrModalContent({
           if (allDone) {
             completedRef.current = true;
             setAllCompleted(true);
-            window.setTimeout(() => onAllPaid(), 2250);
+            window.setTimeout(() => onAllPaid(confirmedOrderNumber), 2250);
           } else if (activeIndex + 1 < payableOrders.length) {
             window.setTimeout(() => {
               setStatusTone('pending');
@@ -196,7 +206,16 @@ function KhqrModalContent({
         }
       } catch (err) {
         if (err instanceof ApiError && err.status === 410) {
-          triggerTimeoutState();
+          const errPayload = err.errors as
+            | Record<string, unknown>
+            | undefined;
+          const timedOutOrderNumber =
+            typeof errPayload?.parent_order_number === 'string'
+              ? errPayload.parent_order_number
+              : typeof errPayload?.order_number === 'string'
+                ? errPayload.order_number
+                : undefined;
+          triggerTimeoutState(timedOutOrderNumber);
         } else if (isFinalTimeoutCheck) {
           triggerTimeoutState();
         }
@@ -422,7 +441,9 @@ function KhqrModalContent({
 
             <button
               type="button"
-              onClick={() => (onTimeout ? onTimeout() : onClose())}
+              onClick={() =>
+                onTimeout ? onTimeout(timedOutOrderRef.current) : onClose()
+              }
               className="mt-6 px-8 py-2.5 rounded-full bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold transition-colors cursor-pointer"
             >
               View Order

@@ -277,24 +277,74 @@ export function CartPage() {
               <span className="text-[#767676]">Shipping</span>
               <span className="text-[#767676]">Calculated at checkout</span>
             </div>
-            {appliedCoupon && couponDiscount > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[#767676] flex items-center gap-2">
-                  {appliedCoupon.code} discount
-                  <button
-                    type="button"
-                    onClick={() => {
-                      removeCoupon();
-                      setCouponFeedback(null);
-                    }}
-                    className="text-[11px] text-[#e5322d] hover:underline"
-                  >
-                    Remove
-                  </button>
-                </span>
-                <span className="font-medium text-[#029500]">
-                  −${couponDiscount.toFixed(2)}
-                </span>
+            {appliedCoupon && (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[#767676] flex items-center gap-2 flex-wrap">
+                    <span>
+                      {appliedCoupon.code}
+                      {appliedCoupon.store?.name
+                        ? ` (${appliedCoupon.store.name} only)`
+                        : ' discount'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeCoupon();
+                        setCouponFeedback(null);
+                      }}
+                      className="text-[11px] text-[#e5322d] hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </span>
+                  {appliedCoupon.discount_type === 'free_shipping' ? (
+                    <span className="font-medium text-[#029500] shrink-0">
+                      Free delivery
+                    </span>
+                  ) : (
+                    <span
+                      className={`font-medium shrink-0 ${
+                        couponDiscount > 0 ? 'text-[#029500]' : 'text-[#8a8a8a]'
+                      }`}
+                    >
+                      {couponDiscount > 0
+                        ? `−$${couponDiscount.toFixed(2)}`
+                        : '$0.00'}
+                    </span>
+                  )}
+                </div>
+                {appliedCoupon.store_id &&
+                  !cart.stores.some(
+                    (g) => g.store.id === appliedCoupon.store_id,
+                  ) && (
+                    <p className="text-[11.5px] text-[#ff6e20]">
+                      Add products from {appliedCoupon.store?.name || 'this store'}{' '}
+                      to use this voucher.
+                    </p>
+                  )}
+                {appliedCoupon.store_id &&
+                  appliedCoupon.min_order_amount &&
+                  (() => {
+                    const matched = cart.stores.find(
+                      (g) => g.store.id === appliedCoupon.store_id,
+                    );
+                    if (
+                      !matched ||
+                      matched.store_subtotal >= appliedCoupon.min_order_amount
+                    ) {
+                      return null;
+                    }
+                    const remain =
+                      appliedCoupon.min_order_amount - matched.store_subtotal;
+                    return (
+                      <p className="text-[11.5px] text-[#ff6e20]">
+                        Add ${remain.toFixed(2)} more from{' '}
+                        {appliedCoupon.store?.name || 'this store'} to activate
+                        voucher.
+                      </p>
+                    );
+                  })()}
               </div>
             )}
           </div>

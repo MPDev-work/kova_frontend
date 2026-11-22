@@ -1,5 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { FigmaIcon } from './FigmaIcon';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 // ==========================================
 // Status Pill (Exact Figma Market - v2 palette)
@@ -591,7 +593,7 @@ export function TablePagination({
 }
 
 // ==========================================
-// Slide-Over Drawer (replaces cramped side forms)
+// Centered Modal (shared across Customer, Seller & Root Admin)
 // ==========================================
 export function SlideOverDrawer({
   open,
@@ -600,7 +602,7 @@ export function SlideOverDrawer({
   onClose,
   children,
   footer,
-  widthClass = 'max-w-[560px]',
+  widthClass = 'max-w-[620px]',
 }: {
   open: boolean;
   title: string;
@@ -610,6 +612,8 @@ export function SlideOverDrawer({
   footer?: ReactNode;
   widthClass?: string;
 }) {
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -621,13 +625,13 @@ export function SlideOverDrawer({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-[1px]"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-[3px] overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className={`relative w-full ${widthClass} bg-white h-full shadow-2xl flex flex-col`}
+        className={`relative w-full ${widthClass} bg-white rounded-[22px] max-h-[88vh] shadow-[0_24px_64px_rgba(0,0,0,0.22)] flex flex-col overflow-hidden my-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4.5 border-b border-[#ececec] flex items-start justify-between gap-4 shrink-0">
@@ -644,8 +648,8 @@ export function SlideOverDrawer({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close panel"
-            className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ececec] text-[#555555] flex items-center justify-center shrink-0 transition-colors"
+            aria-label="Close modal"
+            className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ececec] text-[#555555] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
           >
             <FigmaIcon name="x" className="w-4 h-4" />
           </button>
@@ -659,6 +663,9 @@ export function SlideOverDrawer({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
+
+export const DashboardModal = SlideOverDrawer;

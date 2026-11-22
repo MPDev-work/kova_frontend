@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -34,6 +35,7 @@ import type {
   ReviewItem,
   Store,
   SupportTicket,
+  UserNotificationItem,
   UserProfile,
 } from '../types/marketplace';
 
@@ -83,7 +85,10 @@ interface StoreContextValue {
   refreshUser: () => Promise<void>;
   completeGoogleAuth: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (patch: { name?: string; phone?: string | null }) => Promise<void>;
+  updateProfile: (patch: {
+    name?: string;
+    phone?: string | null;
+  }) => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
   changePassword: (payload: {
     current_password: string;
@@ -151,19 +156,35 @@ interface StoreContextValue {
   refreshReviews: () => Promise<void>;
   addReview: (payload: {
     product_id: number;
+    order_item_id?: number | null;
     rating: number;
     title?: string;
     comment: string;
   }) => Promise<void>;
+  deleteReview: (reviewId: number) => Promise<void>;
 
   tickets: SupportTicket[];
   refreshTickets: () => Promise<void>;
   createTicket: (payload: {
-    subject: string;
-    message: string;
+    subject?: string;
+    message?: string;
+    attachments?: string[];
     priority?: 'low' | 'medium' | 'high';
+    store_id?: number | null;
+    order_id?: number | null;
   }) => Promise<SupportTicket>;
-  replyTicket: (ticketId: number, message: string) => Promise<void>;
+  replyTicket: (
+    ticketId: number,
+    message: string,
+    attachments?: string[],
+  ) => Promise<void>;
+
+  // Live In-App Notifications
+  notifications: UserNotificationItem[];
+  unreadNotificationsCount: number;
+  refreshNotifications: (silent?: boolean) => Promise<void>;
+  markNotificationRead: (id: number) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 
   // Preferences (persisted in localStorage)
   notifPrefs: NotificationPrefs;
@@ -232,7 +253,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [fromGoogleOAuth] = useState(() => consumeUrlAuthToken());
   const [user, setUser] = useState<UserProfile | null>(() => getCachedUser());
   const [cart, setCart] = useState<CartSummary>(EMPTY_CART);
-  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(
+    null,
+  );
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [recentlyViewedIds, setRecentlyViewedIds] = useState<number[]>(() => {
     try {
@@ -267,12 +290,86 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const [toast, setToast] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<UserNotificationItem[]>(
+    [],
+  );
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const lastSeenNotifIdRef = useRef<number | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     window.setTimeout(() => {
       setToast((prev) => (prev === msg ? null : prev));
     }, 3400);
+  }, []);
+
+  const refreshNotifications = useCallback(
+    async (silent = false) => {
+      if (!getAuthToken()) {
+        setNotifications([]);
+        setUnreadNotificationsCount(0);
+        lastSeenNotifIdRef.current = null;
+        return;
+      }
+      try {
+        const res = await customerApi.getNotifications(30);
+        setNotifications(res.notifications);
+        setUnreadNotificationsCount(res.unread_count);
+
+        const newest = res.notifications[0];
+        if (newest) {
+          if (
+            lastSeenNotifIdRef.current !== null &&
+            newest.id > lastSeenNotifIdRef.current &&
+            !newest.read_at &&
+            silent
+          ) {
+            showToast(
+              newest.body
+                ? `${newest.title}: ${newest.body}`
+                : newest.title,
+            );
+          }
+          lastSeenNotifIdRef.current = Math.max(
+            lastSeenNotifIdRef.current ?? 0,
+            newest.id,
+          );
+        } else if (lastSeenNotifIdRef.current === null) {
+          lastSeenNotifIdRef.current = 0;
+        }
+      } catch {
+        // Keep existing notifications on transient errors
+      }
+    },
+    [showToast],
+  );
+
+  const markNotificationRead = useCallback(async (id: number) => {
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === id && !n.read_at
+          ? { ...n, read_at: new Date().toISOString() }
+          : n,
+      ),
+    );
+    setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
+    try {
+      await customerApi.markNotificationRead(id);
+    } catch {
+      // Ignore transient errors
+    }
+  }, []);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })),
+    );
+    setUnreadNotificationsCount(0);
+    try {
+      await customerApi.markAllNotificationsRead();
+    } catch {
+      // Ignore transient errors
+    }
   }, []);
 
   const refreshCatalog = useCallback(async () => {
@@ -296,18 +393,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     if (settingsRes.status === 'fulfilled') setSettings(settingsRes.value.data);
     if (catRes.status === 'fulfilled')
-      setCategories(
-        Array.isArray(catRes.value.data) ? catRes.value.data : [],
-      );
+      setCategories(Array.isArray(catRes.value.data) ? catRes.value.data : []);
     if (brandRes.status === 'fulfilled')
       setBrands(Array.isArray(brandRes.value.data) ? brandRes.value.data : []);
     if (storeRes.status === 'fulfilled') setStores(storeRes.value);
     if (prodRes.status === 'fulfilled') setProducts(prodRes.value.products);
     if (promoRes.status === 'fulfilled') setPromotions(promoRes.value);
     if (provRes.status === 'fulfilled')
-      setProvinces(
-        Array.isArray(provRes.value.data) ? provRes.value.data : [],
-      );
+      setProvinces(Array.isArray(provRes.value.data) ? provRes.value.data : []);
   }, []);
 
   const refreshCart = useCallback(async () => {
@@ -370,6 +463,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCachedUser(user);
   }, [user]);
 
+  // Initial fetch & live polling for real-time message notifications (Customer, Seller & Root Admin)
+  useEffect(() => {
+    if (!user) {
+      lastSeenNotifIdRef.current = null;
+      return;
+    }
+    const initTimer = window.setTimeout(() => {
+      void refreshNotifications(false);
+    }, 0);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshNotifications(true);
+      }
+    }, 8000);
+    return () => {
+      window.clearTimeout(initTimer);
+      window.clearInterval(interval);
+    };
+  }, [user, refreshNotifications]);
+
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'kova_auth_token' && !e.newValue) {
@@ -417,7 +530,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
           // Only clear persistent session when token is explicitly rejected (401/403).
           // Keep saved token intact on transient network/server errors.
-          if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          if (
+            err instanceof ApiError &&
+            (err.status === 401 || err.status === 403)
+          ) {
             setAuthToken(null);
             if (mounted) {
               setUser(null);
@@ -435,7 +551,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [refreshCatalog, refreshCart, loadAuthenticatedData, showToast, fromGoogleOAuth]);
+  }, [
+    refreshCatalog,
+    refreshCart,
+    loadAuthenticatedData,
+    showToast,
+    fromGoogleOAuth,
+  ]);
 
   const afterAuthSuccess = useCallback(
     async (authedUser: UserProfile, token: string, message: string) => {
@@ -453,7 +575,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [refreshCart, loadAuthenticatedData, showToast],
   );
 
-  const login = async (email: string, password: string): Promise<UserProfile> => {
+  const login = async (
+    email: string,
+    password: string,
+  ): Promise<UserProfile> => {
     const res = await authApi.login({ email, password });
     await afterAuthSuccess(
       res.data.user,
@@ -528,9 +653,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const uploadAvatar = async (file: File) => {
     const res = await customerApi.uploadAvatar(file);
-    setUser((prev) =>
-      prev ? { ...prev, avatar: res.data.avatar_url } : prev,
-    );
+    setUser((prev) => (prev ? { ...prev, avatar: res.data.avatar_url } : prev));
     showToast('Image uploaded successfully.');
   };
 
@@ -606,13 +729,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     code: string,
   ): Promise<{ ok: boolean; message: string }> => {
     try {
-      const res = await catalogApi.validateCoupon(code, cart.total_amount);
+      const storeSubtotals: Record<number, number> = {};
+      cart.stores.forEach((g) => {
+        storeSubtotals[g.store.id] = g.store_subtotal;
+      });
+      const hasCartItems = cart.stores.length > 0;
+      const res = await catalogApi.validateCoupon(
+        code,
+        hasCartItems ? cart.total_amount : undefined,
+        hasCartItems ? storeSubtotals : undefined,
+      );
       setAppliedCoupon(res.data);
       showToast(res.message || `Voucher ${res.data.code} applied.`);
       return { ok: true, message: res.message || 'Voucher applied.' };
     } catch (err) {
       const msg =
         err instanceof ApiError ? err.message : 'Invalid voucher code.';
+      showToast(msg);
       return { ok: false, message: msg };
     }
   };
@@ -622,11 +755,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showToast('Voucher removed.');
   };
 
-  const couponDiscount = (() => {
+  const couponEligibleSubtotal = (() => {
     if (!appliedCoupon) return 0;
+    if (appliedCoupon.store_id) {
+      const targetGroup = cart.stores.find(
+        (g) => g.store.id === appliedCoupon.store_id,
+      );
+      return targetGroup ? Number(targetGroup.store_subtotal || 0) : 0;
+    }
+    return Number(cart.total_amount || 0);
+  })();
+
+  const isCouponEligibleForCart = (() => {
+    if (!appliedCoupon) return false;
+    if (appliedCoupon.store_id) {
+      const targetGroup = cart.stores.find(
+        (g) => g.store.id === appliedCoupon.store_id,
+      );
+      if (!targetGroup) return false;
+      if (
+        appliedCoupon.min_order_amount &&
+        targetGroup.store_subtotal < appliedCoupon.min_order_amount
+      ) {
+        return false;
+      }
+      return true;
+    }
+    if (cart.stores.length === 0) return false;
+    if (
+      appliedCoupon.min_order_amount &&
+      cart.total_amount < appliedCoupon.min_order_amount
+    ) {
+      return false;
+    }
+    return true;
+  })();
+
+  const couponDiscount = (() => {
+    if (!appliedCoupon || !isCouponEligibleForCart) return 0;
+    if (appliedCoupon.discount_type === 'free_shipping') return 0;
     let d = 0;
     if (appliedCoupon.discount_type === 'percentage') {
-      d = (cart.total_amount * appliedCoupon.discount_value) / 100;
+      d = (couponEligibleSubtotal * appliedCoupon.discount_value) / 100;
     } else if (appliedCoupon.discount_type === 'fixed_amount') {
       d = appliedCoupon.discount_value;
     }
@@ -636,7 +806,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ) {
       d = Math.min(d, appliedCoupon.max_discount_amount);
     }
-    return Math.min(d, cart.total_amount);
+    return Math.min(d, couponEligibleSubtotal);
   })();
 
   const toggleWishlist = async (productId: number) => {
@@ -708,11 +878,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const order = await checkoutApi.checkout({
       ...payload,
-      coupon_code: appliedCoupon?.code || null,
+      coupon_code:
+        appliedCoupon && isCouponEligibleForCart ? appliedCoupon.code : null,
     });
-    setCart(EMPTY_CART);
-    setAppliedCoupon(null);
-    await refreshOrders();
+    // Keep cart intact for Bakong KHQR until payment actually completes
+    if (payload.payment_method !== 'bakong_khqr') {
+      setCart(EMPTY_CART);
+      setAppliedCoupon(null);
+    }
+    if (order.id > 0) {
+      await refreshOrders();
+    }
     return order;
   };
 
@@ -729,7 +905,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await refreshCart();
       }
       await refreshOrders();
-      showToast('Payment cancelled. Your items have been moved back to your cart.');
+      showToast(
+        'Payment cancelled. Your items have been moved back to your cart.',
+      );
       return;
     }
     await refreshOrders();
@@ -742,15 +920,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showToast('Review published.');
   };
 
+  const deleteReview: StoreContextValue['deleteReview'] = async (reviewId) => {
+    await customerApi.deleteReview(reviewId);
+    setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    showToast('Review deleted.');
+  };
+
   const createTicket: StoreContextValue['createTicket'] = async (payload) => {
     const created = await customerApi.createTicket(payload);
     await refreshTickets();
-    showToast(`Support ticket ${created.ticket_number} created.`);
+    showToast('Message sent.');
     return created;
   };
 
-  const replyTicket = async (ticketId: number, message: string) => {
-    await customerApi.replyTicket(ticketId, message);
+  const replyTicket = async (
+    ticketId: number,
+    message: string,
+    attachments?: string[],
+  ) => {
+    await customerApi.replyTicket(ticketId, message, attachments);
     await refreshTickets();
     showToast('Reply sent.');
   };
@@ -829,10 +1017,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         reviews,
         refreshReviews,
         addReview,
+        deleteReview,
         tickets,
         refreshTickets,
         createTicket,
         replyTicket,
+        notifications: user ? notifications : [],
+        unreadNotificationsCount: user ? unreadNotificationsCount : 0,
+        refreshNotifications,
+        markNotificationRead,
+        markAllNotificationsRead,
         notifPrefs,
         updateNotifPrefs,
         privacyPrefs,

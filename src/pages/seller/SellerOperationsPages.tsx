@@ -69,7 +69,7 @@ export function SellerOrdersPage() {
       const res = await storeOwnerApi.getOrders({ page: 1 });
       setOrders(res.data);
       setSelectedOrder((prev) =>
-        prev ? res.data.find((o) => o.id === prev.id) ?? null : null,
+        prev ? (res.data.find((o) => o.id === prev.id) ?? null) : null,
       );
     } catch (err) {
       showToast(
@@ -105,11 +105,13 @@ export function SellerOrdersPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const orderQuery = q.replace(/^#/, '');
     return orders.filter((o) => {
       if (statusFilter && o.status !== statusFilter) return false;
       if (!q) return true;
       return (
-        o.order_number.toLowerCase().includes(q) ||
+        o.order_number.toLowerCase().includes(orderQuery) ||
+        `#${o.order_number.toLowerCase()}`.includes(q) ||
         o.customer_name.toLowerCase().includes(q) ||
         (o.customer_phone || '').toLowerCase().includes(q)
       );
@@ -343,7 +345,9 @@ export function SellerOrdersPage() {
                       <StatusPill label={ord.status} />
                     </td>
                     <td className="py-3.5 px-3.5 text-[#555555]">
-                      {ord.shipping_carrier || ord.shipping_method_name || 'Standard'}
+                      {ord.shipping_carrier ||
+                        ord.shipping_method_name ||
+                        'Standard'}
                     </td>
                     <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
                       <button
@@ -433,7 +437,8 @@ export function SellerOrdersPage() {
                           {it.product_name}
                         </p>
                         <p className="text-[11px] text-[#8a8a8a]">
-                          Qty {it.quantity} × ${Number(it.unit_price).toFixed(2)}
+                          Qty {it.quantity} × $
+                          {Number(it.unit_price).toFixed(2)}
                           {it.product_sku ? ` · ${it.product_sku}` : ''}
                         </p>
                       </div>
@@ -712,9 +717,9 @@ export function SellerShippingPage() {
   const delivered = orders.filter(
     (o) => o.status === 'delivered' || o.status === 'completed',
   ).length;
-  const activeShipments = orders.filter(
-    (o) => o.status !== 'cancelled',
-  ).slice(0, 10);
+  const activeShipments = orders
+    .filter((o) => o.status !== 'cancelled')
+    .slice(0, 10);
 
   return (
     <div className="flex flex-col gap-5">
@@ -920,7 +925,9 @@ export function SellerShippingPage() {
       <SlideOverDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title={editing ? `Edit shipping · ${editing.name}` : 'Add shipping method'}
+        title={
+          editing ? `Edit shipping · ${editing.name}` : 'Add shipping method'
+        }
         subtitle="Set delivery cost and free-shipping threshold for Cambodia buyers."
         footer={
           <>
@@ -937,11 +944,7 @@ export function SellerShippingPage() {
               disabled={saving}
               className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
             >
-              {saving
-                ? 'Saving...'
-                : editing
-                  ? 'Save method'
-                  : 'Create method'}
+              {saving ? 'Saving...' : editing ? 'Save method' : 'Create method'}
             </button>
           </>
         }
@@ -1040,7 +1043,12 @@ export function SellerShippingPage() {
 // 7. Discounts & Promotions (/seller/promotions) — Exact Figma Seller · 15
 // 4 KPI Cards + Full-Width Table + Create Discount Drawer
 // ==========================================
-type PromoFilterTab = 'all' | 'active' | 'percentage' | 'fixed_amount' | 'free_shipping';
+type PromoFilterTab =
+  | 'all'
+  | 'active'
+  | 'percentage'
+  | 'fixed_amount'
+  | 'free_shipping';
 
 export function SellerPromotionsPage() {
   const { showToast, refreshCatalog } = useStore();
@@ -1135,7 +1143,11 @@ export function SellerPromotionsPage() {
   const totalUses = promos.reduce((s, p) => s + (p.used_count ?? 0), 0);
   const filtered = promos.filter((p) => {
     if (tab === 'active') return p.is_active;
-    if (tab === 'percentage' || tab === 'fixed_amount' || tab === 'free_shipping') {
+    if (
+      tab === 'percentage' ||
+      tab === 'fixed_amount' ||
+      tab === 'free_shipping'
+    ) {
       return p.discount_type === tab;
     }
     return true;
@@ -1455,7 +1467,9 @@ export function SellerBakongPage() {
     failed_count: number;
   } | null>(null);
   const [txs, setTxs] = useState<BakongTxItem[]>([]);
-  const [txFilter, setTxFilter] = useState<'all' | 'successful' | 'pending' | 'expired'>('all');
+  const [txFilter, setTxFilter] = useState<
+    'all' | 'successful' | 'pending' | 'expired'
+  >('all');
   const [loading, setLoading] = useState(true);
 
   const [accountId, setAccountId] = useState('');
@@ -1482,9 +1496,7 @@ export function SellerBakongPage() {
       }
     } catch (err) {
       showToast(
-        err instanceof ApiError
-          ? err.message
-          : 'Unable to load Bakong config.',
+        err instanceof ApiError ? err.message : 'Unable to load Bakong config.',
       );
     } finally {
       setLoading(false);
@@ -1539,9 +1551,7 @@ export function SellerBakongPage() {
       showToast(res.message || 'Bakong connection verified.');
       await loadBakong();
     } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Health check failed.',
-      );
+      showToast(err instanceof ApiError ? err.message : 'Health check failed.');
     }
   };
 
@@ -2253,9 +2263,7 @@ export function SellerStorefrontPage() {
       setPolicies(p.policies || '');
     } catch (err) {
       showToast(
-        err instanceof ApiError
-          ? err.message
-          : 'Unable to load store profile.',
+        err instanceof ApiError ? err.message : 'Unable to load store profile.',
       );
     } finally {
       setLoading(false);

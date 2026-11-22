@@ -533,31 +533,46 @@ function ProductDetailContent({
                 {reviews.map((rev) => (
                   <div
                     key={rev.id}
-                    className="border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-1.5"
+                    className="border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-2"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[14px] font-semibold text-black inline-flex items-center gap-1.5">
-                        <span>{rev.author}</span>
-                        {rev.is_verified_purchase && (
-                          <>
-                            <VerifiedBadge
-                              size="xs"
-                              label="Verified purchase"
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-9 h-9 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden shrink-0 flex items-center justify-center text-[13px] font-bold">
+                          {rev.author_avatar ? (
+                            <img
+                              src={rev.author_avatar}
+                              alt={rev.author}
+                              className="w-full h-full object-cover"
                             />
-                            <span className="text-[#1877F2] text-[11.5px] font-medium">
-                              Verified purchase
-                            </span>
-                          </>
-                        )}
-                      </p>
-                      <span className="text-[12px] text-[#767676]">
+                          ) : (
+                            (rev.author?.charAt(0) || 'C').toUpperCase()
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[14px] font-semibold text-black inline-flex items-center gap-1.5 max-w-full">
+                            <span className="truncate">{rev.author}</span>
+                            {rev.is_verified_purchase && (
+                              <VerifiedBadge
+                                size="xs"
+                                label="Verified purchase"
+                              />
+                            )}
+                          </p>
+                          <p className="text-[13px] text-[#ff6e20] leading-tight">
+                            {'★'.repeat(rev.rating)}
+                            {'☆'.repeat(5 - rev.rating)}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[12px] text-[#767676] shrink-0">
                         {formatShortDate(rev.created_at)}
                       </span>
                     </div>
-                    <p className="text-[13px] text-[#ff6e20]">
-                      {'★'.repeat(rev.rating)}
-                      {'☆'.repeat(5 - rev.rating)}
-                    </p>
+                    {rev.title && (
+                      <p className="text-[13.5px] font-semibold text-black">
+                        {rev.title}
+                      </p>
+                    )}
                     <p className="text-[14px] text-black/85 leading-[1.5]">
                       {rev.comment}
                     </p>
