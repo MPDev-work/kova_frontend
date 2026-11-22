@@ -1,27 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Link,
+  Navigate,
   useNavigate,
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import {
-  ArrowLeft,
-  ImagePlus,
-  Link2,
-  MessageCircle,
-  Send,
-} from 'lucide-react';
-import {
-  PendingAttachmentsBar,
-} from '../../components/ChatMessageContent';
+import { ArrowLeft, MessageCircle } from 'lucide-react';
 import { KovaLogo } from '../../components/KovaLogo';
 import { MessengerWorkspace } from '../../components/MessengerWorkspace';
 import { NotificationModal } from '../../components/NotificationModal';
 import { FigmaIcon } from '../../components/FigmaIcon';
-import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { useStore } from '../../context/StoreContext';
-import { ApiError, customerApi } from '../../services/api';
 
 const FAQS = [
   {
@@ -157,278 +147,28 @@ export function HelpCenterPage() {
   );
 }
 
+/**
+ * Contact entry point: immediately routes into the full-screen Message Portal
+ * and automatically opens (or creates) the conversation with the store or Kova Support.
+ */
 export function ContactSupportPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { isSignedIn, stores, createTicket, showToast } = useStore();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextParams = new URLSearchParams();
+  nextParams.set('start', '1');
 
-  const storeIdParam = Number(searchParams.get('storeId')) || null;
-  const storeNameParam = searchParams.get('storeName') || '';
-  const storeSlugParam = searchParams.get('storeSlug') || '';
-  const orderIdParam = Number(searchParams.get('orderId')) || null;
-  const orderNumberParam = searchParams.get('orderNumber') || '';
+  const storeId = searchParams.get('storeId');
+  const orderId = searchParams.get('orderId');
 
-  const matchedStore = storeIdParam
-    ? stores.find((s) => s.id === storeIdParam) || null
-    : null;
-  const recipientName =
-    matchedStore?.name || storeNameParam || 'Kova Support';
-  const recipientLogo = matchedStore?.logo || null;
-  const recipientVerified = Boolean(matchedStore?.is_verified);
-
-  const [message, setMessage] = useState('');
-  const [attachments, setAttachments] = useState<string[]>([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlDraft, setUrlDraft] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  if (!isSignedIn) {
-    return (
-      <div className="kova-container px-4 py-16 text-center">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-10 max-w-[480px] mx-auto flex flex-col items-center gap-4">
-          <h1 className="text-[22px] font-semibold text-black">
-            Sign in to send a message
-          </h1>
-          <Link
-            to="/login"
-            className="bg-[#ff6e20] text-white text-[14px] font-semibold px-6 py-3 rounded-full"
-          >
-            Sign in
-          </Link>
-        </div>
-      </div>
-    );
+  if (storeId) {
+    nextParams.set('storeId', storeId);
+  } else {
+    nextParams.set('target', 'support');
+  }
+  if (orderId) {
+    nextParams.set('orderId', orderId);
   }
 
-  const handleImageUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const remaining = 6 - attachments.length;
-    if (remaining <= 0) {
-      showToast('You can attach up to 6 images per message.');
-      return;
-    }
-    setUploadingImage(true);
-    try {
-      const selected = Array.from(files).slice(0, remaining);
-      const uploadedUrls: string[] = [];
-      for (const file of selected) {
-        const url = await customerApi.uploadChatImage(file);
-        uploadedUrls.push(url);
-      }
-      setAttachments((prev) => [...prev, ...uploadedUrls]);
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to upload image.',
-      );
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleInsertUrl = () => {
-    const raw = urlDraft.trim();
-    if (!raw) return;
-    const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-    setMessage((prev) => (prev.trim() ? `${prev.trim()} ${normalized}` : normalized));
-    setUrlDraft('');
-    setShowUrlInput(false);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() && attachments.length === 0) return;
-    setSubmitting(true);
-    try {
-      const ticket = await createTicket({
-        message: message.trim() || undefined,
-        attachments: attachments.length > 0 ? attachments : undefined,
-        store_id: storeIdParam,
-        order_id: orderIdParam,
-      });
-      navigate(`/help/tickets?chat=${ticket.id}`);
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to send message.',
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="kova-container px-4 lg:px-6 pt-5 pb-12 max-w-[780px]">
-      <p className="text-[12px] text-[#767676] mb-3">
-        <Link to="/help/tickets" className="hover:text-[#ff6e20]">
-          Messages
-        </Link>{' '}
-        &nbsp;/&nbsp;{' '}
-        {storeIdParam ? `Message ${recipientName}` : 'Kova Support'}
-      </p>
-
-      <div className="bg-white border border-[#ececec] rounded-[24px] overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-        {/* Recipient Profile Header */}
-        <div className="px-6 py-5 border-b border-[#ececec] flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <span className="w-12 h-12 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden shrink-0 flex items-center justify-center">
-              {recipientLogo ? (
-                <img
-                  src={recipientLogo}
-                  alt={recipientName}
-                  className="w-full h-full object-cover"
-                />
-              ) : storeIdParam ? (
-                <FigmaIcon name="home" className="w-5 h-5" />
-              ) : (
-                <MessageCircle className="w-5 h-5" />
-              )}
-            </span>
-            <div className="min-w-0">
-              <p className="text-[18px] font-bold text-black flex items-center gap-1.5 truncate">
-                <span className="truncate">{recipientName}</span>
-                {recipientVerified && <VerifiedBadge size="xs" />}
-              </p>
-              <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-[#767676]">
-                <span>
-                  {storeIdParam
-                    ? 'Direct message to store'
-                    : 'Kova customer support'}
-                </span>
-                {orderNumberParam && (
-                  <span className="bg-[#ffefe6] text-[#ff6e20] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">
-                    Order #{orderNumberParam}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {storeIdParam && storeSlugParam && (
-              <Link
-                to={`/store/${storeSlugParam}`}
-                className="bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-black text-[12px] font-semibold px-3.5 py-1.5 rounded-full transition-colors"
-              >
-                View store
-              </Link>
-            )}
-            {storeIdParam && (
-              <button
-                type="button"
-                onClick={() => setSearchParams({}, { replace: true })}
-                className="text-[12px] font-medium text-[#767676] hover:text-black underline"
-              >
-                Kova Support
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Clean Modern Composer */}
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-3.5">
-          <PendingAttachmentsBar
-            attachments={attachments}
-            onRemove={(idx) =>
-              setAttachments((prev) => prev.filter((_, i) => i !== idx))
-            }
-          />
-
-          <textarea
-            rows={5}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={
-              storeIdParam
-                ? `Write your message or paste a link for ${recipientName}...`
-                : 'Write your message or paste a link for Kova Support...'
-            }
-            className="w-full bg-[#fafafa] focus:bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-[18px] p-4 text-[14.5px] text-black placeholder:text-[#979797] outline-none resize-none transition-colors leading-relaxed"
-          />
-
-          {showUrlInput && (
-            <div className="flex items-center gap-2 bg-[#f7f7f7] border border-[#ececec] rounded-full px-3.5 py-1.5">
-              <Link2 className="w-4 h-4 text-[#767676] shrink-0" />
-              <input
-                type="text"
-                value={urlDraft}
-                onChange={(e) => setUrlDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleInsertUrl();
-                  }
-                }}
-                placeholder="Paste URL (https://...)"
-                className="flex-1 bg-transparent text-[13px] text-black outline-none min-w-0"
-              />
-              <button
-                type="button"
-                onClick={handleInsertUrl}
-                className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-3 py-1 rounded-full"
-              >
-                Insert
-              </button>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => void handleImageUpload(e.target.files)}
-              />
-              <button
-                type="button"
-                disabled={uploadingImage}
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-[#555555] text-[12.5px] font-semibold px-3.5 py-2 rounded-full transition-colors"
-              >
-                <ImagePlus className="w-4 h-4" />
-                <span>{uploadingImage ? 'Uploading...' : 'Add photo'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowUrlInput((v) => !v)}
-                className={`inline-flex items-center gap-1.5 border text-[12.5px] font-semibold px-3.5 py-2 rounded-full transition-colors ${
-                  showUrlInput
-                    ? 'bg-[#ffefe6] border-[#ffdfcd] text-[#ff6e20]'
-                    : 'bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] border-[#ececec] text-[#555555]'
-                }`}
-              >
-                <Link2 className="w-4 h-4" />
-                <span>Add URL</span>
-              </button>
-              <Link
-                to="/help/tickets"
-                className="text-[12.5px] font-semibold text-[#767676] hover:text-black ml-1"
-              >
-                Conversations
-              </Link>
-            </div>
-
-            <button
-              type="submit"
-              disabled={
-                submitting ||
-                uploadingImage ||
-                (!message.trim() && attachments.length === 0)
-              }
-              className="inline-flex items-center gap-2 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[14px] font-semibold px-6 py-2.5 rounded-full transition-colors"
-            >
-              <Send className="w-4 h-4" />
-              <span>{submitting ? 'Sending...' : 'Send message'}</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+  return <Navigate to={`/help/tickets?${nextParams.toString()}`} replace />;
 }
 
 export function SupportTicketsPage() {

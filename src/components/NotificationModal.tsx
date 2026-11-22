@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MessageCircle } from 'lucide-react';
+import { Check, MessageCircle, ShoppingBag, Trash2 } from 'lucide-react';
 import { DashboardModal } from './DashboardPrimitives';
 import { FigmaIcon } from './FigmaIcon';
 import { useStore } from '../context/StoreContext';
@@ -62,7 +62,7 @@ export function groupNotifications(
     const totalCount = group.items.length;
     let title = group.latest.title;
 
-    if (group.senderName) {
+    if (group.latest.type === 'message' && group.senderName) {
       if (unreadCount > 1) {
         title = `${unreadCount} new messages from ${group.senderName}`;
       } else if (unreadCount === 0 && totalCount > 1) {
@@ -91,6 +91,8 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
     refreshNotifications,
     markNotificationRead,
     markAllNotificationsRead,
+    deleteNotification,
+    clearAllNotifications,
   } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,7 +108,29 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
     }
   }, [open, isSignedIn, refreshNotifications]);
 
-  const getTicketTargetUrl = (notif: UserNotificationItem) => {
+  const getNotificationTargetUrl = (notif: UserNotificationItem) => {
+    if (notif.type === 'order') {
+      const orderNum = notif.data?.order_number;
+      const isStoreOwner = Boolean(
+        user?.roles?.includes('store_owner') || user?.store,
+      );
+      if (
+        isStoreOwner &&
+        ((user?.store?.id &&
+          notif.data?.store_id &&
+          Number(notif.data.store_id) === Number(user.store.id)) ||
+          location.pathname.startsWith('/seller'))
+      ) {
+        return orderNum
+          ? `/seller/orders?search=${encodeURIComponent(orderNum)}`
+          : '/seller/orders';
+      }
+      if (notif.action_url) return notif.action_url;
+      return orderNum
+        ? `/account/orders?order=${encodeURIComponent(orderNum)}`
+        : '/account/orders';
+    }
+
     const ticketId = notif.data?.ticket_id;
     const isAdminUser = Boolean(
       user?.roles?.some((r) => r === 'admin' || r === 'root_admin'),
@@ -139,12 +163,22 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
     return '/help/tickets';
   };
 
-  const handleReplyClick = (group: GroupedNotification) => {
+  const handlePrimaryClick = (group: GroupedNotification) => {
     group.unreadIds.forEach((id) => {
       void markNotificationRead(id);
     });
     onClose();
-    navigate(getTicketTargetUrl(group.latest));
+    navigate(getNotificationTargetUrl(group.latest));
+  };
+
+  const handleMarkGroupRead = (group: GroupedNotification) => {
+    group.unreadIds.forEach((id) => {
+      void markNotificationRead(id);
+    });
+  };
+
+  const handleDeleteGroup = (group: GroupedNotification) => {
+    void deleteNotification(group.items.map((item) => item.id));
   };
 
   return (
@@ -159,9 +193,9 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
             }`
           : 'You are all caught up'
       }
-      widthClass="max-w-[560px]"
+      widthClass="max-w-[580px]"
       footer={
-        <div className="w-full flex items-center justify-between gap-2">
+        <div className="w-full flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => {
@@ -178,7 +212,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
           >
             Open all messages
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {unreadNotificationsCount > 0 && (
               <button
                 type="button"
@@ -186,6 +220,15 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                 className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-3.5 py-2 rounded-full transition-colors"
               >
                 Mark all read
+              </button>
+            )}
+            {notifications.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void clearAllNotifications()}
+                className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[12px] font-semibold px-3.5 py-2 rounded-full transition-colors"
+              >
+                Clear all
               </button>
             )}
             <button
@@ -225,8 +268,8 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
             No notifications yet
           </p>
           <p className="text-[13px] text-[#767676] max-w-[340px]">
-            New customer messages, seller replies, and support alerts will
-            appear here in real time.
+            New orders, customer messages, seller replies, and support alerts
+            will appear here in real time.
           </p>
         </div>
       ) : (
@@ -234,6 +277,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
           {grouped.map((group) => {
             const notif = group.latest;
             const isUnread = group.unreadIds.length > 0;
+            const isOrder = notif.type === 'order';
             const countBadge =
               group.unreadIds.length > 1
                 ? group.unreadIds.length
@@ -257,6 +301,8 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                         alt={group.title}
                         className="w-full h-full object-cover"
                       />
+                    ) : isOrder ? (
+                      <ShoppingBag className="w-4 h-4" />
                     ) : (
                       <MessageCircle className="w-4 h-4" />
                     )}
@@ -285,20 +331,42 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                       {notif.body}
                     </p>
                   )}
-                  <div className="flex items-center justify-between gap-2 mt-2">
-                    {notif.data?.order_number ? (
-                      <span className="text-[11px] font-semibold bg-white border border-[#ececec] text-[#555555] px-2.5 py-0.5 rounded-full">
-                        Order #{notif.data.order_number}
-                      </span>
-                    ) : (
-                      <span />
-                    )}
+                  <div className="flex items-center justify-between gap-2 mt-2.5">
+                    <div className="flex items-center gap-1.5">
+                      {notif.data?.order_number && !isOrder && (
+                        <span className="text-[11px] font-semibold bg-white border border-[#ececec] text-[#555555] px-2.5 py-0.5 rounded-full">
+                          Order #{notif.data.order_number}
+                        </span>
+                      )}
+                      {isUnread && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkGroupRead(group)}
+                          title="Mark as read"
+                          aria-label="Mark as read"
+                          className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ffdfcd] text-[#555555] hover:text-[#ff6e20] text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors"
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>Mark read</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteGroup(group)}
+                        title="Delete notification"
+                        aria-label="Delete notification"
+                        className="inline-flex items-center gap-1 bg-white hover:bg-[#fff0f0] border border-[#ececec] hover:border-[#f8c7c7] text-[#767676] hover:text-[#e5322d] text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => handleReplyClick(group)}
+                      onClick={() => handlePrimaryClick(group)}
                       className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-3.5 py-1.5 rounded-full transition-colors shrink-0"
                     >
-                      Reply
+                      {isOrder ? 'View order' : 'Reply'}
                     </button>
                   </div>
                 </div>

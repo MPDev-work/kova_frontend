@@ -11,6 +11,7 @@ import { KovaLogo } from '../../components/KovaLogo';
 import { NotificationModal } from '../../components/NotificationModal';
 import { CustomerSettingsSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { StorefrontPreviewModal } from './SellerStorePreviewPage';
 
 interface SellerNavItem {
   label: string;
@@ -46,9 +47,6 @@ function getSellerBreadcrumbs(storeName: string, pathname: string): string[] {
   if (pathname.startsWith('/seller/messages')) {
     return [storeName, 'Customer Messages'];
   }
-  if (pathname.startsWith('/seller/shipping')) {
-    return [storeName, 'Shipping & Logistics'];
-  }
   if (pathname.startsWith('/seller/promotions')) {
     return [storeName, 'Discounts & Promotions'];
   }
@@ -60,6 +58,12 @@ function getSellerBreadcrumbs(storeName: string, pathname: string): string[] {
   }
   if (pathname.startsWith('/seller/storefront')) {
     return [storeName, 'Storefront', 'Profile & Policies'];
+  }
+  if (pathname.startsWith('/seller/preview')) {
+    return [storeName, 'Storefront Preview'];
+  }
+  if (pathname.startsWith('/seller/settings')) {
+    return [storeName, 'Account Settings'];
   }
   return [storeName, 'Seller Center'];
 }
@@ -79,6 +83,7 @@ export function SellerLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickQuery, setQuickQuery] = useState('');
   const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [storeProfile, setStoreProfile] = useState<SellerStoreProfile | null>(
     null,
   );
@@ -216,18 +221,20 @@ export function SellerLayout() {
                 : 'Your store application was not approved. You can submit an updated application anytime.'}
           </p>
           <div className="flex flex-wrap gap-2.5 pt-1">
-            <Link
-              to="/become-a-seller"
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
               className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-full"
             >
-              View application
-            </Link>
-            <Link
-              to="/"
-              className="bg-white border border-[#ececec] hover:border-black text-black text-[13.5px] font-semibold px-6 py-2.5 rounded-full"
+              Refresh status
+            </button>
+            <button
+              type="button"
+              onClick={() => void signOut().then(() => navigate('/login'))}
+              className="bg-white border border-[#ececec] hover:border-[#e5322d] hover:text-[#e5322d] text-black text-[13.5px] font-semibold px-6 py-2.5 rounded-full transition-colors"
             >
-              Back to marketplace
-            </Link>
+              Sign out
+            </button>
           </div>
         </div>
       </div>
@@ -299,11 +306,6 @@ export function SellerLayout() {
       badgeTone: 'orange',
     },
     {
-      label: 'Shipping & Logistics',
-      to: '/seller/shipping',
-      icon: 'truck',
-    },
-    {
       label: 'Storefront',
       to: '/seller/storefront',
       icon: 'user',
@@ -322,6 +324,11 @@ export function SellerLayout() {
       label: 'Bakong KHQR',
       to: '/seller/bakong',
       icon: 'zap',
+    },
+    {
+      label: 'Account Settings',
+      to: '/seller/settings',
+      icon: 'lock',
     },
   ];
 
@@ -445,20 +452,20 @@ export function SellerLayout() {
                 : 'Platform default rate'}
             </p>
             {storeSlug && (
-              <Link
-                to={`/store/${storeSlug}`}
-                className="text-[11px] font-semibold text-[#ff6e20] hover:underline pt-0.5"
+              <button
+                type="button"
+                onClick={() => setPreviewModalOpen(true)}
+                className="text-left text-[11px] font-semibold text-[#ff6e20] hover:underline pt-0.5"
               >
-                View live storefront
-              </Link>
+                Preview storefront
+              </button>
             )}
             <div className="flex items-center justify-between pt-2 mt-1 border-t border-[#ececec]">
               <Link
-                to="/"
-                state={{ allowStorefront: true }}
+                to="/seller/settings"
                 className="text-[11px] font-medium text-[#767676] hover:text-black"
               >
-                Marketplace
+                Account settings
               </Link>
               <button
                 type="button"
@@ -530,17 +537,14 @@ export function SellerLayout() {
           </form>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="hidden xl:inline-flex items-center bg-[#e7f6e7] text-[#029500] text-[11.5px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap">
-              Store Live
-            </span>
-
-            <Link
-              to="/help"
-              aria-label="Seller Help Center"
-              className="hidden sm:inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] text-black w-9 h-9 rounded-full transition-colors"
+            <button
+              type="button"
+              onClick={() => setPreviewModalOpen(true)}
+              title="Preview your live storefront"
+              className="hidden xl:inline-flex items-center bg-[#e7f6e7] hover:bg-[#d7f0d7] text-[#029500] text-[11.5px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-colors"
             >
-              <FigmaIcon name="help-circle" className="w-4 h-4" />
-            </Link>
+              Store Live
+            </button>
 
             <button
               type="button"
@@ -557,7 +561,7 @@ export function SellerLayout() {
             </button>
 
             <Link
-              to="/account/profile"
+              to="/seller/settings"
               className="hidden sm:flex items-center gap-2 bg-[#fff6f1] hover:bg-[#ffefe6] border border-[#fde1d2] rounded-full pl-1.5 pr-3.5 py-1 transition-colors"
             >
               {user.avatar ? (
@@ -611,6 +615,10 @@ export function SellerLayout() {
       <NotificationModal
         open={notifModalOpen}
         onClose={() => setNotifModalOpen(false)}
+      />
+      <StorefrontPreviewModal
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
       />
     </div>
   );

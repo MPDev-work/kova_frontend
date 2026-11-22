@@ -387,6 +387,10 @@ export function ChatThreadModal({
           {/* Chat Thread Canvas */}
           <div className="bg-[#fafafa] border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3 min-h-[240px]">
             {(() => {
+              const hasInitial =
+                Boolean(ticket.message?.trim()) ||
+                Boolean(ticket.attachments && ticket.attachments.length > 0);
+              if (!hasInitial) return null;
               const isOwnInitial = !viewingAsStaff;
               const customerName = ticket.user?.name || 'Customer';
               return (

@@ -731,6 +731,32 @@ export const customerApi = {
     });
   },
 
+  async sendVerificationCode(channel: 'email' | 'phone', phone?: string) {
+    return apiRequest<{
+      channel?: 'email' | 'phone';
+      target?: string;
+      expires_in_seconds?: number;
+      already_verified?: boolean;
+    }>('/users/verify/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        channel,
+        phone: phone?.trim() || undefined,
+      }),
+    });
+  },
+
+  async confirmVerificationCode(channel: 'email' | 'phone', code: string) {
+    return apiRequest<{
+      email_verified_at: string | null;
+      phone_verified_at: string | null;
+      phone: string | null;
+    }>('/users/verify/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ channel, code }),
+    });
+  },
+
   async deleteAccount() {
     return apiRequest<null>('/users/delete-account', { method: 'DELETE' });
   },
@@ -863,6 +889,17 @@ export const customerApi = {
     return res.data;
   },
 
+  async startConversation(payload: {
+    store_id?: number | null;
+    order_id?: number | null;
+  }) {
+    const res = await apiRequest<SupportTicket>('/customer/tickets/start', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.data;
+  },
+
   async replyTicket(id: number, message: string, attachments?: string[]) {
     return apiRequest<unknown>(`/customer/tickets/${id}/reply`, {
       method: 'POST',
@@ -926,6 +963,18 @@ export const customerApi = {
   async markAllNotificationsRead() {
     return apiRequest<null>('/notifications/read-all', {
       method: 'POST',
+    });
+  },
+
+  async deleteNotification(id: number) {
+    return apiRequest<null>(`/notifications/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async clearAllNotifications() {
+    return apiRequest<null>('/notifications/clear', {
+      method: 'DELETE',
     });
   },
 

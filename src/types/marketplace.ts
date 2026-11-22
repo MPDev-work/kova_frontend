@@ -143,7 +143,7 @@ export interface ShippingRate {
 
 export interface ShippingMethod {
   id: number;
-  store_id: number;
+  store_id: number | null;
   name: string;
   description?: string | null;
   calculation_type?: 'fixed' | 'weight_based' | 'free' | 'distance_based';
@@ -360,7 +360,10 @@ export interface UserNotificationItem {
   data?: {
     ticket_id?: number;
     store_id?: number;
+    order_id?: number;
     order_number?: string | null;
+    total_amount?: number;
+    payment_method?: string;
     sender_name?: string | null;
   } | null;
   read_at?: string | null;
@@ -385,6 +388,7 @@ export interface UserProfile {
   phone: string | null;
   avatar: string | null;
   email_verified_at: string | null;
+  phone_verified_at?: string | null;
   created_at?: string | null;
   status?: string;
   roles: string[];

@@ -36,6 +36,9 @@ function getAdminBreadcrumbs(pathname: string): string[] {
   if (pathname.startsWith('/admin/bakong')) {
     return ['Kova Global', 'Payments & Transactions'];
   }
+  if (pathname.startsWith('/admin/shipping')) {
+    return ['Kova Global', 'Shipping & Logistics'];
+  }
   if (pathname.startsWith('/admin/disputes')) {
     return ['Kova Global', 'Support & Disputes'];
   }
@@ -221,6 +224,11 @@ export function AdminLayout() {
           icon: 'zap',
           badge: pendingPaymentsCount > 0 ? pendingPaymentsCount : undefined,
           badgeTone: 'neutral',
+        },
+        {
+          label: 'Shipping & Logistics',
+          to: '/admin/shipping',
+          icon: 'truck',
         },
       ],
     },

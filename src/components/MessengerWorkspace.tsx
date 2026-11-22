@@ -59,7 +59,8 @@ function getLastPreview(ticket: UnifiedTicket, mode: WorkspaceMode): string {
       ? ticket.attachments.length === 1
         ? 'Sent a photo'
         : `Sent ${ticket.attachments.length} photos`
-      : 'New conversation');
+      : '');
+  if (!initialBody) return 'Start a conversation';
   return mode === 'customer' ? `You: ${initialBody}` : initialBody;
 }
 
@@ -107,6 +108,7 @@ export function MessengerWorkspace({
   const forceScrollBottomRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const handledStartKeyRef = useRef<string | null>(null);
 
   const fetchList = useCallback(
     async (silent = false) => {
@@ -223,6 +225,74 @@ export function MessengerWorkspace({
       return () => window.clearTimeout(t);
     }
   }, [chatParamId, selectedId]);
+
+  const startDirectConversation = useCallback(
+    async (opts: { storeId?: number | null; orderId?: number | null }) => {
+      if (mode !== 'customer') return;
+      setLoadingThread(true);
+      try {
+        const started = await customerApi.startConversation({
+          store_id: opts.storeId ?? null,
+          order_id: opts.orderId ?? null,
+        });
+        setTickets((prev) => [
+          started,
+          ...prev.filter((item) => item.id !== started.id),
+        ]);
+        prevThreadMetaRef.current = { id: null, count: 0 };
+        setSelectedId(started.id);
+        setActiveTicket(started);
+        setSearchParams({ chat: String(started.id) }, { replace: true });
+        void fetchList(true);
+        window.setTimeout(() => {
+          replyTextareaRef.current?.focus();
+        }, 60);
+      } catch (err) {
+        handledStartKeyRef.current = null;
+        showToast(
+          err instanceof ApiError
+            ? err.message
+            : 'Unable to start conversation.',
+        );
+      } finally {
+        setLoadingThread(false);
+      }
+    },
+    [mode, setSearchParams, showToast, fetchList],
+  );
+
+  // Auto-open or create conversation when arriving from any "Contact" button
+  const shouldStartParam =
+    mode === 'customer' &&
+    (searchParams.get('start') === '1' ||
+      Boolean(searchParams.get('storeId')) ||
+      searchParams.get('target') === 'support');
+  const startStoreId = Number(searchParams.get('storeId')) || null;
+  const startOrderId = Number(searchParams.get('orderId')) || null;
+  const startTarget = searchParams.get('target') || '';
+
+  useEffect(() => {
+    if (!shouldStartParam) {
+      handledStartKeyRef.current = null;
+      return;
+    }
+    const startKey = `${startStoreId ?? 'support'}:${startOrderId ?? ''}:${startTarget}`;
+    const t = window.setTimeout(() => {
+      if (handledStartKeyRef.current === startKey) return;
+      handledStartKeyRef.current = startKey;
+      void startDirectConversation({
+        storeId: startStoreId,
+        orderId: startOrderId,
+      });
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [
+    shouldStartParam,
+    startStoreId,
+    startOrderId,
+    startTarget,
+    startDirectConversation,
+  ]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -653,15 +723,18 @@ export function MessengerWorkspace({
                   {mode === 'customer' && (
                     <>
                       <div className="my-1 border-t border-[#f0f0f0]" />
-                      <Link
-                        to="/help/contact"
+                      <button
+                        type="button"
                         role="menuitem"
-                        onClick={() => setMenuOpen(false)}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void startDirectConversation({ storeId: null });
+                        }}
                         className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-black hover:bg-[#f7f7f7] flex items-center gap-2.5 transition-colors"
                       >
                         <SquarePen className="w-4 h-4 text-[#767676] shrink-0" />
-                        <span>New message</span>
-                      </Link>
+                        <span>Message Kova Support</span>
+                      </button>
                     </>
                   )}
                 </div>
@@ -1082,8 +1155,46 @@ export function MessengerWorkspace({
                 onScroll={handleMessagesScroll}
                 className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-3.5"
               >
+              {/* Empty new conversation welcome header */}
+              {!activeTicket.message?.trim() &&
+                (!activeTicket.attachments ||
+                  activeTicket.attachments.length === 0) &&
+                (!activeTicket.messages ||
+                  activeTicket.messages.length === 0) && (
+                  <div className="flex-1 flex flex-col items-center justify-center py-10 text-center select-none">
+                    <span className="w-16 h-16 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden flex items-center justify-center text-[20px] font-bold mb-3">
+                      {activePeer.avatar ? (
+                        <img
+                          src={activePeer.avatar}
+                          alt={activePeer.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : activePeer.isStore ? (
+                        <FigmaIcon name="home" className="w-7 h-7" />
+                      ) : (
+                        <MessageCircle className="w-7 h-7" />
+                      )}
+                    </span>
+                    <p className="text-[16px] font-bold text-black flex items-center gap-1.5">
+                      <span>{activePeer.name}</span>
+                      {activePeer.verified && <VerifiedBadge size="xs" />}
+                    </p>
+                    <p className="text-[13px] text-[#767676] mt-1 max-w-[300px]">
+                      Start a conversation with {activePeer.name}. Send a
+                      message or photo below.
+                    </p>
+                  </div>
+                )}
+
               {/* Initial message */}
               {(() => {
+                const hasInitialContent =
+                  Boolean(activeTicket.message?.trim()) ||
+                  Boolean(
+                    activeTicket.attachments &&
+                      activeTicket.attachments.length > 0,
+                  );
+                if (!hasInitialContent) return null;
                 const isOwnInitial = !activeViewingAsStaff;
                 const customerName = activeTicket.user?.name || 'Customer';
                 const customerAvatar = activeTicket.user?.avatar || null;

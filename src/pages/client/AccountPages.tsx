@@ -11,6 +11,7 @@ import { ApiError } from '../../services/api';
 import type { Address, ReviewItem } from '../../types/marketplace';
 import { formatShortDate } from '../../utils/currency';
 import { DashboardModal } from '../../components/DashboardPrimitives';
+import { ContactVerificationCard } from '../../components/ContactVerificationCard';
 import { ProductCard } from '../../components/ProductCard';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
@@ -176,6 +177,10 @@ export function MyProfilePage() {
           </label>
         </div>
       </section>
+
+      <div className="max-w-[820px]">
+        <ContactVerificationCard phoneDraft={phone} />
+      </div>
     </form>
   );
 }
@@ -772,19 +777,20 @@ export function MyReviewsPage() {
         <div>
           <h1 className="text-[22px] font-bold text-black">My reviews</h1>
           <p className="text-[12.5px] text-[#767676] mt-0.5">
-            Track products waiting for your feedback and review your past ratings.
+            Track products waiting for your feedback and review your past
+            ratings.
           </p>
         </div>
       </div>
 
       {/* Top Switch Bar: Reviewed | To review */}
-      <div className="bg-white border border-[#ececec] rounded-[16px] p-1.5 inline-flex items-center gap-1.5 self-start">
+      <div className="bg-white border border-[#ececec] rounded-full p-1.5 inline-flex items-center gap-1.5 self-start">
         <button
           type="button"
           onClick={() => setActiveTab('reviewed')}
-          className={`px-4 py-2 rounded-[12px] text-[13px] font-semibold transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors flex items-center gap-2 ${
             activeTab === 'reviewed'
-              ? 'bg-[#ff6e20] text-white shadow-[0_4px_12px_rgba(255,110,32,0.25)]'
+              ? 'bg-[#ff6e20] text-white'
               : 'text-[#555555] hover:bg-[#f7f7f7] hover:text-black'
           }`}
         >
@@ -803,9 +809,9 @@ export function MyReviewsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('to_review')}
-          className={`px-4 py-2 rounded-[12px] text-[13px] font-semibold transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-full text-[13px] font-semibold transition-colors flex items-center gap-2 ${
             activeTab === 'to_review'
-              ? 'bg-[#ff6e20] text-white shadow-[0_4px_12px_rgba(255,110,32,0.25)]'
+              ? 'bg-[#ff6e20] text-white'
               : 'text-[#555555] hover:bg-[#f7f7f7] hover:text-black'
           }`}
         >
@@ -835,11 +841,12 @@ export function MyReviewsPage() {
               No reviews yet
             </p>
             <p className="text-[13px] text-[#767676]">
-              Switch to &ldquo;To review&rdquo; to rate your shipped or completed orders.
+              Switch to &ldquo;To review&rdquo; to rate your shipped or
+              completed orders.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {reviews.map((rev) => (
               <button
                 key={rev.id}
@@ -848,37 +855,28 @@ export function MyReviewsPage() {
                   setConfirmDeleteId(null);
                   setSelectedReview(rev);
                 }}
-                className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex flex-col transition-all"
+                className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex items-center justify-between transition-all"
               >
-                <div className="relative h-[168px] w-full bg-[#f7f7f7] overflow-hidden flex items-center justify-center border-b border-[#f0f0f0]">
+                <div className="relative h-[120px] overflow-hidden flex items-center justify-center rounded-r-[18px]">
                   {rev.product_image ? (
                     <img
                       src={rev.product_image}
                       alt={rev.product_name || 'Product'}
-                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                      className="w-full h-full group-hover:scale-[1.03] transition-transform duration-300"
                     />
                   ) : (
                     <Package className="w-8 h-8 text-[#c4c4c4]" />
                   )}
-                  <span className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm border border-[#ececec] text-[#ff6e20] text-[11.5px] font-bold px-2.5 py-1 rounded-full shadow-sm">
-                    ★ {rev.rating}.0
-                  </span>
                 </div>
-
-                <div className="p-4 flex-1 flex flex-col gap-2">
+                <div className="p-2.5 flex-1 flex flex-col gap-1">
                   <div className="flex items-start gap-1.5">
-                    <p className="text-[14px] font-semibold text-black line-clamp-1 flex-1">
+                    <p className="text-[14px] font-semibold text-black line-clamp-2 flex-1">
                       {rev.product_name || `Product #${rev.product_id}`}
                     </p>
-                    {rev.is_verified_purchase && (
-                      <span className="shrink-0 mt-0.5">
-                        <VerifiedBadge size="xs" />
-                      </span>
-                    )}
                   </div>
 
                   <p className="text-[13px] text-[#ff6e20] leading-none">
-                    {'★'.repeat(rev.rating)}
+                    {rev.rating} {'★'.repeat(rev.rating)}
                     {'☆'.repeat(5 - rev.rating)}
                   </p>
 
@@ -910,23 +908,22 @@ export function MyReviewsPage() {
           <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <Package className="w-5 h-5" />
           </span>
-          <p className="text-[15px] font-semibold text-black">
-            All caught up!
-          </p>
+          <p className="text-[15px] font-semibold text-black">All caught up!</p>
           <p className="text-[13px] text-[#767676]">
-            Products from your shipped or completed orders will appear here to review.
+            Products from your shipped or completed orders will appear here to
+            review.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {toReviewItems.map((item) => (
             <button
               key={item.key}
               type="button"
               onClick={() => openWriteModal(item)}
-              className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex flex-col transition-all"
+              className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex items-center justify-between transition-all"
             >
-              <div className="relative h-[168px] w-full bg-[#f7f7f7] overflow-hidden flex items-center justify-center border-b border-[#f0f0f0]">
+              <div className="relative h-[120px] w-[120px] shrink-0 bg-[#f7f7f7] overflow-hidden flex items-center justify-center rounded-r-[18px]">
                 {item.productImage ? (
                   <img
                     src={item.productImage}
@@ -936,29 +933,33 @@ export function MyReviewsPage() {
                 ) : (
                   <Package className="w-8 h-8 text-[#c4c4c4]" />
                 )}
-                <span className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm border border-[#ececec] text-black text-[11px] font-semibold px-2.5 py-0.5 rounded-full capitalize shadow-sm">
-                  {item.orderStatus}
-                </span>
               </div>
 
-              <div className="p-4 flex-1 flex flex-col gap-2">
-                <p className="text-[14px] font-semibold text-black line-clamp-2">
-                  {item.productName}
-                </p>
-
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-[#767676]">
-                  {item.storeName && <span>{item.storeName}</span>}
-                  <span>·</span>
-                  <span>#{item.orderNumber}</span>
+              <div className="p-2.5 flex-1 min-w-0 flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-[14px] font-semibold text-black line-clamp-2 flex-1">
+                    {item.productName}
+                  </p>
+                  <span className="shrink-0 bg-[#f4f4f4] text-[#555555] text-[10.5px] font-semibold px-2 py-0.5 rounded-full capitalize">
+                    {item.orderStatus}
+                  </span>
                 </div>
 
-                <div className="pt-2.5 mt-auto border-t border-[#f4f4f4] flex items-center justify-between gap-2">
-                  <span className="text-[11.5px] text-[#8a8a8a]">
+                <p className="text-[12.5px] text-[#767676] truncate">
+                  {item.storeName ? `${item.storeName} · ` : ''}#
+                  {item.orderNumber}
+                </p>
+
+                <p className="text-[12.5px] text-[#ff6e20]/80 leading-none">
+                  ☆☆☆☆☆
+                </p>
+
+                <div className="pt-2 mt-auto border-t border-[#f4f4f4] flex items-center justify-between text-[11.5px]">
+                  <span className="text-[#8a8a8a]">
                     {formatShortDate(item.orderDate)}
                   </span>
-                  <span className="inline-flex items-center gap-1 bg-[#ffefe6] group-hover:bg-[#ff6e20] text-[#ff6e20] group-hover:text-white text-[12px] font-semibold px-3 py-1 rounded-full transition-colors">
-                    <Star className="w-3.5 h-3.5" />
-                    <span>Write review</span>
+                  <span className="font-semibold text-[#ff6e20] group-hover:underline">
+                    Write review
                   </span>
                 </div>
               </div>

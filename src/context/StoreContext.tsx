@@ -185,6 +185,8 @@ interface StoreContextValue {
   refreshNotifications: (silent?: boolean) => Promise<void>;
   markNotificationRead: (id: number) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
+  deleteNotification: (ids: number | number[]) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
 
   // Preferences (persisted in localStorage)
   notifPrefs: NotificationPrefs;
@@ -371,6 +373,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Ignore transient errors
     }
   }, []);
+
+  const deleteNotification = useCallback(
+    async (ids: number | number[]) => {
+      const idList = Array.isArray(ids) ? ids : [ids];
+      if (idList.length === 0) return;
+      const idSet = new Set(idList);
+      setNotifications((prev) => {
+        const next = prev.filter((n) => !idSet.has(n.id));
+        setUnreadNotificationsCount(next.filter((n) => !n.read_at).length);
+        return next;
+      });
+      try {
+        await Promise.all(
+          idList.map((id) => customerApi.deleteNotification(id)),
+        );
+      } catch {
+        void refreshNotifications(false);
+      }
+    },
+    [refreshNotifications],
+  );
+
+  const clearAllNotifications = useCallback(async () => {
+    setNotifications([]);
+    setUnreadNotificationsCount(0);
+    try {
+      await customerApi.clearAllNotifications();
+      showToast('All notifications cleared.');
+    } catch {
+      void refreshNotifications(false);
+    }
+  }, [refreshNotifications, showToast]);
 
   const refreshCatalog = useCallback(async () => {
     const [
@@ -1027,6 +1061,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         refreshNotifications,
         markNotificationRead,
         markAllNotificationsRead,
+        deleteNotification,
+        clearAllNotifications,
         notifPrefs,
         updateNotifPrefs,
         privacyPrefs,

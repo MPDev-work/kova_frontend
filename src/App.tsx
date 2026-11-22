@@ -68,6 +68,7 @@ import {
   AdminSettingsPage,
   AdminUsersPage,
 } from './pages/admin/AdminManagementPages';
+import { AdminShippingPage } from './pages/admin/AdminShippingPage';
 import { SellerLayout } from './pages/seller/SellerLayout';
 import {
   SellerInventoryPage,
@@ -80,10 +81,11 @@ import {
   SellerOrdersPage,
   SellerPayoutsPage,
   SellerPromotionsPage,
-  SellerShippingPage,
   SellerStorefrontPage,
 } from './pages/seller/SellerOperationsPages';
 import { SellerReviewsPage } from './pages/seller/SellerReviewsPage';
+import { SellerAccountSettingsPage } from './pages/seller/SellerAccountSettingsPage';
+import { SellerStorePreviewPage } from './pages/seller/SellerStorePreviewPage';
 import { TicketInboxPanel } from './components/TicketInboxPanel';
 
 function LegacyOrderRedirect({ suffix = '' }: { suffix?: string }) {
@@ -107,9 +109,24 @@ function RoleNavigationGate() {
       return;
     }
 
-    // Automatically route Root Admin & Store Owner from root landing page to their dashboard
+    // Strict isolation for Seller accounts: once converted to a seller,
+    // keep them exclusively inside the Seller Dashboard (/seller/*).
+    if (dashboardPath === '/seller' && !path.startsWith('/seller')) {
+      if (path.startsWith('/account')) {
+        navigate('/seller/settings', { replace: true });
+      } else if (path.startsWith('/store/')) {
+        navigate('/seller/preview', { replace: true });
+      } else if (path.startsWith('/help/tickets')) {
+        navigate('/seller/messages', { replace: true });
+      } else {
+        navigate('/seller', { replace: true });
+      }
+      return;
+    }
+
+    // Automatically route Root Admin from root landing page to their dashboard
     // unless they explicitly clicked the "Marketplace" storefront link.
-    if (path === '/' && dashboardPath) {
+    if (path === '/' && dashboardPath === '/admin') {
       const state = location.state as { allowStorefront?: boolean } | null;
       const allowBrowse =
         Boolean(state?.allowStorefront) ||
@@ -173,7 +190,6 @@ export default function App() {
 
             {/* Help & Support */}
             <Route path="/help" element={<HelpCenterPage />} />
-            <Route path="/help/contact" element={<ContactSupportPage />} />
 
             {/* Info & Seller Application */}
             <Route path="/about" element={<AboutPage mode="about" />} />
@@ -184,6 +200,7 @@ export default function App() {
           </Route>
 
           {/* Standalone Full-Screen Message Portal (no storefront header or footer) */}
+          <Route path="/help/contact" element={<ContactSupportPage />} />
           <Route path="/help/tickets" element={<SupportTicketsPage />} />
           <Route
             path="/help/tickets/:ticketId"
@@ -241,6 +258,7 @@ export default function App() {
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="catalog" element={<AdminCatalogPage />} />
             <Route path="bakong" element={<AdminBakongPage />} />
+            <Route path="shipping" element={<AdminShippingPage />} />
             <Route path="tickets" element={<TicketInboxPanel mode="admin" />} />
             <Route path="disputes" element={<AdminDisputesPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
@@ -260,11 +278,16 @@ export default function App() {
             <Route path="orders" element={<SellerOrdersPage />} />
             <Route path="reviews" element={<SellerReviewsPage />} />
             <Route path="messages" element={<TicketInboxPanel mode="seller" />} />
-            <Route path="shipping" element={<SellerShippingPage />} />
+            <Route
+              path="shipping"
+              element={<Navigate to="/seller/orders" replace />}
+            />
             <Route path="promotions" element={<SellerPromotionsPage />} />
             <Route path="bakong" element={<SellerBakongPage />} />
             <Route path="payouts" element={<SellerPayoutsPage />} />
             <Route path="storefront" element={<SellerStorefrontPage />} />
+            <Route path="preview" element={<SellerStorePreviewPage />} />
+            <Route path="settings" element={<SellerAccountSettingsPage />} />
           </Route>
 
           {/* Legacy Redirects */}

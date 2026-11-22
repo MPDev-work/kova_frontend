@@ -225,6 +225,48 @@ export interface AuditLogItem {
   store?: { id: number; name: string } | null;
 }
 
+export interface AdminShippingMethod {
+  id: number;
+  store_id?: number | null;
+  name: string;
+  description?: string | null;
+  calculation_type: 'fixed' | 'weight_based' | 'free' | 'distance_based';
+  base_cost: number | string;
+  cost_per_kg?: number | string | null;
+  free_shipping_threshold?: number | string | null;
+  estimated_delivery_days?: string | null;
+  is_active: boolean;
+  rates?: { id: number; province: string; rate: number | string }[];
+}
+
+export interface AdminShippingStats {
+  active_methods: number;
+  total_methods: number;
+  pending_dispatch: number;
+  in_transit: number;
+  delivered: number;
+}
+
+export interface AdminShipmentItem {
+  id: number;
+  order_number: string;
+  child_order_number?: string;
+  customer_name: string;
+  customer_phone?: string | null;
+  shipping_address?: { province?: string; district?: string } | null;
+  shipping_method_name?: string | null;
+  shipping_carrier?: string | null;
+  tracking_number?: string | null;
+  status: string;
+  created_at: string;
+  store?: {
+    id: number;
+    name: string;
+    slug: string;
+    is_verified?: boolean;
+  } | null;
+}
+
 export const adminApi = {
   async getDashboard() {
     const res = await apiRequest<AdminDashboardData>('/admin/dashboard');
@@ -536,6 +578,71 @@ export const adminApi = {
       `/admin/audit-logs${q}`,
     );
     return normalizePaginated(res.data);
+  },
+
+  async getShipping(params?: { status?: string; search?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    const q = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiRequest<{
+      stats: AdminShippingStats;
+      methods: AdminShippingMethod[];
+      shipments: AdminShipmentItem[];
+    }>(`/admin/shipping${q}`);
+    return res.data;
+  },
+
+  async createShippingMethod(payload: {
+    name: string;
+    description?: string | null;
+    calculation_type: 'fixed' | 'weight_based' | 'free' | 'distance_based';
+    base_cost: number;
+    free_shipping_threshold?: number | null;
+    estimated_delivery_days?: string | null;
+    is_active?: boolean;
+  }) {
+    return apiRequest<AdminShippingMethod>('/admin/shipping', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateShippingMethod(
+    id: number,
+    payload: Partial<{
+      name: string;
+      description: string | null;
+      calculation_type: 'fixed' | 'weight_based' | 'free' | 'distance_based';
+      base_cost: number;
+      free_shipping_threshold: number | null;
+      estimated_delivery_days: string | null;
+      is_active: boolean;
+    }>,
+  ) {
+    return apiRequest<AdminShippingMethod>(`/admin/shipping/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteShippingMethod(id: number) {
+    return apiRequest<null>(`/admin/shipping/${id}`, { method: 'DELETE' });
+  },
+
+  async updateShipment(
+    id: number,
+    payload: {
+      status: 'processing' | 'shipped' | 'delivered' | 'completed';
+      tracking_number?: string;
+      shipping_carrier?: string;
+      notes?: string;
+    },
+  ) {
+    return apiRequest<AdminShipmentItem>(`/admin/shipping/shipments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   },
 
   async uploadMedia(file: File, folder: 'categories' | 'brands' | 'products' | 'stores') {

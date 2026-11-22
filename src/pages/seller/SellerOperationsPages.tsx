@@ -29,6 +29,7 @@ import {
   DashboardTableSkeleton,
 } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { StorefrontPreviewModal } from './SellerStorePreviewPage';
 
 // ==========================================
 // 5. Seller Orders (/seller/orders) — Figma Seller · 07 + Seller · 08 Drawer
@@ -2249,6 +2250,7 @@ export function SellerStorefrontPage() {
   const [policies, setPolicies] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -2336,12 +2338,13 @@ export function SellerStorefrontPage() {
         subtitle="Manage your public store identity, logo, cover banner, contact info, and buyer policies."
         actions={
           <>
-            <Link
-              to={`/store/${profile.slug}`}
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
               className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
             >
               Preview live store
-            </Link>
+            </button>
             <button
               type="submit"
               disabled={saving}
@@ -2576,6 +2579,11 @@ export function SellerStorefrontPage() {
           </section>
         </div>
       </div>
+
+      <StorefrontPreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+      />
     </form>
   );
 }

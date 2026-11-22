@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageCircle } from 'lucide-react';
+import { Check, MessageCircle, ShoppingBag, Trash2 } from 'lucide-react';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { groupNotifications } from '../../components/NotificationModal';
 import { useStore } from '../../context/StoreContext';
@@ -11,10 +11,13 @@ export function NotificationsPage() {
   const {
     bootstrapping,
     isSignedIn,
+    user,
     notifications,
     unreadNotificationsCount,
     markNotificationRead,
     markAllNotificationsRead,
+    deleteNotification,
+    clearAllNotifications,
     orders,
   } = useStore();
   const navigate = useNavigate();
@@ -42,7 +45,7 @@ export function NotificationsPage() {
           </p>
         </div>
         {isSignedIn && (
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {unreadNotificationsCount > 0 && (
               <button
                 type="button"
@@ -50,6 +53,15 @@ export function NotificationsPage() {
                 className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[13.5px] font-semibold text-black px-5 py-2.5 rounded-full transition-colors"
               >
                 Mark all read
+              </button>
+            )}
+            {notifications.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void clearAllNotifications()}
+                className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[13.5px] font-semibold px-5 py-2.5 rounded-full transition-colors"
+              >
+                Clear all
               </button>
             )}
             <Link
@@ -94,6 +106,7 @@ export function NotificationsPage() {
             {groupedNotifications.map((group) => {
               const notif = group.latest;
               const isUnread = group.unreadIds.length > 0;
+              const isOrder = notif.type === 'order';
               const countBadge =
                 group.unreadIds.length > 1
                   ? group.unreadIds.length
@@ -117,6 +130,8 @@ export function NotificationsPage() {
                           alt={group.title}
                           className="w-full h-full object-cover"
                         />
+                      ) : isOrder ? (
+                        <ShoppingBag className="w-4 h-4" />
                       ) : (
                         <MessageCircle className="w-4 h-4" />
                       )}
@@ -144,22 +159,73 @@ export function NotificationsPage() {
                         {notif.body}
                       </p>
                     )}
-                    <div className="mt-2.5">
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {isUnread && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              group.unreadIds.forEach((id) => {
+                                void markNotificationRead(id);
+                              });
+                            }}
+                            className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] border border-[#ececec] text-[#555555] hover:text-[#ff6e20] text-[12px] font-semibold px-3 py-1.5 rounded-full transition-colors"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Mark read</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void deleteNotification(
+                              group.items.map((item) => item.id),
+                            )
+                          }
+                          className="inline-flex items-center gap-1 bg-white hover:bg-[#fff0f0] border border-[#ececec] text-[#767676] hover:text-[#e5322d] text-[12px] font-semibold px-3 py-1.5 rounded-full transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           group.unreadIds.forEach((id) => {
                             void markNotificationRead(id);
                           });
-                          navigate(
-                            notif.data?.ticket_id
-                              ? `/help/tickets?chat=${notif.data.ticket_id}`
-                              : '/help/tickets',
-                          );
+                          if (isOrder) {
+                            const orderNum = notif.data?.order_number;
+                            const isSellerStore = Boolean(
+                              user?.store?.id &&
+                                notif.data?.store_id &&
+                                Number(notif.data.store_id) ===
+                                  Number(user.store.id),
+                            );
+                            if (isSellerStore) {
+                              navigate(
+                                orderNum
+                                  ? `/seller/orders?search=${encodeURIComponent(orderNum)}`
+                                  : '/seller/orders',
+                              );
+                            } else {
+                              navigate(
+                                orderNum
+                                  ? `/account/orders?order=${encodeURIComponent(orderNum)}`
+                                  : '/account/orders',
+                              );
+                            }
+                          } else {
+                            navigate(
+                              notif.data?.ticket_id
+                                ? `/help/tickets?chat=${notif.data.ticket_id}`
+                                : '/help/tickets',
+                            );
+                          }
                         }}
                         className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12px] font-semibold px-4 py-1.5 rounded-full transition-colors"
                       >
-                        Reply
+                        {isOrder ? 'View order' : 'Reply'}
                       </button>
                     </div>
                   </div>
