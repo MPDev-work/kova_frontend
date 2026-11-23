@@ -951,12 +951,6 @@ export function OrderDetailsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            to="/account/orders"
-            className="bg-white border border-[#ececec] hover:border-black text-black text-[12.5px] font-semibold px-4 py-2 rounded-full"
-          >
-            Back
-          </Link>
           {order.status === 'pending' &&
             order.payment_status !== 'paid' &&
             (pendingKhqr.length > 0 ||
@@ -1237,14 +1231,8 @@ export function CancelOrderPage() {
 
   return (
     <div className="max-w-[700px] flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
+      <div>
         <h1 className="text-[22px] font-bold text-black">Cancel order</h1>
-        <Link
-          to="/account/orders"
-          className="bg-white border border-[#ececec] text-black text-[12.5px] font-semibold px-4 py-2 rounded-full"
-        >
-          Back
-        </Link>
       </div>
 
       <div className="bg-white border border-[#ececec] rounded-[16px] p-6 flex flex-col gap-4">

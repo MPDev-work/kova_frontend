@@ -5,9 +5,10 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import { Package, Star, Trash2 } from 'lucide-react';
+import { Check, Package, Star, Trash2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
-import { ApiError } from '../../services/api';
+import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
+import { ApiError, authApi, customerApi } from '../../services/api';
 import type { Address, ReviewItem } from '../../types/marketplace';
 import { formatShortDate } from '../../utils/currency';
 import { DashboardModal } from '../../components/DashboardPrimitives';
@@ -68,28 +69,26 @@ export function MyProfilePage() {
     }
   };
 
+  const isProfileDirty =
+    name.trim() !== (user.name || '').trim() ||
+    phone.trim() !== (user.phone || '').trim();
+
   return (
-    <form onSubmit={handleSave} className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-bold text-black leading-[1.35]">
-            Customer profile &amp; general settings
-          </h1>
-          <p className="text-[12.5px] text-[#767676] mt-0.5">
-            Manage your Kova account identity, profile photo, and contact
-            information.
-          </p>
-        </div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
-        >
-          {saving ? 'Saving...' : 'Save changes'}
-        </button>
+    <div className="flex flex-col gap-[18px]">
+      <div>
+        <h1 className="text-[22px] font-bold text-black leading-[1.35]">
+          Customer profile &amp; general settings
+        </h1>
+        <p className="text-[12.5px] text-[#767676] mt-0.5">
+          Manage your Kova account identity, profile photo, and contact
+          information.
+        </p>
       </div>
 
-      <section className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]">
+      <form
+        onSubmit={handleSave}
+        className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]"
+      >
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#ececec]">
           <div className="flex items-center gap-3.5">
             {user.avatar ? (
@@ -176,18 +175,66 @@ export function MyProfilePage() {
             />
           </label>
         </div>
-      </section>
+
+        <div className="flex items-center justify-end pt-2 border-t border-[#f1f1f1]">
+          <button
+            type="submit"
+            disabled={!isProfileDirty || saving}
+            className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors ${
+              isProfileDirty
+                ? 'bg-[#ff6e20] hover:bg-[#e85d12] text-white cursor-pointer disabled:opacity-60'
+                : 'bg-[#e7f6e7] text-[#029500] cursor-default'
+            }`}
+          >
+            {saving ? (
+              <span>Saving...</span>
+            ) : isProfileDirty ? (
+              <span>Save changes</span>
+            ) : (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>Saved</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
 
       <div className="max-w-[820px]">
         <ContactVerificationCard phoneDraft={phone} />
       </div>
-    </form>
+    </div>
   );
 }
 
 // Address Book
 export function AddressBookPage() {
   const { addresses, setDefaultAddress, deleteAddress } = useStore();
+  const { confirmDelete } = useConfirmDelete();
+  const [hiddenAddressIds, setHiddenAddressIds] = useState<number[]>([]);
+
+  const visibleAddresses = addresses.filter(
+    (addr) => !hiddenAddressIds.includes(addr.id),
+  );
+
+  const handleDeleteAddress = (addr: Address) => {
+    const label = addr.full_name || addr.address_line_1 || 'saved address';
+    confirmDelete({
+      title: 'Delete address?',
+      description: `Remove "${label}" from your saved delivery addresses?`,
+      itemLabel: label,
+      onOptimisticRemove: () => {
+        setHiddenAddressIds((prev) => [...prev, addr.id]);
+      },
+      onUndo: () => {
+        setHiddenAddressIds((prev) => prev.filter((id) => id !== addr.id));
+      },
+      onCommit: async () => {
+        await deleteAddress(addr.id);
+        setHiddenAddressIds((prev) => prev.filter((id) => id !== addr.id));
+      },
+    });
+  };
 
   return (
     <div className="flex flex-col gap-[18px]">
@@ -206,7 +253,7 @@ export function AddressBookPage() {
         </Link>
       </div>
 
-      {addresses.length === 0 ? (
+      {visibleAddresses.length === 0 ? (
         <div className="bg-white border border-[#ececec] rounded-[16px] p-10 text-center flex flex-col items-center gap-3">
           <p className="text-[15px] font-semibold text-black">
             No saved addresses yet
@@ -220,7 +267,7 @@ export function AddressBookPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {addresses.map((addr) => (
+          {visibleAddresses.map((addr) => (
             <div
               key={addr.id}
               className={`rounded-[16px] p-5 flex flex-col gap-2 ${
@@ -247,7 +294,7 @@ export function AddressBookPage() {
                   </Link>
                   <button
                     type="button"
-                    onClick={() => void deleteAddress(addr.id)}
+                    onClick={() => handleDeleteAddress(addr)}
                     className="text-[12px] font-semibold text-[#e5322d] hover:underline"
                   >
                     Delete
@@ -322,21 +369,13 @@ export function AddAddressPage() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-bold text-black">
-            Add a new address
-          </h1>
-          <p className="text-[12.5px] text-[#767676] mt-0.5">
-            Save a delivery location to your account.
-          </p>
-        </div>
-        <Link
-          to="/account/addresses"
-          className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-medium text-black px-4 py-2 rounded-full"
-        >
-          Back
-        </Link>
+      <div>
+        <h1 className="text-[22px] font-bold text-black">
+          Add a new address
+        </h1>
+        <p className="text-[12.5px] text-[#767676] mt-0.5">
+          Save a delivery location to your account.
+        </p>
       </div>
 
       <form
@@ -550,19 +589,11 @@ export function EditAddressPage() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-bold text-black">Edit address</h1>
-          <p className="text-[12.5px] text-[#767676] mt-0.5">
-            Update your saved delivery location.
-          </p>
-        </div>
-        <Link
-          to="/account/addresses"
-          className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-medium text-black px-4 py-2 rounded-full"
-        >
-          Back
-        </Link>
+      <div>
+        <h1 className="text-[22px] font-bold text-black">Edit address</h1>
+        <p className="text-[12.5px] text-[#767676] mt-0.5">
+          Update your saved delivery location.
+        </p>
       </div>
 
       {!address ? (
@@ -649,12 +680,12 @@ export function MyReviewsPage() {
     refreshReviews,
     showToast,
   } = useStore();
+  const { confirmDelete } = useConfirmDelete();
   const [activeTab, setActiveTab] = useState<'reviewed' | 'to_review'>(
     'reviewed',
   );
   const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [hiddenReviewIds, setHiddenReviewIds] = useState<number[]>([]);
 
   const [reviewTarget, setReviewTarget] = useState<PendingReviewItem | null>(
     null,
@@ -752,21 +783,31 @@ export function MyReviewsPage() {
     }
   };
 
-  const handleDelete = async (reviewId: number) => {
-    setDeletingId(reviewId);
-    try {
-      await deleteReview(reviewId);
-      setConfirmDeleteId(null);
-      if (selectedReview?.id === reviewId) {
-        setSelectedReview(null);
-      }
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to delete review.',
-      );
-    } finally {
-      setDeletingId(null);
-    }
+  const visibleReviews = useMemo(
+    () => reviews.filter((r) => !hiddenReviewIds.includes(r.id)),
+    [reviews, hiddenReviewIds],
+  );
+
+  const handleDelete = (review: ReviewItem) => {
+    const label = review.product_name || review.title || 'your review';
+    confirmDelete({
+      title: 'Delete review?',
+      description: `Remove your review for "${label}"?`,
+      itemLabel: label,
+      onOptimisticRemove: () => {
+        setHiddenReviewIds((prev) => [...prev, review.id]);
+        if (selectedReview?.id === review.id) {
+          setSelectedReview(null);
+        }
+      },
+      onUndo: () => {
+        setHiddenReviewIds((prev) => prev.filter((id) => id !== review.id));
+      },
+      onCommit: async () => {
+        await deleteReview(review.id);
+        setHiddenReviewIds((prev) => prev.filter((id) => id !== review.id));
+      },
+    });
   };
 
   const displayRating = hoverRating ?? rating;
@@ -802,7 +843,7 @@ export function MyReviewsPage() {
                 : 'bg-[#f4f4f4] text-[#767676]'
             }`}
           >
-            {reviews.length}
+            {visibleReviews.length}
           </span>
         </button>
 
@@ -832,7 +873,7 @@ export function MyReviewsPage() {
 
       {/* Tab Content */}
       {activeTab === 'reviewed' ? (
-        reviews.length === 0 ? (
+        visibleReviews.length === 0 ? (
           <div className="bg-white border border-[#ececec] rounded-[18px] p-12 text-center flex flex-col items-center gap-2">
             <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
               <Star className="w-5 h-5" />
@@ -847,14 +888,11 @@ export function MyReviewsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {reviews.map((rev) => (
+            {visibleReviews.map((rev) => (
               <button
                 key={rev.id}
                 type="button"
-                onClick={() => {
-                  setConfirmDeleteId(null);
-                  setSelectedReview(rev);
-                }}
+                onClick={() => setSelectedReview(rev)}
                 className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex items-center justify-between transition-all"
               >
                 <div className="relative h-[120px] overflow-hidden flex items-center justify-center rounded-r-[18px]">
@@ -971,10 +1009,7 @@ export function MyReviewsPage() {
       {/* Review Detail Modal (Reviewed card click) */}
       <DashboardModal
         open={Boolean(selectedReview)}
-        onClose={() => {
-          setSelectedReview(null);
-          setConfirmDeleteId(null);
-        }}
+        onClose={() => setSelectedReview(null)}
         title="Review details"
         subtitle={
           selectedReview
@@ -985,44 +1020,18 @@ export function MyReviewsPage() {
         footer={
           selectedReview && (
             <div className="w-full flex items-center justify-between gap-2">
-              {confirmDeleteId === selectedReview.id ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={deletingId === selectedReview.id}
-                    onClick={() => void handleDelete(selectedReview.id)}
-                    className="bg-[#e5322d] hover:bg-[#c8231e] disabled:opacity-60 text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
-                  >
-                    {deletingId === selectedReview.id
-                      ? 'Deleting...'
-                      : 'Confirm delete'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={deletingId === selectedReview.id}
-                    onClick={() => setConfirmDeleteId(null)}
-                    className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-3.5 py-2 rounded-full transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteId(selectedReview.id)}
-                  className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#e5322d] hover:bg-[#fdecec] px-3.5 py-2 rounded-full transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete review</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => handleDelete(selectedReview)}
+                className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#e5322d] hover:bg-[#fdecec] px-3.5 py-2 rounded-full transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete review</span>
+              </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedReview(null);
-                  setConfirmDeleteId(null);
-                }}
+                onClick={() => setSelectedReview(null)}
                 className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-5 py-2 rounded-full transition-colors"
               >
                 Close
@@ -1242,14 +1251,8 @@ export function WriteReviewPage() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div>
         <h1 className="text-[22px] font-bold text-black">Write a review</h1>
-        <Link
-          to="/account/reviews"
-          className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-medium text-black px-4 py-2 rounded-full"
-        >
-          Back
-        </Link>
       </div>
 
       {products.length === 0 ? (
@@ -1367,21 +1370,13 @@ export function NotificationPrefsPage() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-bold text-black">
-            Notification preferences
-          </h1>
-          <p className="text-[12.5px] text-[#767676] mt-0.5">
-            Control which alerts Kova sends you.
-          </p>
-        </div>
-        <Link
-          to="/notifications"
-          className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-        >
-          View notifications
-        </Link>
+      <div>
+        <h1 className="text-[22px] font-bold text-black">
+          Notification preferences
+        </h1>
+        <p className="text-[12.5px] text-[#767676] mt-0.5">
+          Control which alerts Kova sends you.
+        </p>
       </div>
 
       <div className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]">
@@ -1462,43 +1457,547 @@ export function PrivacySettingsPage() {
 
 // Account Security
 export function AccountSecurityPage() {
+  const { user, refreshUser, deactivateAccount, showToast } = useStore();
+  const navigate = useNavigate();
+
+  // Change Email state
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailCodeSentTo, setEmailCodeSentTo] = useState<string | null>(null);
+  const [emailCode, setEmailCode] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailCooldown, setEmailCooldown] = useState(0);
+
+  // Change Phone state
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [phoneCodeSentTo, setPhoneCodeSentTo] = useState<string | null>(null);
+  const [phoneCode, setPhoneCode] = useState('');
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneCooldown, setPhoneCooldown] = useState(0);
+
+  // Deactivate Account state
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [deactivateChannel, setDeactivateChannel] = useState<'email' | 'phone'>(
+    'email',
+  );
+  const [deactivateSentTo, setDeactivateSentTo] = useState<string | null>(null);
+  const [deactivateCode, setDeactivateCode] = useState('');
+  const [deactivateBusy, setDeactivateBusy] = useState(false);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+  const [deactivateCooldown, setDeactivateCooldown] = useState(0);
+
+  useEffect(() => {
+    if (emailCooldown <= 0 && phoneCooldown <= 0 && deactivateCooldown <= 0) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setEmailCooldown((v) => (v > 0 ? v - 1 : 0));
+      setPhoneCooldown((v) => (v > 0 ? v - 1 : 0));
+      setDeactivateCooldown((v) => (v > 0 ? v - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [emailCooldown, phoneCooldown, deactivateCooldown]);
+
+  if (!user) return null;
+
+  const hasPhone = Boolean(user.phone && user.phone.trim());
+
+  const handleSendEmailChange = async () => {
+    if (!newEmail.trim()) {
+      setEmailError('Please enter your new email address.');
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError(null);
+    try {
+      const res = await customerApi.sendContactChangeCode('email', newEmail);
+      setEmailCodeSentTo(res.data.target);
+      setEmailCode('');
+      setEmailCooldown(60);
+      showToast(res.message || `Verification code sent to ${res.data.target}.`);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to send verification code.';
+      setEmailError(msg);
+      showToast(msg);
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const handleConfirmEmailChange = async () => {
+    if (!/^\d{6}$/.test(emailCode.trim())) {
+      setEmailError('Please enter the 6-digit verification code.');
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError(null);
+    try {
+      const res = await customerApi.confirmContactChangeCode(
+        'email',
+        emailCode,
+      );
+      await refreshUser();
+      setEditingEmail(false);
+      setNewEmail('');
+      setEmailCodeSentTo(null);
+      setEmailCode('');
+      setEmailCooldown(0);
+      showToast(res.message || 'Email address updated and verified.');
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Invalid or expired verification code.';
+      setEmailError(msg);
+      showToast(msg);
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const handleSendPhoneChange = async () => {
+    if (!newPhone.trim()) {
+      setPhoneError('Please enter your new phone number.');
+      return;
+    }
+    setPhoneBusy(true);
+    setPhoneError(null);
+    try {
+      const res = await customerApi.sendContactChangeCode('phone', newPhone);
+      setPhoneCodeSentTo(res.data.target);
+      setPhoneCode('');
+      setPhoneCooldown(60);
+      showToast(res.message || `Verification code sent to ${res.data.target}.`);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to send SMS verification code.';
+      setPhoneError(msg);
+      showToast(msg);
+    } finally {
+      setPhoneBusy(false);
+    }
+  };
+
+  const handleConfirmPhoneChange = async () => {
+    if (!/^\d{6}$/.test(phoneCode.trim())) {
+      setPhoneError('Please enter the 6-digit verification code.');
+      return;
+    }
+    setPhoneBusy(true);
+    setPhoneError(null);
+    try {
+      const res = await customerApi.confirmContactChangeCode(
+        'phone',
+        phoneCode,
+      );
+      await refreshUser();
+      setEditingPhone(false);
+      setNewPhone('');
+      setPhoneCodeSentTo(null);
+      setPhoneCode('');
+      setPhoneCooldown(0);
+      showToast(res.message || 'Phone number updated and verified.');
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Invalid or expired verification code.';
+      setPhoneError(msg);
+      showToast(msg);
+    } finally {
+      setPhoneBusy(false);
+    }
+  };
+
+  const handleSendDeactivateCode = async () => {
+    setDeactivateBusy(true);
+    setDeactivateError(null);
+    try {
+      const res = await customerApi.sendSecurityActionCode(
+        'deactivate',
+        deactivateChannel,
+      );
+      setDeactivateSentTo(res.data.target);
+      setDeactivateCode('');
+      setDeactivateCooldown(60);
+      showToast(res.message || `Verification code sent to ${res.data.target}.`);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to send verification code.';
+      setDeactivateError(msg);
+      showToast(msg);
+    } finally {
+      setDeactivateBusy(false);
+    }
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (!/^\d{6}$/.test(deactivateCode.trim())) {
+      setDeactivateError('Please enter the 6-digit verification code.');
+      return;
+    }
+    setDeactivateBusy(true);
+    setDeactivateError(null);
+    try {
+      await deactivateAccount(deactivateCode.trim());
+      navigate('/login', { replace: true });
+    } catch (err) {
+      const msg =
+        err instanceof ApiError ? err.message : 'Unable to deactivate account.';
+      setDeactivateError(msg);
+      showToast(msg);
+    } finally {
+      setDeactivateBusy(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-[18px]">
       <div>
         <h1 className="text-[22px] font-bold text-black">Account security</h1>
         <p className="text-[12.5px] text-[#767676] mt-0.5">
-          Manage your password and account lifecycle.
+          Manage your verified email, phone number, password, and account
+          lifecycle.
         </p>
       </div>
 
+      {/* Sign-in & Contact Credentials */}
       <div className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]">
+        {/* Email Row */}
+        <div className="flex flex-col gap-3 pb-4 border-b border-[#ececec]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold text-black">
+                Email address
+              </p>
+              <p className="text-[12.5px] text-[#767676] truncate">
+                {user.email}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingEmail((v) => !v);
+                setEmailError(null);
+                setEmailCodeSentTo(null);
+                setEmailCode('');
+              }}
+              className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer"
+            >
+              {editingEmail ? 'Close' : 'Change email'}
+            </button>
+          </div>
+
+          {editingEmail && (
+            <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-3">
+              <p className="text-[12.5px] text-[#555555]">
+                Enter your new email address. We&rsquo;ll send a 6-digit
+                verification code to confirm ownership before updating.
+              </p>
+              {emailError && (
+                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[10px] px-3 py-2">
+                  {emailError}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="new-email@example.com"
+                  className="flex-1 min-w-[210px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={emailBusy || emailCooldown > 0 || !newEmail.trim()}
+                  onClick={() => void handleSendEmailChange()}
+                  className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[12.5px] font-semibold px-4.5 py-2.5 rounded-full transition-colors cursor-pointer"
+                >
+                  {emailBusy && !emailCodeSentTo
+                    ? 'Sending...'
+                    : emailCooldown > 0
+                      ? `Resend (${emailCooldown}s)`
+                      : emailCodeSentTo
+                        ? 'Resend code'
+                        : 'Send code'}
+                </button>
+              </div>
+              {emailCodeSentTo && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={emailCode}
+                    onChange={(e) =>
+                      setEmailCode(
+                        e.target.value.replace(/\D/g, '').slice(0, 6),
+                      )
+                    }
+                    placeholder={`6-digit code sent to ${emailCodeSentTo}`}
+                    className="flex-1 min-w-[210px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={emailBusy || emailCode.length !== 6}
+                    onClick={() => void handleConfirmEmailChange()}
+                    className="bg-black hover:bg-black/85 disabled:opacity-45 text-white text-[12.5px] font-semibold px-5 py-2.5 rounded-full transition-colors cursor-pointer"
+                  >
+                    {emailBusy ? 'Verifying...' : 'Verify & update'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Phone Number Row */}
+        <div className="flex flex-col gap-3 pb-4 border-b border-[#ececec]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold text-black">
+                Phone number
+              </p>
+              <p className="text-[12.5px] text-[#767676] truncate">
+                {user.phone || 'No phone number linked yet'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingPhone((v) => !v);
+                setPhoneError(null);
+                setPhoneCodeSentTo(null);
+                setPhoneCode('');
+              }}
+              className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer"
+            >
+              {editingPhone ? 'Close' : hasPhone ? 'Change phone' : 'Add phone'}
+            </button>
+          </div>
+
+          {editingPhone && (
+            <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-3">
+              <p className="text-[12.5px] text-[#555555]">
+                Enter your new phone number (must not be used by another
+                account). We&rsquo;ll send a 6-digit SMS code to verify before
+                saving.
+              </p>
+              {phoneError && (
+                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[10px] px-3 py-2">
+                  {phoneError}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  placeholder="012 345 678 or +855 ..."
+                  className="flex-1 min-w-[210px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={phoneBusy || phoneCooldown > 0 || !newPhone.trim()}
+                  onClick={() => void handleSendPhoneChange()}
+                  className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[12.5px] font-semibold px-4.5 py-2.5 rounded-full transition-colors cursor-pointer"
+                >
+                  {phoneBusy && !phoneCodeSentTo
+                    ? 'Sending...'
+                    : phoneCooldown > 0
+                      ? `Resend (${phoneCooldown}s)`
+                      : phoneCodeSentTo
+                        ? 'Resend code'
+                        : 'Send code'}
+                </button>
+              </div>
+              {phoneCodeSentTo && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={phoneCode}
+                    onChange={(e) =>
+                      setPhoneCode(
+                        e.target.value.replace(/\D/g, '').slice(0, 6),
+                      )
+                    }
+                    placeholder={`6-digit code sent to ${phoneCodeSentTo}`}
+                    className="flex-1 min-w-[210px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={phoneBusy || phoneCode.length !== 6}
+                    onClick={() => void handleConfirmPhoneChange()}
+                    className="bg-black hover:bg-black/85 disabled:opacity-45 text-white text-[12.5px] font-semibold px-5 py-2.5 rounded-full transition-colors cursor-pointer"
+                  >
+                    {phoneBusy ? 'Verifying...' : 'Verify & update'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Password Row */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#ececec]">
           <div>
             <p className="text-[14px] font-semibold text-black">Password</p>
             <p className="text-[12.5px] text-[#767676]">
-              Update your Kova account password.
+              Update your Kova account password or request a password reset.
             </p>
           </div>
           <Link
             to="/account/password"
-            className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
+            className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
           >
             Change password
           </Link>
         </div>
 
+        {/* Deactivate Account Row */}
+        <div className="flex flex-col gap-3 pb-4 border-b border-[#ececec]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-[14px] font-semibold text-black">
+                Deactivate account
+              </p>
+              <p className="text-[12.5px] text-[#767676]">
+                Temporarily disable your account. You can reactivate anytime by
+                signing back in.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeactivateOpen((v) => !v);
+                setDeactivateError(null);
+                setDeactivateSentTo(null);
+                setDeactivateCode('');
+              }}
+              className="bg-[#fff7ed] hover:bg-[#ffefe6] border border-[#ff6e20]/30 text-[#ff6e20] text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors cursor-pointer"
+            >
+              {deactivateOpen ? 'Close' : 'Deactivate account'}
+            </button>
+          </div>
+
+          {deactivateOpen && (
+            <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-3">
+              <p className="text-[12.5px] text-[#555555]">
+                Verify your identity before deactivating your account. Your
+                profile and data will be preserved until you sign back in.
+              </p>
+
+              {deactivateError && (
+                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[10px] px-3 py-2">
+                  {deactivateError}
+                </p>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeactivateChannel('email');
+                    setDeactivateSentTo(null);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border transition-colors cursor-pointer ${
+                    deactivateChannel === 'email'
+                      ? 'bg-[#ffefe6] border-[#ff6e20] text-[#ff6e20]'
+                      : 'bg-white border-[#ececec] text-[#555555]'
+                  }`}
+                >
+                  Verify via Email ({user.email})
+                </button>
+                {hasPhone && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeactivateChannel('phone');
+                      setDeactivateSentTo(null);
+                    }}
+                    className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border transition-colors cursor-pointer ${
+                      deactivateChannel === 'phone'
+                        ? 'bg-[#ffefe6] border-[#ff6e20] text-[#ff6e20]'
+                        : 'bg-white border-[#ececec] text-[#555555]'
+                    }`}
+                  >
+                    Verify via Phone ({user.phone})
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={deactivateBusy || deactivateCooldown > 0}
+                  onClick={() => void handleSendDeactivateCode()}
+                  className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[12.5px] font-semibold px-4.5 py-2.5 rounded-full transition-colors cursor-pointer"
+                >
+                  {deactivateBusy && !deactivateSentTo
+                    ? 'Sending...'
+                    : deactivateCooldown > 0
+                      ? `Resend (${deactivateCooldown}s)`
+                      : deactivateSentTo
+                        ? 'Resend code'
+                        : 'Send verification code'}
+                </button>
+              </div>
+
+              {deactivateSentTo && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={deactivateCode}
+                    onChange={(e) =>
+                      setDeactivateCode(
+                        e.target.value.replace(/\D/g, '').slice(0, 6),
+                      )
+                    }
+                    placeholder={`6-digit code sent to ${deactivateSentTo}`}
+                    className="flex-1 min-w-[210px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={deactivateBusy || deactivateCode.length !== 6}
+                    onClick={() => void handleConfirmDeactivate()}
+                    className="bg-black hover:bg-black/85 disabled:opacity-45 text-white text-[12.5px] font-semibold px-5 py-2.5 rounded-full transition-colors cursor-pointer"
+                  >
+                    {deactivateBusy ? 'Deactivating...' : 'Verify & deactivate'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Delete Account Row */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-[14px] font-semibold text-[#e5322d]">
               Delete account
             </p>
             <p className="text-[12.5px] text-[#767676]">
-              Deactivate and delete your Kova customer account.
+              Schedule permanent deletion with a 30-day grace period (sign back
+              in within 30 days to cancel).
             </p>
           </div>
           <Link
             to="/account/delete"
-            className="bg-[#fdecec] hover:bg-[#f9dada] text-[#e5322d] text-[12.5px] font-semibold px-4 py-2 rounded-full"
+            className="bg-[#fdecec] hover:bg-[#f9dada] text-[#e5322d] text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
           >
             Delete account
           </Link>
@@ -1508,15 +2007,20 @@ export function AccountSecurityPage() {
   );
 }
 
-// Change Password
+// Change Password (with integrated Forgot Password flow)
 export function ChangePasswordPage() {
-  const { changePassword, showToast } = useStore();
+  const { user, changePassword, showToast } = useStore();
   const navigate = useNavigate();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetFeedback, setResetFeedback] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1537,30 +2041,74 @@ export function ChangePasswordPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!user?.email || sendingReset) return;
+    setSendingReset(true);
+    setResetFeedback(null);
+    try {
+      const res = await authApi.forgotPassword(user.email);
+      const msg =
+        res.message ||
+        `Password reset link sent to ${user.email}. Check your inbox.`;
+      setResetFeedback({ ok: true, message: msg });
+      showToast(msg);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to send password reset link.';
+      setResetFeedback({ ok: false, message: msg });
+      showToast(msg);
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div>
         <h1 className="text-[22px] font-bold text-black">Change password</h1>
-        <Link
-          to="/account/security"
-          className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-medium text-black px-4 py-2 rounded-full"
-        >
-          Back
-        </Link>
       </div>
 
       <form
         onSubmit={handleSubmit}
         className="bg-white border border-[#ececec] rounded-[16px] p-6 max-w-[540px] flex flex-col gap-4"
       >
-        <input
-          type="password"
-          required
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-          placeholder="Current password"
-          className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
-        />
+        <div className="flex flex-col gap-1.5">
+          <input
+            type="password"
+            required
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Current password"
+            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+          />
+          <div className="flex justify-end px-1">
+            <button
+              type="button"
+              disabled={sendingReset || !user?.email}
+              onClick={() => void handleForgotPassword()}
+              className="text-[12px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-50 cursor-pointer"
+            >
+              {sendingReset
+                ? 'Sending link to you mail...'
+                : 'Forgot password?'}
+            </button>
+          </div>
+        </div>
+
+        {resetFeedback && (
+          <div
+            className={`rounded-[12px] px-4 py-2.5 text-[12.5px] font-medium border ${
+              resetFeedback.ok
+                ? 'bg-[#e7f6e7] border-[#029500]/25 text-[#029500]'
+                : 'bg-[#fdecec] border-[#e5322d]/25 text-[#e5322d]'
+            }`}
+          >
+            {resetFeedback.message}
+          </div>
+        )}
+
         <input
           type="password"
           required
@@ -1589,7 +2137,7 @@ export function ChangePasswordPage() {
           <button
             type="submit"
             disabled={saving}
-            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[13px] font-semibold px-6 py-2.5 rounded-full"
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[13px] font-semibold px-6 py-2.5 rounded-full cursor-pointer"
           >
             {saving ? 'Updating...' : 'Update password'}
           </button>
@@ -1599,40 +2147,190 @@ export function ChangePasswordPage() {
   );
 }
 
-// Delete Account
+// Delete Account (Verified via Email/Phone OTP + 30-day scheduled deletion grace period)
 export function DeleteAccountPage() {
-  const { deleteAccount, showToast } = useStore();
+  const { user, deleteAccount, showToast } = useStore();
   const navigate = useNavigate();
+
+  const [channel, setChannel] = useState<'email' | 'phone'>('email');
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const [confirmText, setConfirmText] = useState('');
+  const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setCooldown((v) => (v > 0 ? v - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
+
+  if (!user) return null;
+
+  const hasPhone = Boolean(user.phone && user.phone.trim());
+
+  const handleSendCode = async () => {
+    setSending(true);
+    setError(null);
+    try {
+      const res = await customerApi.sendSecurityActionCode('delete', channel);
+      setSentTo(res.data.target);
+      setCode('');
+      setCooldown(60);
+      showToast(res.message || `Verification code sent to ${res.data.target}.`);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to send verification code.';
+      setError(msg);
+      showToast(msg);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleScheduleDelete = async () => {
+    if (!/^\d{6}$/.test(code.trim())) {
+      setError('Please enter the 6-digit verification code first.');
+      return;
+    }
+    if (confirmText !== 'DELETE') {
+      setError('Please type DELETE to confirm.');
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteAccount(code.trim());
+      navigate('/login', { replace: true });
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to schedule account deletion.';
+      setError(msg);
+      showToast(msg);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div>
         <h1 className="text-[22px] font-bold text-[#e5322d]">
           Delete your Kova account
         </h1>
-        <Link
-          to="/account/security"
-          className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-medium text-black px-4 py-2 rounded-full"
-        >
-          Back
-        </Link>
       </div>
 
-      <div className="bg-white border border-[#e5322d]/30 rounded-[16px] p-6 max-w-[600px] flex flex-col gap-4">
-        <p className="text-[13.5px] text-[#767676] leading-[1.6]">
-          Type <strong className="text-black">DELETE</strong> below to confirm
-          deleting your Kova account.
-        </p>
-        <input
-          type="text"
-          value={confirmText}
-          onChange={(e) => setConfirmText(e.target.value)}
-          placeholder="Type DELETE to confirm"
-          className="h-[42px] border border-[#ececec] focus:border-[#e5322d] rounded-full px-4 text-[13px] outline-none"
-        />
-        <div className="flex gap-2.5">
+      <div className="bg-white border border-[#e5322d]/30 rounded-[16px] p-6 max-w-[640px] flex flex-col gap-4">
+        <div className="bg-[#fff7ed] border border-[#ff6e20]/25 rounded-[14px] p-4 flex flex-col gap-1">
+          <p className="text-[13.5px] font-semibold text-black">
+            30-day recovery grace period
+          </p>
+          <p className="text-[12.5px] text-[#555555] leading-[1.6]">
+            Your account will <strong>not</strong> be erased immediately. It
+            will be scheduled for permanent deletion in <strong>30 days</strong>
+            . If you change your mind and sign back in within 30 days, your
+            deletion request is cancelled automatically. If you do not sign in
+            within 30 days, your account will be permanently deleted from our
+            system.
+          </p>
+        </div>
+
+        {error && (
+          <p className="text-[12.5px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[12px] px-4 py-2.5">
+            {error}
+          </p>
+        )}
+
+        {/* Step 1: Verify Identity */}
+        <div className="flex flex-col gap-2.5 pt-1">
+          <p className="text-[13px] font-semibold text-black">
+            1. Verify your identity
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setChannel('email');
+                setSentTo(null);
+              }}
+              className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border transition-colors cursor-pointer ${
+                channel === 'email'
+                  ? 'bg-[#ffefe6] border-[#ff6e20] text-[#ff6e20]'
+                  : 'bg-white border-[#ececec] text-[#555555]'
+              }`}
+            >
+              Email ({user.email})
+            </button>
+            {hasPhone && (
+              <button
+                type="button"
+                onClick={() => {
+                  setChannel('phone');
+                  setSentTo(null);
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border transition-colors cursor-pointer ${
+                  channel === 'phone'
+                    ? 'bg-[#ffefe6] border-[#ff6e20] text-[#ff6e20]'
+                    : 'bg-white border-[#ececec] text-[#555555]'
+                }`}
+              >
+                Phone ({user.phone})
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={sending || cooldown > 0}
+              onClick={() => void handleSendCode()}
+              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors cursor-pointer"
+            >
+              {sending
+                ? 'Sending...'
+                : cooldown > 0
+                  ? `Resend (${cooldown}s)`
+                  : sentTo
+                    ? 'Resend code'
+                    : 'Send verification code'}
+            </button>
+          </div>
+
+          {sentTo && (
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={code}
+              onChange={(e) =>
+                setCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+              }
+              placeholder={`Enter 6-digit code sent to ${sentTo}`}
+              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest outline-none"
+            />
+          )}
+        </div>
+
+        {/* Step 2: Confirm DELETE */}
+        <div className="flex flex-col gap-2 pt-1">
+          <p className="text-[13px] font-semibold text-black">
+            2. Type <span className="text-[#e5322d]">DELETE</span> to confirm
+          </p>
+          <input
+            type="text"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            className="h-[42px] border border-[#ececec] focus:border-[#e5322d] rounded-full px-4 text-[13px] outline-none"
+          />
+        </div>
+
+        <div className="flex gap-2.5 pt-1">
           <Link
             to="/account/security"
             className="bg-white border border-[#ececec] text-[13px] font-semibold text-black px-5 py-2.5 rounded-full"
@@ -1641,25 +2339,11 @@ export function DeleteAccountPage() {
           </Link>
           <button
             type="button"
-            disabled={confirmText !== 'DELETE' || deleting}
-            onClick={async () => {
-              setDeleting(true);
-              try {
-                await deleteAccount();
-                navigate('/');
-              } catch (err) {
-                showToast(
-                  err instanceof ApiError
-                    ? err.message
-                    : 'Unable to delete account.',
-                );
-              } finally {
-                setDeleting(false);
-              }
-            }}
-            className="bg-[#e5322d] disabled:opacity-40 text-white text-[13px] font-semibold px-6 py-2.5 rounded-full"
+            disabled={confirmText !== 'DELETE' || code.length !== 6 || deleting}
+            onClick={() => void handleScheduleDelete()}
+            className="bg-[#e5322d] hover:bg-[#c8231e] disabled:opacity-40 text-white text-[13px] font-semibold px-6 py-2.5 rounded-full transition-colors cursor-pointer"
           >
-            {deleting ? 'Deleting...' : 'Permanently delete account'}
+            {deleting ? 'Scheduling...' : 'Verify & schedule deletion'}
           </button>
         </div>
       </div>

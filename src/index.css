@@ -242,3 +242,276 @@
 .kova-toast-in {
   animation: kova-toast-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* =========================================================
+   Scoped Dark Mode — Seller & Root Admin Dashboards Only
+   (Automatically removed when leaving /seller/* or /admin/*)
+   ========================================================= */
+html.kova-dashboard-dark {
+  --background: #000000;
+  --foreground: #EDEDED;
+
+  --surface: #0A0A0A;
+  --surface-elevated: #111111;
+  --card: #171717;
+
+  --border: #2E2E2E;
+  --border-muted: #1F1F1F;
+
+  --text-primary: #EDEDED;
+  --text-secondary: #A1A1A1;
+  --text-muted: #666666;
+
+  --accent: #FFFFFF;
+  --accent-foreground: #000000;
+
+  --success: #0070F3;
+  --danger: #E5484D;
+
+  /* Map dashboard surface tokens (preserving --brand-orange: #ff6e20) */
+  --surface-canvas: var(--background);
+  --surface-white: var(--surface-elevated);
+  --surface-subtle: var(--card);
+  --border-default: var(--border);
+  --border-header: var(--border-muted);
+  color-scheme: dark;
+}
+
+html.kova-dashboard-dark body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Canvas, chrome & elevated card surfaces */
+html.kova-dashboard-dark .bg-\[\#f7f7f7\],
+html.kova-dashboard-dark .bg-\[\#f5f5f5\] {
+  background-color: var(--background) !important;
+}
+
+html.kova-dashboard-dark aside.bg-white,
+html.kova-dashboard-dark header.bg-white {
+  background-color: var(--surface) !important;
+}
+
+html.kova-dashboard-dark .bg-white,
+html.kova-dashboard-dark .bg-white\/95 {
+  background-color: var(--surface-elevated) !important;
+}
+
+/* Nested cards, table headers, search pills, soft chips */
+html.kova-dashboard-dark .bg-\[\#fafafa\],
+html.kova-dashboard-dark .bg-\[\#f9f9f9\],
+html.kova-dashboard-dark .bg-\[\#f4f4f4\],
+html.kova-dashboard-dark .bg-\[\#f2f2f7\],
+html.kova-dashboard-dark .bg-\[\#f0f0f0\] {
+  background-color: var(--card) !important;
+}
+
+html.kova-dashboard-dark .bg-white .bg-\[\#f7f7f7\],
+html.kova-dashboard-dark header .bg-\[\#f7f7f7\],
+html.kova-dashboard-dark aside .bg-\[\#f7f7f7\],
+html.kova-dashboard-dark section .bg-\[\#f7f7f7\] {
+  background-color: var(--card) !important;
+}
+
+/* Primary Kova orange tint (brand primary preserved) */
+html.kova-dashboard-dark .bg-\[\#ffefe6\],
+html.kova-dashboard-dark .bg-\[\#fff6f1\],
+html.kova-dashboard-dark .bg-\[\#fff7ed\],
+html.kova-dashboard-dark .bg-\[\#fff9f5\] {
+  background-color: rgba(255, 110, 32, 0.14) !important;
+}
+
+/* Success (--success: #0070F3) & Danger (--danger: #E5484D) tints */
+html.kova-dashboard-dark .bg-\[\#e7f6e7\],
+html.kova-dashboard-dark .bg-\[\#ecfdf3\],
+html.kova-dashboard-dark .bg-\[\#dcfce7\],
+html.kova-dashboard-dark .bg-\[\#eaf3ff\] {
+  background-color: rgba(0, 112, 243, 0.15) !important;
+}
+
+html.kova-dashboard-dark .bg-\[\#029500\] {
+  background-color: var(--success) !important;
+}
+
+html.kova-dashboard-dark .bg-\[\#fdecec\],
+html.kova-dashboard-dark .bg-\[\#fff0f0\] {
+  background-color: rgba(229, 72, 77, 0.15) !important;
+}
+
+html.kova-dashboard-dark .bg-\[\#e5322d\] {
+  background-color: var(--danger) !important;
+}
+
+/* Accent action buttons (--accent: #FFFFFF / --accent-foreground: #000000) */
+html.kova-dashboard-dark button.bg-black,
+html.kova-dashboard-dark a.bg-black {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+html.kova-dashboard-dark button.bg-black:hover,
+html.kova-dashboard-dark a.bg-black:hover {
+  background-color: #e2e2e2 !important;
+}
+
+html.kova-dashboard-dark .bg-black:not(button):not(a) {
+  background-color: var(--card) !important;
+  border: 1px solid var(--border);
+}
+
+/* Hover surface overrides */
+html.kova-dashboard-dark .hover\:bg-\[\#fafafa\]:hover,
+html.kova-dashboard-dark .hover\:bg-\[\#f7f7f7\]:hover,
+html.kova-dashboard-dark .hover\:bg-\[\#f4f4f4\]:hover,
+html.kova-dashboard-dark .hover\:bg-\[\#f0f0f0\]:hover {
+  background-color: #1f1f1f !important;
+}
+
+html.kova-dashboard-dark .hover\:bg-\[\#ffefe6\]:hover,
+html.kova-dashboard-dark .hover\:bg-\[\#ffdfcd\]:hover,
+html.kova-dashboard-dark .hover\:bg-\[\#ffe1cf\]:hover {
+  background-color: rgba(255, 110, 32, 0.22) !important;
+}
+
+html.kova-dashboard-dark .hover\:bg-\[\#fdecec\]:hover,
+html.kova-dashboard-dark .hover\:bg-\[\#fff0f0\]:hover {
+  background-color: rgba(229, 72, 77, 0.24) !important;
+}
+
+html.kova-dashboard-dark .hover\:bg-\[\#e5322d\]:hover {
+  background-color: var(--danger) !important;
+  color: #ffffff !important;
+}
+
+html.kova-dashboard-dark .focus-within\:bg-white:focus-within,
+html.kova-dashboard-dark .focus\:bg-white:focus {
+  background-color: var(--card) !important;
+}
+
+/* Borders & Dividers */
+html.kova-dashboard-dark aside.border-\[\#ececec\],
+html.kova-dashboard-dark header.border-\[\#ececec\],
+html.kova-dashboard-dark .border-\[\#f1f1f1\],
+html.kova-dashboard-dark .border-\[\#f0f0f0\] {
+  border-color: var(--border-muted) !important;
+}
+
+html.kova-dashboard-dark .border-\[\#ececec\],
+html.kova-dashboard-dark .border-\[\#e5e5e5\],
+html.kova-dashboard-dark .border-\[\#dcdcdc\],
+html.kova-dashboard-dark .border-\[\#dfdfe7\],
+html.kova-dashboard-dark .border-\[\#cfcfcf\],
+html.kova-dashboard-dark .border-\[\#cccccc\] {
+  border-color: var(--border) !important;
+}
+
+html.kova-dashboard-dark .border-\[\#fde1d2\],
+html.kova-dashboard-dark .border-\[\#ffdfcd\] {
+  border-color: rgba(255, 110, 32, 0.35) !important;
+}
+
+html.kova-dashboard-dark .border-\[\#fdecec\] {
+  border-color: rgba(229, 72, 77, 0.35) !important;
+}
+
+html.kova-dashboard-dark .border-white {
+  border-color: var(--surface-elevated) !important;
+}
+
+html.kova-dashboard-dark .divide-\[\#f1f1f1\] > :not(:last-child),
+html.kova-dashboard-dark .divide-\[\#ececec\] > :not(:last-child) {
+  border-color: var(--border-muted) !important;
+}
+
+html.kova-dashboard-dark .hover\:border-black:hover,
+html.kova-dashboard-dark .hover\:border-\[\#cccccc\]:hover {
+  border-color: var(--text-muted) !important;
+}
+
+/* Typography contrast */
+html.kova-dashboard-dark .text-black,
+html.kova-dashboard-dark .text-\[\#1c1c1c\],
+html.kova-dashboard-dark .text-\[\#111111\] {
+  color: var(--text-primary) !important;
+}
+
+html.kova-dashboard-dark .text-\[\#333333\],
+html.kova-dashboard-dark .text-\[\#555555\],
+html.kova-dashboard-dark .text-\[\#666666\],
+html.kova-dashboard-dark .text-\[\#6e6e6e\],
+html.kova-dashboard-dark .text-\[\#767676\] {
+  color: var(--text-secondary) !important;
+}
+
+html.kova-dashboard-dark .text-\[\#8a8a8a\],
+html.kova-dashboard-dark .text-\[\#979797\],
+html.kova-dashboard-dark .text-\[\#c5c5c5\] {
+  color: var(--text-muted) !important;
+}
+
+html.kova-dashboard-dark .hover\:text-black:hover {
+  color: var(--accent) !important;
+}
+
+html.kova-dashboard-dark .text-\[\#029500\],
+html.kova-dashboard-dark .text-\[\#1877f2\] {
+  color: var(--success) !important;
+}
+
+html.kova-dashboard-dark .text-\[\#e5322d\],
+html.kova-dashboard-dark .text-\[\#d93025\],
+html.kova-dashboard-dark .hover\:text-\[\#e5322d\]:hover {
+  color: var(--danger) !important;
+}
+
+/* Chart secondary stroke uses --success in dark mode */
+html.kova-dashboard-dark svg path[stroke='#029500'] {
+  stroke: var(--success);
+}
+
+html.kova-dashboard-dark svg circle[fill='#029500'] {
+  fill: var(--success);
+}
+
+html.kova-dashboard-dark svg line[stroke='#f1f1f1'] {
+  stroke: var(--border-muted);
+}
+
+/* Form controls */
+html.kova-dashboard-dark input:not([type='checkbox']):not([type='radio']):not(.bg-transparent),
+html.kova-dashboard-dark select,
+html.kova-dashboard-dark textarea {
+  background-color: var(--card);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+html.kova-dashboard-dark input::placeholder,
+html.kova-dashboard-dark textarea::placeholder {
+  color: var(--text-muted);
+}
+
+html.kova-dashboard-dark option {
+  background-color: var(--card);
+  color: var(--text-primary);
+}
+
+html.kova-dashboard-dark .disabled\:bg-\[\#f7f7f7\]:disabled,
+html.kova-dashboard-dark input:disabled,
+html.kova-dashboard-dark select:disabled,
+html.kova-dashboard-dark textarea:disabled {
+  background-color: var(--surface) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Dark shimmer skeleton */
+html.kova-dashboard-dark .kova-skeleton {
+  background: linear-gradient(90deg, #111111 25%, #1f1f1f 50%, #111111 75%);
+  background-size: 200% 100%;
+}
+
+/* Shadows soften cleanly on pure black dark mode */
+html.kova-dashboard-dark [class*='shadow-'] {
+  --tw-shadow-color: rgba(0, 0, 0, 0.7);
+}

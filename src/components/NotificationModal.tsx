@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Check, MessageCircle, ShoppingBag, Trash2 } from 'lucide-react';
 import { DashboardModal } from './DashboardPrimitives';
 import { FigmaIcon } from './FigmaIcon';
 import { useStore } from '../context/StoreContext';
+import { useConfirmDelete } from '../context/ConfirmDeleteContext';
 import { formatShortDate } from '../utils/currency';
 import type { UserNotificationItem } from '../types/marketplace';
 
@@ -96,10 +97,18 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
   } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const { confirmDelete } = useConfirmDelete();
+  const [hiddenIds, setHiddenIds] = useState<number[]>([]);
+
+  const visibleNotifications = useMemo(() => {
+    if (hiddenIds.length === 0) return notifications;
+    const hidden = new Set(hiddenIds);
+    return notifications.filter((n) => !hidden.has(n.id));
+  }, [notifications, hiddenIds]);
 
   const grouped = useMemo(
-    () => groupNotifications(notifications),
-    [notifications],
+    () => groupNotifications(visibleNotifications),
+    [visibleNotifications],
   );
 
   useEffect(() => {
@@ -109,7 +118,14 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
   }, [open, isSignedIn, refreshNotifications]);
 
   const getNotificationTargetUrl = (notif: UserNotificationItem) => {
+    const isAdminUser = Boolean(
+      user?.roles?.some((r) => r === 'admin' || r === 'root_admin'),
+    );
+
     if (notif.type === 'order') {
+      if (isAdminUser || location.pathname.startsWith('/admin')) {
+        return '/admin/bakong';
+      }
       const orderNum = notif.data?.order_number;
       const isStoreOwner = Boolean(
         user?.roles?.includes('store_owner') || user?.store,
@@ -132,9 +148,6 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
     }
 
     const ticketId = notif.data?.ticket_id;
-    const isAdminUser = Boolean(
-      user?.roles?.some((r) => r === 'admin' || r === 'root_admin'),
-    );
     const isStoreOwner = Boolean(
       user?.roles?.includes('store_owner') || user?.store,
     );
@@ -178,7 +191,45 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
   };
 
   const handleDeleteGroup = (group: GroupedNotification) => {
-    void deleteNotification(group.items.map((item) => item.id));
+    const ids = group.items.map((item) => item.id);
+    confirmDelete({
+      title: 'Delete notification?',
+      description: `Remove "${group.title}" from your notifications?`,
+      itemLabel: group.title,
+      onOptimisticRemove: () => {
+        setHiddenIds((prev) => Array.from(new Set([...prev, ...ids])));
+      },
+      onUndo: () => {
+        const idSet = new Set(ids);
+        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
+      },
+      onCommit: async () => {
+        await deleteNotification(ids);
+        const idSet = new Set(ids);
+        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
+      },
+    });
+  };
+
+  const handleClearAll = () => {
+    const allIds = visibleNotifications.map((n) => n.id);
+    confirmDelete({
+      title: 'Clear all notifications?',
+      description: 'All notifications in your inbox will be deleted.',
+      itemLabel: 'all notifications',
+      confirmLabel: 'Clear all',
+      onOptimisticRemove: () => {
+        setHiddenIds((prev) => Array.from(new Set([...prev, ...allIds])));
+      },
+      onUndo: () => {
+        const idSet = new Set(allIds);
+        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
+      },
+      onCommit: async () => {
+        await clearAllNotifications();
+        setHiddenIds([]);
+      },
+    });
   };
 
   return (
@@ -222,10 +273,10 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                 Mark all read
               </button>
             )}
-            {notifications.length > 0 && (
+            {visibleNotifications.length > 0 && (
               <button
                 type="button"
-                onClick={() => void clearAllNotifications()}
+                onClick={handleClearAll}
                 className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[12px] font-semibold px-3.5 py-2 rounded-full transition-colors"
               >
                 Clear all

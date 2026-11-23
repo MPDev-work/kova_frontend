@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Image } from 'lucide-react';
+import { Check, Image } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError } from '../../services/api';
 import {
   adminApi,
@@ -405,11 +406,11 @@ export function AdminUsersPage() {
 
             <div className="border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3">
               <h3 className="text-[14px] font-bold text-black">
-                Assigned roles
+                Assigned role
               </h3>
               <p className="text-[12px] text-[#767676]">
-                Select the roles granted to this user. At least one role is
-                required.
+                Each user has one active workspace role. Switching a customer to
+                Store Owner permanently moves them to Seller Center.
               </p>
               <div className="flex flex-col gap-2.5 pt-1">
                 {[
@@ -449,14 +450,8 @@ export function AdminUsersPage() {
                       </div>
                       <ToggleSwitch
                         checked={checked}
-                        onChange={() =>
-                          setDraftRoles((prev) =>
-                            prev.includes(r.slug)
-                              ? prev.filter((x) => x !== r.slug)
-                              : [...prev, r.slug],
-                          )
-                        }
-                        ariaLabel={`Toggle ${r.title} role`}
+                        onChange={() => setDraftRoles([r.slug])}
+                        ariaLabel={`Assign ${r.title} role`}
                       />
                     </div>
                   );
@@ -491,6 +486,7 @@ export function AdminCatalogPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'hidden'>(
     'all',
   );
+  const { confirmDelete } = useConfirmDelete();
   const [search, setSearch] = useState('');
   const [categories, setCategories] = useState<AdminCategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -613,16 +609,23 @@ export function AdminCatalogPage() {
     }
   };
 
-  const handleDeleteCategory = async (c: AdminCategoryItem) => {
-    try {
-      await adminApi.deleteCategory(c.id);
-      showToast(`Deleted "${c.name}".`);
-      await Promise.all([loadCatalog(), refreshCatalog()]);
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to delete category.',
-      );
-    }
+  const handleDeleteCategory = (c: AdminCategoryItem) => {
+    confirmDelete({
+      title: 'Delete category?',
+      description: `Category "${c.name}" will be permanently removed from the marketplace.`,
+      itemLabel: c.name,
+      onOptimisticRemove: () => {
+        setCategories((prev) => prev.filter((item) => item.id !== c.id));
+      },
+      onUndo: () => {
+        void loadCatalog();
+      },
+      onCommit: async () => {
+        await adminApi.deleteCategory(c.id);
+        showToast(`Deleted "${c.name}".`);
+        await Promise.all([loadCatalog(), refreshCatalog()]);
+      },
+    });
   };
 
   const q = search.trim().toLowerCase();
@@ -1058,28 +1061,6 @@ export function AdminBakongPage() {
       <DashboardPageHeader
         title="Payments & transactions"
         subtitle="Platform-wide NBC Bakong KHQR financial ledger and connected merchant accounts."
-        actions={
-          <>
-            {overview && (
-              <span className="bg-white border border-[#ececec] text-[#555555] text-[12px] font-semibold px-3.5 py-2 rounded-full uppercase">
-                ENV: {overview.environment}
-              </span>
-            )}
-            <Link
-              to="/admin/settings"
-              className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-black text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
-            >
-              Bakong API Token
-            </Link>
-            <button
-              type="button"
-              onClick={handleExportLedger}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
-            >
-              Export ledger
-            </button>
-          </>
-        }
       />
 
       {loading || !overview ? (
@@ -1121,21 +1102,30 @@ export function AdminBakongPage() {
                 ]}
               />
 
-              {tab !== 'merchants' && (
-                <div className="flex items-center gap-2 bg-[#f7f7f7] border border-[#ececec] focus-within:border-[#ff6e20] focus-within:bg-white rounded-full px-3.5 h-[36px] w-full sm:w-[240px]">
-                  <FigmaIcon
-                    name="search"
-                    className="w-3.5 h-3.5 text-[#979797]"
-                  />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search bill # or store..."
-                    className="flex-1 bg-transparent text-[12.5px] text-black placeholder:text-[#979797] outline-none min-w-0"
-                  />
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+                {tab !== 'merchants' && (
+                  <div className="flex items-center gap-2 bg-[#f7f7f7] border border-[#ececec] focus-within:border-[#ff6e20] focus-within:bg-white rounded-full px-3.5 h-[36px] w-full sm:w-[240px]">
+                    <FigmaIcon
+                      name="search"
+                      className="w-3.5 h-3.5 text-[#979797]"
+                    />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search bill # or store..."
+                      className="flex-1 bg-transparent text-[12.5px] text-black placeholder:text-[#979797] outline-none min-w-0"
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleExportLedger}
+                  className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors shrink-0 cursor-pointer"
+                >
+                  Export ledger
+                </button>
+              </div>
             </div>
 
             {tab === 'merchants' ? (
@@ -1635,7 +1625,8 @@ export function AdminSettingsPage() {
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
   const [activeGroup, setActiveGroup] = useState<string>('all');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingGroup, setSavingGroup] = useState<string | null>(null);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   const loadSettings = useCallback(async () => {
@@ -1674,23 +1665,70 @@ export function AdminSettingsPage() {
     ([g]) => activeGroup === 'all' || g === activeGroup,
   );
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+  const isInstantSettingItem = (item: PlatformSettingItem) =>
+    item.type === 'boolean' ||
+    BOOLEAN_SETTING_KEYS.has(item.key) ||
+    BRANDING_FILE_KEYS.has(item.key) ||
+    item.key === 'supported_currencies';
+
+  const saveKeysImmediate = async (
+    entries: Record<string, string>,
+    primaryKey: string,
+    successMsg?: string,
+  ) => {
+    const prevSnapshot: Record<string, string> = {};
+    Object.keys(entries).forEach((k) => {
+      prevSnapshot[k] = draftValues[k] ?? '';
+    });
+
+    setDraftValues((prev) => ({ ...prev, ...entries }));
+    setSavingKey(primaryKey);
     try {
-      const payload = Object.entries(draftValues).map(([key, value]) => ({
+      const payload = Object.entries(entries).map(([key, value]) => ({
         key,
         value,
       }));
       await adminApi.updateSettings(payload);
+      setInitialValues((prev) => ({ ...prev, ...entries }));
+      await refreshCatalog();
+      if (successMsg) showToast(successMsg);
+    } catch (err) {
+      setDraftValues((prev) => ({ ...prev, ...prevSnapshot }));
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to update setting.',
+      );
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const handleSaveGroup = async (
+    groupName: string,
+    items: PlatformSettingItem[],
+  ) => {
+    const editableItems = items.filter((item) => !isInstantSettingItem(item));
+    const payload = editableItems.map((item) => ({
+      key: item.key,
+      value: draftValues[item.key] ?? '',
+    }));
+
+    if (payload.length === 0) return;
+
+    setSavingGroup(groupName);
+    try {
+      await adminApi.updateSettings(payload);
       await Promise.all([loadSettings(), refreshCatalog()]);
-      showToast('System configuration saved.');
+      showToast(
+        groupName === 'bakong'
+          ? 'Bakong settings saved.'
+          : `${groupName.replace(/_/g, ' ')} settings saved.`,
+      );
     } catch (err) {
       showToast(
         err instanceof ApiError ? err.message : 'Unable to save settings.',
       );
     } finally {
-      setSaving(false);
+      setSavingGroup(null);
     }
   };
 
@@ -1699,14 +1737,12 @@ export function AdminSettingsPage() {
     setUploadingKey(key);
     try {
       const uploaded = await adminApi.uploadBrandingAsset(file);
-      setDraftValues((prev) => ({
-        ...prev,
-        [key]: uploaded.secure_url,
-      }));
-      showToast(
+      await saveKeysImmediate(
+        { [key]: uploaded.secure_url },
+        key,
         key === 'site_logo'
-          ? 'Site logo uploaded. Click "Save system config" to apply.'
-          : 'Site favicon uploaded. Click "Save system config" to apply.',
+          ? 'Site logo updated and saved.'
+          : 'Site favicon updated and saved.',
       );
     } catch (err) {
       showToast(
@@ -1731,31 +1767,10 @@ export function AdminSettingsPage() {
   const maintenanceMode = parseBoolSetting(draftValues.maintenance_mode);
 
   return (
-    <form onSubmit={handleSave} className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <DashboardPageHeader
         title="Platform & system settings"
         subtitle="Configure marketplace identity, USD/KHR exchange rate, commission defaults, and global controls."
-        actions={
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setDraftValues({ ...initialValues });
-                showToast('Unsaved changes discarded.');
-              }}
-              className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
-            >
-              Discard
-            </button>
-            <button
-              type="submit"
-              disabled={saving || loading || Boolean(uploadingKey)}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
-            >
-              {saving ? 'Saving...' : 'Save system config'}
-            </button>
-          </>
-        }
       />
 
       {!loading && groupKeys.length > 0 && (
@@ -1799,53 +1814,447 @@ export function AdminSettingsPage() {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(290px,1fr)] gap-5 items-start">
           <div className="flex flex-col gap-4">
-            {visibleEntries.map(([groupName, items]) => (
-              <section
-                key={groupName}
-                className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4"
-              >
-                <h2 className="text-[15.5px] font-bold text-black capitalize">
-                  {groupName === 'bakong'
-                    ? 'Bakong Open API & KHQR settings'
-                    : `${groupName.replace(/_/g, ' ')} settings`}
-                </h2>
-                {groupName === 'bakong' && (
-                  <p className="text-[12px] text-[#767676] -mt-2">
-                    Manage the single platform-wide NBC Bakong Open API JWT
-                    token used to generate and verify KHQR payments for every
-                    store on Kova. Bakong environment &amp; API URL are
-                    configured in <code className="font-mono">.env</code>{' '}
-                    (default: <span className="font-semibold">production</span>).
-                  </p>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {items.map((item) => {
-                    // 1. Secret platform Bakong Open API JWT Token
-                    if (item.is_secret || item.key === 'bakong_api_token') {
-                      return (
-                        <label
-                          key={item.key}
-                          className="flex flex-col gap-1.5 sm:col-span-2"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-[12px] font-semibold text-black">
-                              Bakong Open API JWT token
-                            </span>
-                            {item.has_value ? (
-                              <span className="text-[11px] font-semibold text-[#029500] font-mono">
-                                Saved in DB: {item.masked_value || 'Stored'}
-                                {item.expires_at
-                                  ? ` · Exp ${formatShortDate(item.expires_at)}`
-                                  : ''}
+            {visibleEntries.map(([groupName, items]) => {
+              const editableItems = items.filter(
+                (item) => !isInstantSettingItem(item),
+              );
+              const isGroupDirty = editableItems.some((item) => {
+                if (item.is_secret || item.key === 'bakong_api_token') {
+                  return (draftValues[item.key] ?? '').trim().length > 0;
+                }
+                return (
+                  (draftValues[item.key] ?? '') !==
+                  (initialValues[item.key] ?? '')
+                );
+              });
+              const isThisGroupSaving = savingGroup === groupName;
+
+              return (
+                <section
+                  key={groupName}
+                  className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4"
+                >
+                  <h2 className="text-[15.5px] font-bold text-black capitalize">
+                    {groupName === 'bakong'
+                      ? 'Bakong Open API & KHQR settings'
+                      : `${groupName.replace(/_/g, ' ')} settings`}
+                  </h2>
+                  {groupName === 'bakong' && (
+                    <p className="text-[12px] text-[#767676] -mt-2">
+                      Manage the single platform-wide NBC Bakong Open API JWT
+                      token used to generate and verify KHQR payments for every
+                      store on Kova. Bakong environment &amp; API URL are
+                      configured in <code className="font-mono">.env</code>{' '}
+                      (default: <span className="font-semibold">production</span>).
+                    </p>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {items.map((item) => {
+                      // 1. Secret platform Bakong Open API JWT Token
+                      if (item.is_secret || item.key === 'bakong_api_token') {
+                        return (
+                          <label
+                            key={item.key}
+                            className="flex flex-col gap-1.5 sm:col-span-2"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-[12px] font-semibold text-black">
+                                Bakong Open API JWT token
                               </span>
-                            ) : (
-                              <span className="text-[11px] font-semibold text-[#ff6e20]">
-                                Not configured yet
+                              {item.has_value ? (
+                                <span className="text-[11px] font-semibold text-[#029500] font-mono">
+                                  Saved in DB: {item.masked_value || 'Stored'}
+                                  {item.expires_at
+                                    ? ` · Exp ${formatShortDate(item.expires_at)}`
+                                    : ''}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-semibold text-[#ff6e20]">
+                                  Not configured yet
+                                </span>
+                              )}
+                            </div>
+                            <input
+                              type="password"
+                              value={draftValues[item.key] ?? ''}
+                              onChange={(e) =>
+                                setDraftValues((prev) => ({
+                                  ...prev,
+                                  [item.key]: e.target.value,
+                                }))
+                              }
+                              placeholder={
+                                item.has_value
+                                  ? 'Stored encrypted in database — leave blank to keep saved token'
+                                  : 'Paste platform NBC Bakong Open API JWT token'
+                              }
+                              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono outline-none"
+                            />
+                            {item.description && (
+                              <span className="text-[11px] text-[#8a8a8a]">
+                                {item.description}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      }
+
+                      // 2. Branding file upload (site_logo, site_favicon) — saves immediately
+                      if (BRANDING_FILE_KEYS.has(item.key)) {
+                        const currentUrl = (draftValues[item.key] ?? '').trim();
+                        const isLogo = item.key === 'site_logo';
+                        const isUploading =
+                          uploadingKey === item.key || savingKey === item.key;
+                        return (
+                          <div
+                            key={item.key}
+                            className="flex flex-col gap-2 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-3.5"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[12.5px] font-semibold text-black capitalize">
+                                {item.key.replace(/_/g, ' ')}
+                              </span>
+                              {currentUrl && (
+                                <button
+                                  type="button"
+                                  disabled={isUploading}
+                                  onClick={() =>
+                                    void saveKeysImmediate(
+                                      { [item.key]: '' },
+                                      item.key,
+                                      `${item.key.replace(/_/g, ' ')} removed.`,
+                                    )
+                                  }
+                                  className="text-[11px] font-semibold text-[#e5322d] hover:underline disabled:opacity-50"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`${
+                                  isLogo ? 'w-24 h-14' : 'w-14 h-14'
+                                } rounded-[12px] border border-[#ececec] bg-white overflow-hidden shrink-0 flex items-center justify-center p-1.5`}
+                              >
+                                {currentUrl ? (
+                                  <img
+                                    src={currentUrl}
+                                    alt={item.key}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                ) : (
+                                  <Image className="w-5 h-5 text-[#ababab]" />
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-1.5 min-w-0">
+                                <label className="inline-flex items-center gap-1.5 self-start bg-white hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] hover:border-[#ff6e20]/40 text-black text-[12px] font-semibold px-3.5 py-1.5 rounded-full cursor-pointer transition-colors">
+                                  <input
+                                    type="file"
+                                    accept={
+                                      isLogo
+                                        ? 'image/png,image/jpeg,image/webp,image/svg+xml'
+                                        : 'image/png,image/x-icon,image/svg+xml,image/webp,.ico'
+                                    }
+                                    disabled={isUploading}
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0] || null;
+                                      void handleBrandingFileUpload(
+                                        item.key,
+                                        file,
+                                      );
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                  <span>
+                                    {isUploading
+                                      ? 'Saving...'
+                                      : currentUrl
+                                        ? 'Replace file'
+                                        : 'Choose file'}
+                                  </span>
+                                </label>
+                                <span className="text-[11px] text-[#8a8a8a]">
+                                  {isLogo
+                                    ? 'PNG, JPG, WebP, or SVG'
+                                    : 'PNG, ICO, SVG, or WebP (square)'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // 3. Toggle Switches for boolean flags — save immediately on toggle
+                      if (
+                        item.type === 'boolean' ||
+                        BOOLEAN_SETTING_KEYS.has(item.key)
+                      ) {
+                        const isOn = parseBoolSetting(draftValues[item.key]);
+                        const isToggleSaving = savingKey === item.key;
+                        const labelText = item.key.replace(/_/g, ' ');
+                        return (
+                          <div key={item.key} className="flex flex-col gap-1.5">
+                            <span className="text-[12px] font-semibold text-black capitalize">
+                              {labelText}
+                            </span>
+                            <div className="h-[42px] bg-white border border-[#ececec] rounded-full px-4 flex items-center justify-between gap-3">
+                              <span
+                                className={`text-[13px] font-medium ${
+                                  isOn ? 'text-[#ff6e20]' : 'text-[#767676]'
+                                }`}
+                              >
+                                {isToggleSaving
+                                  ? 'Updating...'
+                                  : isOn
+                                    ? 'Enabled'
+                                    : 'Disabled'}
+                              </span>
+                              <ToggleSwitch
+                                checked={isOn}
+                                disabled={isToggleSaving}
+                                onChange={(next) =>
+                                  void saveKeysImmediate(
+                                    { [item.key]: next ? 'true' : 'false' },
+                                    item.key,
+                                    `${labelText} ${next ? 'enabled' : 'disabled'}.`,
+                                  )
+                                }
+                                ariaLabel={`Toggle ${labelText}`}
+                              />
+                            </div>
+                            {item.description && (
+                              <span className="text-[11px] text-[#8a8a8a]">
+                                {item.description}
                               </span>
                             )}
                           </div>
+                        );
+                      }
+
+                      // 4. Default Currency dropdown
+                      if (item.key === 'default_currency') {
+                        const currentVal = (
+                          draftValues[item.key] || 'USD'
+                        ).toUpperCase();
+                        const selectableCodes = Array.from(
+                          new Set([...supportedCurrencies, currentVal]),
+                        );
+                        return (
+                          <label
+                            key={item.key}
+                            className="flex flex-col gap-1.5"
+                          >
+                            <span className="text-[12px] font-semibold text-black capitalize">
+                              Default currency
+                            </span>
+                            <select
+                              value={currentVal}
+                              onChange={(e) =>
+                                setDraftValues((prev) => ({
+                                  ...prev,
+                                  [item.key]: e.target.value,
+                                }))
+                              }
+                              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
+                            >
+                              {selectableCodes.map((code) => {
+                                const meta = CURRENCY_OPTIONS.find(
+                                  (c) => c.code === code,
+                                );
+                                return (
+                                  <option key={code} value={code}>
+                                    {meta
+                                      ? `${meta.code} (${meta.symbol}) — ${meta.label}`
+                                      : code}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            {item.description && (
+                              <span className="text-[11px] text-[#8a8a8a]">
+                                {item.description}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      }
+
+                      // 5. Supported Currencies multi-select pill cards — save immediately
+                      if (item.key === 'supported_currencies') {
+                        const toggleCurrency = (code: string) => {
+                          const active = supportedCurrencies.includes(code);
+                          if (active && supportedCurrencies.length <= 1) {
+                            showToast(
+                              'At least one currency must stay enabled.',
+                            );
+                            return;
+                          }
+                          const nextList = active
+                            ? supportedCurrencies.filter((c) => c !== code)
+                            : [...supportedCurrencies, code];
+                          const updates: Record<string, string> = {
+                            supported_currencies: JSON.stringify(nextList),
+                          };
+                          if (
+                            draftValues.default_currency &&
+                            !nextList.includes(
+                              draftValues.default_currency.toUpperCase(),
+                            )
+                          ) {
+                            updates.default_currency = nextList[0];
+                          }
+                          void saveKeysImmediate(
+                            updates,
+                            item.key,
+                            `${code} ${active ? 'disabled' : 'enabled'}.`,
+                          );
+                        };
+
+                        return (
+                          <div
+                            key={item.key}
+                            className="flex flex-col gap-2 sm:col-span-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[12px] font-semibold text-black">
+                                Supported currencies
+                              </span>
+                              <span className="text-[11px] text-[#8a8a8a]">
+                                Changes apply immediately at checkout
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              {CURRENCY_OPTIONS.map((curr) => {
+                                const isSelected = supportedCurrencies.includes(
+                                  curr.code,
+                                );
+                                return (
+                                  <button
+                                    key={curr.code}
+                                    type="button"
+                                    disabled={savingKey === item.key}
+                                    onClick={() => toggleCurrency(curr.code)}
+                                    className={`flex items-center justify-between gap-3 px-4 py-3 rounded-[14px] border text-left transition-colors disabled:opacity-60 ${
+                                      isSelected
+                                        ? 'bg-[#ffefe6] border-[#ff6e20] text-black'
+                                        : 'bg-[#fafafa] border-[#ececec] text-[#555555] hover:border-[#cccccc]'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <span
+                                        className={`w-9 h-9 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0 ${
+                                          isSelected
+                                            ? 'bg-[#ff6e20] text-white'
+                                            : 'bg-white border border-[#ececec] text-black'
+                                        }`}
+                                      >
+                                        {curr.symbol}
+                                      </span>
+                                      <div className="min-w-0">
+                                        <p className="text-[13px] font-bold text-black">
+                                          {curr.code}
+                                        </p>
+                                        <p className="text-[11.5px] text-[#767676] truncate">
+                                          {curr.label}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <span
+                                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 ${
+                                        isSelected
+                                          ? 'bg-white text-[#ff6e20]'
+                                          : 'bg-[#eeeeee] text-[#767676]'
+                                      }`}
+                                    >
+                                      {isSelected ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // 6. Social Links as normal URL inputs
+                      if (item.key === 'social_links') {
+                        const linksMap = parseSocialLinks(
+                          draftValues[item.key],
+                        );
+                        const updateSocialLink = (
+                          platform: string,
+                          urlValue: string,
+                        ) => {
+                          const nextMap: Record<string, string> = {
+                            ...linksMap,
+                            [platform]: urlValue,
+                          };
+                          const cleaned: Record<string, string> = {};
+                          Object.entries(nextMap).forEach(([k, v]) => {
+                            if (v.trim()) cleaned[k] = v.trim();
+                          });
+                          setDraftValues((prev) => ({
+                            ...prev,
+                            social_links: JSON.stringify(cleaned),
+                          }));
+                        };
+
+                        return (
+                          <div
+                            key={item.key}
+                            className="flex flex-col gap-2.5 sm:col-span-2 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4"
+                          >
+                            <div>
+                              <span className="text-[12.5px] font-semibold text-black">
+                                Social links
+                              </span>
+                              <p className="text-[11px] text-[#8a8a8a] mt-0.5">
+                                Paste normal profile URLs — filled links appear
+                                automatically in the marketplace footer.
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {SOCIAL_LINK_FIELDS.map((social) => (
+                                <label
+                                  key={social.key}
+                                  className="flex flex-col gap-1"
+                                >
+                                  <span className="text-[11.5px] font-semibold text-[#555555]">
+                                    {social.label}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    inputMode="url"
+                                    value={linksMap[social.key] ?? ''}
+                                    onChange={(e) =>
+                                      updateSocialLink(
+                                        social.key,
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={social.placeholder}
+                                    className="h-[40px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[12.5px] text-black outline-none"
+                                  />
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // 7. Standard text / numeric inputs
+                      return (
+                        <label key={item.key} className="flex flex-col gap-1.5">
+                          <span className="text-[12px] font-semibold text-black capitalize">
+                            {item.key.replace(/_/g, ' ')}
+                          </span>
                           <input
-                            type="password"
+                            type={item.type === 'number' ? 'number' : 'text'}
+                            step={item.type === 'number' ? 'any' : undefined}
                             value={draftValues[item.key] ?? ''}
                             onChange={(e) =>
                               setDraftValues((prev) => ({
@@ -1853,12 +2262,7 @@ export function AdminSettingsPage() {
                                 [item.key]: e.target.value,
                               }))
                             }
-                            placeholder={
-                              item.has_value
-                                ? 'Stored encrypted in database — leave blank to keep saved token'
-                                : 'Paste platform NBC Bakong Open API JWT token'
-                            }
-                            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono outline-none"
+                            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
                           />
                           {item.description && (
                             <span className="text-[11px] text-[#8a8a8a]">
@@ -1867,362 +2271,37 @@ export function AdminSettingsPage() {
                           )}
                         </label>
                       );
-                    }
+                    })}
+                  </div>
 
-                    // 2. Branding file upload (site_logo, site_favicon)
-                    if (BRANDING_FILE_KEYS.has(item.key)) {
-                      const currentUrl = (draftValues[item.key] ?? '').trim();
-                      const isLogo = item.key === 'site_logo';
-                      const isUploading = uploadingKey === item.key;
-                      return (
-                        <div
-                          key={item.key}
-                          className="flex flex-col gap-2 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-3.5"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[12.5px] font-semibold text-black capitalize">
-                              {item.key.replace(/_/g, ' ')}
-                            </span>
-                            {currentUrl && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setDraftValues((prev) => ({
-                                    ...prev,
-                                    [item.key]: '',
-                                  }))
-                                }
-                                className="text-[11px] font-semibold text-[#e5322d] hover:underline"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`${
-                                isLogo ? 'w-24 h-14' : 'w-14 h-14'
-                              } rounded-[12px] border border-[#ececec] bg-white overflow-hidden shrink-0 flex items-center justify-center p-1.5`}
-                            >
-                              {currentUrl ? (
-                                <img
-                                  src={currentUrl}
-                                  alt={item.key}
-                                  className="max-w-full max-h-full object-contain"
-                                />
-                              ) : (
-                                <Image className="w-5 h-5 text-[#ababab]" />
-                              )}
-                            </div>
-
-                            <div className="flex flex-col gap-1.5 min-w-0">
-                              <label className="inline-flex items-center gap-1.5 self-start bg-white hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] hover:border-[#ff6e20]/40 text-black text-[12px] font-semibold px-3.5 py-1.5 rounded-full cursor-pointer transition-colors">
-                                <input
-                                  type="file"
-                                  accept={
-                                    isLogo
-                                      ? 'image/png,image/jpeg,image/webp,image/svg+xml'
-                                      : 'image/png,image/x-icon,image/svg+xml,image/webp,.ico'
-                                  }
-                                  disabled={isUploading}
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0] || null;
-                                    void handleBrandingFileUpload(
-                                      item.key,
-                                      file,
-                                    );
-                                    e.target.value = '';
-                                  }}
-                                />
-                                <span>
-                                  {isUploading
-                                    ? 'Uploading...'
-                                    : currentUrl
-                                      ? 'Replace file'
-                                      : 'Choose file'}
-                                </span>
-                              </label>
-                              <span className="text-[11px] text-[#8a8a8a]">
-                                {isLogo
-                                  ? 'PNG, JPG, WebP, or SVG'
-                                  : 'PNG, ICO, SVG, or WebP (square)'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // 3. Toggle Switches for boolean flags (same compact height & full-rounded pill as inputs)
-                    if (
-                      item.type === 'boolean' ||
-                      BOOLEAN_SETTING_KEYS.has(item.key)
-                    ) {
-                      const isOn = parseBoolSetting(draftValues[item.key]);
-                      const labelText = item.key.replace(/_/g, ' ');
-                      return (
-                        <div key={item.key} className="flex flex-col gap-1.5">
-                          <span className="text-[12px] font-semibold text-black capitalize">
-                            {labelText}
-                          </span>
-                          <div className="h-[42px] bg-white border border-[#ececec] rounded-full px-4 flex items-center justify-between gap-3">
-                            <span
-                              className={`text-[13px] font-medium ${
-                                isOn ? 'text-[#ff6e20]' : 'text-[#767676]'
-                              }`}
-                            >
-                              {isOn ? 'Enabled' : 'Disabled'}
-                            </span>
-                            <ToggleSwitch
-                              checked={isOn}
-                              onChange={(next) =>
-                                setDraftValues((prev) => ({
-                                  ...prev,
-                                  [item.key]: next ? 'true' : 'false',
-                                }))
-                              }
-                              ariaLabel={`Toggle ${labelText}`}
-                            />
-                          </div>
-                          {item.description && (
-                            <span className="text-[11px] text-[#8a8a8a]">
-                              {item.description}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    // 4. Default Currency dropdown
-                    if (item.key === 'default_currency') {
-                      const currentVal = (
-                        draftValues[item.key] || 'USD'
-                      ).toUpperCase();
-                      const selectableCodes = Array.from(
-                        new Set([...supportedCurrencies, currentVal]),
-                      );
-                      return (
-                        <label key={item.key} className="flex flex-col gap-1.5">
-                          <span className="text-[12px] font-semibold text-black capitalize">
-                            Default currency
-                          </span>
-                          <select
-                            value={currentVal}
-                            onChange={(e) =>
-                              setDraftValues((prev) => ({
-                                ...prev,
-                                [item.key]: e.target.value,
-                              }))
-                            }
-                            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
-                          >
-                            {selectableCodes.map((code) => {
-                              const meta = CURRENCY_OPTIONS.find(
-                                (c) => c.code === code,
-                              );
-                              return (
-                                <option key={code} value={code}>
-                                  {meta
-                                    ? `${meta.code} (${meta.symbol}) — ${meta.label}`
-                                    : code}
-                                </option>
-                              );
-                            })}
-                          </select>
-                          {item.description && (
-                            <span className="text-[11px] text-[#8a8a8a]">
-                              {item.description}
-                            </span>
-                          )}
-                        </label>
-                      );
-                    }
-
-                    // 5. Supported Currencies multi-select pill cards
-                    if (item.key === 'supported_currencies') {
-                      const toggleCurrency = (code: string) => {
-                        const active = supportedCurrencies.includes(code);
-                        if (active && supportedCurrencies.length <= 1) {
-                          showToast('At least one currency must stay enabled.');
-                          return;
-                        }
-                        const nextList = active
-                          ? supportedCurrencies.filter((c) => c !== code)
-                          : [...supportedCurrencies, code];
-                        setDraftValues((prev) => {
-                          const nextState: Record<string, string> = {
-                            ...prev,
-                            supported_currencies: JSON.stringify(nextList),
-                          };
-                          if (
-                            prev.default_currency &&
-                            !nextList.includes(
-                              prev.default_currency.toUpperCase(),
-                            )
-                          ) {
-                            nextState.default_currency = nextList[0];
-                          }
-                          return nextState;
-                        });
-                      };
-
-                      return (
-                        <div
-                          key={item.key}
-                          className="flex flex-col gap-2 sm:col-span-2"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[12px] font-semibold text-black">
-                              Supported currencies
-                            </span>
-                            <span className="text-[11px] text-[#8a8a8a]">
-                              Select currencies enabled at checkout
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            {CURRENCY_OPTIONS.map((curr) => {
-                              const isSelected = supportedCurrencies.includes(
-                                curr.code,
-                              );
-                              return (
-                                <button
-                                  key={curr.code}
-                                  type="button"
-                                  onClick={() => toggleCurrency(curr.code)}
-                                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-[14px] border text-left transition-colors ${
-                                    isSelected
-                                      ? 'bg-[#ffefe6] border-[#ff6e20] text-black'
-                                      : 'bg-[#fafafa] border-[#ececec] text-[#555555] hover:border-[#cccccc]'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <span
-                                      className={`w-9 h-9 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0 ${
-                                        isSelected
-                                          ? 'bg-[#ff6e20] text-white'
-                                          : 'bg-white border border-[#ececec] text-black'
-                                      }`}
-                                    >
-                                      {curr.symbol}
-                                    </span>
-                                    <div className="min-w-0">
-                                      <p className="text-[13px] font-bold text-black">
-                                        {curr.code}
-                                      </p>
-                                      <p className="text-[11.5px] text-[#767676] truncate">
-                                        {curr.label}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <span
-                                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 ${
-                                      isSelected
-                                        ? 'bg-white text-[#ff6e20]'
-                                        : 'bg-[#eeeeee] text-[#767676]'
-                                    }`}
-                                  >
-                                    {isSelected ? 'Enabled' : 'Disabled'}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // 6. Social Links as normal URL inputs
-                    if (item.key === 'social_links') {
-                      const linksMap = parseSocialLinks(draftValues[item.key]);
-                      const updateSocialLink = (
-                        platform: string,
-                        urlValue: string,
-                      ) => {
-                        const nextMap: Record<string, string> = {
-                          ...linksMap,
-                          [platform]: urlValue,
-                        };
-                        const cleaned: Record<string, string> = {};
-                        Object.entries(nextMap).forEach(([k, v]) => {
-                          if (v.trim()) cleaned[k] = v.trim();
-                        });
-                        setDraftValues((prev) => ({
-                          ...prev,
-                          social_links: JSON.stringify(cleaned),
-                        }));
-                      };
-
-                      return (
-                        <div
-                          key={item.key}
-                          className="flex flex-col gap-2.5 sm:col-span-2 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4"
-                        >
-                          <div>
-                            <span className="text-[12.5px] font-semibold text-black">
-                              Social links
-                            </span>
-                            <p className="text-[11px] text-[#8a8a8a] mt-0.5">
-                              Paste normal profile URLs — filled links appear
-                              automatically in the marketplace footer.
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {SOCIAL_LINK_FIELDS.map((social) => (
-                              <label
-                                key={social.key}
-                                className="flex flex-col gap-1"
-                              >
-                                <span className="text-[11.5px] font-semibold text-[#555555]">
-                                  {social.label}
-                                </span>
-                                <input
-                                  type="text"
-                                  inputMode="url"
-                                  value={linksMap[social.key] ?? ''}
-                                  onChange={(e) =>
-                                    updateSocialLink(social.key, e.target.value)
-                                  }
-                                  placeholder={social.placeholder}
-                                  className="h-[40px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[12.5px] text-black outline-none"
-                                />
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // 7. Standard text / numeric inputs
-                    return (
-                      <label key={item.key} className="flex flex-col gap-1.5">
-                        <span className="text-[12px] font-semibold text-black capitalize">
-                          {item.key.replace(/_/g, ' ')}
-                        </span>
-                        <input
-                          type={item.type === 'number' ? 'number' : 'text'}
-                          step={item.type === 'number' ? 'any' : undefined}
-                          value={draftValues[item.key] ?? ''}
-                          onChange={(e) =>
-                            setDraftValues((prev) => ({
-                              ...prev,
-                              [item.key]: e.target.value,
-                            }))
-                          }
-                          className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
-                        />
-                        {item.description && (
-                          <span className="text-[11px] text-[#8a8a8a]">
-                            {item.description}
-                          </span>
+                  {editableItems.length > 0 && (
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#f1f1f1]">
+                      <button
+                        type="button"
+                        disabled={!isGroupDirty || isThisGroupSaving}
+                        onClick={() => void handleSaveGroup(groupName, items)}
+                        className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors ${
+                          isGroupDirty
+                            ? 'bg-[#ff6e20] hover:bg-[#e85d12] text-white cursor-pointer disabled:opacity-60'
+                            : 'bg-[#e7f6e7] text-[#029500] cursor-default'
+                        }`}
+                      >
+                        {isThisGroupSaving ? (
+                          <span>Saving...</span>
+                        ) : isGroupDirty ? (
+                          <span>Save</span>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Saved</span>
+                          </>
                         )}
-                      </label>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
+                      </button>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
           </div>
 
           {/* Right Summary Card (Exact Figma Admin · 26) */}
@@ -2289,7 +2368,7 @@ export function AdminSettingsPage() {
           </aside>
         </div>
       )}
-    </form>
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Check, Minus, Trash2 } from 'lucide-react';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
+import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { formatRiel } from '../../utils/currency';
 import { CartSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
@@ -60,6 +61,8 @@ export function CartPage() {
     removeCoupon,
     showToast,
   } = useStore();
+  const { confirmDelete } = useConfirmDelete();
+  const [hiddenCartItemIds, setHiddenCartItemIds] = useState<number[]>([]);
 
   const [couponInput, setCouponInput] = useState(appliedCoupon?.code || '');
   const [couponFeedback, setCouponFeedback] = useState<{
@@ -73,9 +76,20 @@ export function CartPage() {
   // and removed/added items stay synchronized automatically without effects.
   const [deselectedIds, setDeselectedIds] = useState<number[]>([]);
 
+  const visibleCartStores = useMemo(() => {
+    if (hiddenCartItemIds.length === 0) return cart.stores;
+    const hidden = new Set(hiddenCartItemIds);
+    return cart.stores
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((item) => !hidden.has(item.id)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [cart.stores, hiddenCartItemIds]);
+
   const allItemIds = useMemo(
-    () => cart.stores.flatMap((g) => g.items.map((item) => item.id)),
-    [cart.stores],
+    () => visibleCartStores.flatMap((g) => g.items.map((item) => item.id)),
+    [visibleCartStores],
   );
 
   const selectedIds = useMemo(() => {
@@ -90,8 +104,8 @@ export function CartPage() {
     totalItems: selectedTotalQty,
     subtotal: selectedSubtotal,
   } = useMemo(
-    () => filterStoresByCartItemIds(cart.stores, selectedSet),
-    [cart.stores, selectedSet],
+    () => filterStoresByCartItemIds(visibleCartStores, selectedSet),
+    [visibleCartStores, selectedSet],
   );
 
   const { discount: selectedCouponDiscount } = useMemo(
@@ -134,11 +148,56 @@ export function CartPage() {
     });
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = () => {
     if (selectedIds.length === 0 || deletingSelected) return;
-    setDeletingSelected(true);
-    await removeMultipleFromCart(selectedIds);
-    setDeletingSelected(false);
+    const idsToDelete = [...selectedIds];
+    const count = idsToDelete.length;
+    confirmDelete({
+      title: `Remove ${count} selected item${count === 1 ? '' : 's'}?`,
+      description: `The selected item${count === 1 ? '' : 's'} will be removed from your shopping cart.`,
+      itemLabel: `${count} cart item${count === 1 ? '' : 's'}`,
+      confirmLabel: 'Remove',
+      onOptimisticRemove: () => {
+        setHiddenCartItemIds((prev) =>
+          Array.from(new Set([...prev, ...idsToDelete])),
+        );
+      },
+      onUndo: () => {
+        const idSet = new Set(idsToDelete);
+        setHiddenCartItemIds((prev) => prev.filter((id) => !idSet.has(id)));
+      },
+      onCommit: async () => {
+        setDeletingSelected(true);
+        try {
+          await removeMultipleFromCart(idsToDelete);
+          const idSet = new Set(idsToDelete);
+          setHiddenCartItemIds((prev) => prev.filter((id) => !idSet.has(id)));
+        } finally {
+          setDeletingSelected(false);
+        }
+      },
+    });
+  };
+
+  const handleRemoveSingleItem = (itemId: number, itemName: string) => {
+    confirmDelete({
+      title: 'Remove item from cart?',
+      description: `"${itemName}" will be removed from your shopping cart.`,
+      itemLabel: itemName,
+      confirmLabel: 'Remove',
+      onOptimisticRemove: () => {
+        setHiddenCartItemIds((prev) =>
+          prev.includes(itemId) ? prev : [...prev, itemId],
+        );
+      },
+      onUndo: () => {
+        setHiddenCartItemIds((prev) => prev.filter((id) => id !== itemId));
+      },
+      onCommit: async () => {
+        await removeFromCart(itemId);
+        setHiddenCartItemIds((prev) => prev.filter((id) => id !== itemId));
+      },
+    });
   };
 
   const handleProceedToCheckout = () => {
@@ -178,7 +237,7 @@ export function CartPage() {
     return <CartSkeleton />;
   }
 
-  if (cart.stores.length === 0) {
+  if (visibleCartStores.length === 0) {
     return (
       <div className="kova-container px-4 lg:px-6 pt-5 pb-12 flex flex-col gap-5">
         <p className="text-[12px] text-[#767676]">
@@ -251,7 +310,7 @@ export function CartPage() {
         {/* Left: Items Grouped by Store */}
         <div className="flex flex-col gap-5">
 
-          {cart.stores.map((group) => {
+          {visibleCartStores.map((group) => {
             const storeMeta = stores.find((s) => s.id === group.store.id);
             const isVerified = Boolean(storeMeta?.is_verified);
             const storeItemIds = group.items.map((item) => item.id);
@@ -390,7 +449,12 @@ export function CartPage() {
                           <div className="flex items-center gap-6 text-[12.5px] pt-1">
                             <button
                               type="button"
-                              onClick={() => void removeFromCart(item.id)}
+                              onClick={() =>
+                                handleRemoveSingleItem(
+                                  item.id,
+                                  item.product_name,
+                                )
+                              }
                               className="text-[#e5322d] hover:underline font-medium"
                             >
                               Remove

@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, MessageCircle, ShoppingBag, Trash2 } from 'lucide-react';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { groupNotifications } from '../../components/NotificationModal';
 import { useStore } from '../../context/StoreContext';
+import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { formatShortDate } from '../../utils/currency';
 import { NotificationsSkeleton } from '../../components/Skeleton';
 
@@ -21,11 +22,60 @@ export function NotificationsPage() {
     orders,
   } = useStore();
   const navigate = useNavigate();
+  const { confirmDelete } = useConfirmDelete();
+  const [hiddenIds, setHiddenIds] = useState<number[]>([]);
+
+  const visibleNotifications = useMemo(() => {
+    if (hiddenIds.length === 0) return notifications;
+    const hidden = new Set(hiddenIds);
+    return notifications.filter((n) => !hidden.has(n.id));
+  }, [notifications, hiddenIds]);
 
   const groupedNotifications = useMemo(
-    () => groupNotifications(notifications),
-    [notifications],
+    () => groupNotifications(visibleNotifications),
+    [visibleNotifications],
   );
+
+  const handleDeleteGroup = (ids: number[], title: string) => {
+    confirmDelete({
+      title: 'Delete notification?',
+      description: `Remove "${title}" from your notifications?`,
+      itemLabel: title,
+      onOptimisticRemove: () => {
+        setHiddenIds((prev) => Array.from(new Set([...prev, ...ids])));
+      },
+      onUndo: () => {
+        const idSet = new Set(ids);
+        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
+      },
+      onCommit: async () => {
+        await deleteNotification(ids);
+        const idSet = new Set(ids);
+        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
+      },
+    });
+  };
+
+  const handleClearAll = () => {
+    const allIds = visibleNotifications.map((n) => n.id);
+    confirmDelete({
+      title: 'Clear all notifications?',
+      description: 'All notifications in your inbox will be deleted.',
+      itemLabel: 'all notifications',
+      confirmLabel: 'Clear all',
+      onOptimisticRemove: () => {
+        setHiddenIds((prev) => Array.from(new Set([...prev, ...allIds])));
+      },
+      onUndo: () => {
+        const idSet = new Set(allIds);
+        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
+      },
+      onCommit: async () => {
+        await clearAllNotifications();
+        setHiddenIds([]);
+      },
+    });
+  };
 
   const hasAny = groupedNotifications.length > 0 || orders.length > 0;
 
@@ -55,10 +105,10 @@ export function NotificationsPage() {
                 Mark all read
               </button>
             )}
-            {notifications.length > 0 && (
+            {visibleNotifications.length > 0 && (
               <button
                 type="button"
-                onClick={() => void clearAllNotifications()}
+                onClick={handleClearAll}
                 className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[13.5px] font-semibold px-5 py-2.5 rounded-full transition-colors"
               >
                 Clear all
@@ -178,8 +228,9 @@ export function NotificationsPage() {
                         <button
                           type="button"
                           onClick={() =>
-                            void deleteNotification(
+                            handleDeleteGroup(
                               group.items.map((item) => item.id),
+                              group.title,
                             )
                           }
                           className="inline-flex items-center gap-1 bg-white hover:bg-[#fff0f0] border border-[#ececec] text-[#767676] hover:text-[#e5322d] text-[12px] font-semibold px-3 py-1.5 rounded-full transition-colors"

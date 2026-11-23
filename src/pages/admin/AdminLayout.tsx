@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { LogOut, Moon, Sun } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useDashboardTheme } from '../../utils/useDashboardTheme';
 import { adminApi } from '../../services/dashboardApi';
 import { FigmaIcon, type FigmaIconName } from '../../components/FigmaIcon';
 import { KovaLogo } from '../../components/KovaLogo';
@@ -48,6 +50,9 @@ function getAdminBreadcrumbs(pathname: string): string[] {
   if (pathname.startsWith('/admin/settings')) {
     return ['Kova Global', 'Settings', 'Platform Config'];
   }
+  if (pathname.startsWith('/admin/account')) {
+    return ['Kova Global', 'Account Settings'];
+  }
   if (pathname.startsWith('/admin/audit-logs')) {
     return ['Kova Global', 'Settings', 'Audit Logs'];
   }
@@ -69,6 +74,7 @@ export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickQuery, setQuickQuery] = useState('');
   const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const { isDark, toggleTheme } = useDashboardTheme('admin');
   const [pendingAppsCount, setPendingAppsCount] = useState(0);
   const [openDisputesCount, setOpenDisputesCount] = useState(0);
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
@@ -252,6 +258,11 @@ export function AdminLayout() {
           icon: 'sliders',
         },
         {
+          label: 'Account Settings',
+          to: '/admin/account',
+          icon: 'lock',
+        },
+        {
           label: 'Audit Logs',
           to: '/admin/audit-logs',
           icon: 'shield',
@@ -340,30 +351,14 @@ export function AdminLayout() {
         </div>
 
         <div className="pt-3">
-          <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] px-3.5 py-3 flex flex-col gap-1">
-            <p className="text-[11.5px] font-bold text-black">
-              Production · Kova KH
-            </p>
-            <p className="text-[10.5px] font-medium text-[#029500]">
-              All marketplace services operational
-            </p>
-            <div className="flex items-center justify-between pt-2 mt-1 border-t border-[#ececec]">
-              <Link
-                to="/"
-                state={{ allowStorefront: true }}
-                className="text-[11px] font-semibold text-[#ff6e20] hover:underline"
-              >
-                Marketplace
-              </Link>
-              <button
-                type="button"
-                onClick={() => void signOut().then(() => navigate('/login'))}
-                className="text-[11px] font-medium text-[#767676] hover:text-[#e5322d]"
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => void signOut().then(() => navigate('/login'))}
+            className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            <span>Log out</span>
+          </button>
         </div>
       </aside>
 
@@ -424,6 +419,20 @@ export function AdminLayout() {
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
+              onClick={toggleTheme}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-black w-9 h-9 rounded-full transition-colors cursor-pointer"
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-[#ff6e20]" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setNotifModalOpen(true)}
               aria-label="Notifications"
               className="relative inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] text-black h-9 px-2.5 rounded-full gap-1.5 transition-colors"
@@ -437,7 +446,7 @@ export function AdminLayout() {
             </button>
 
             <Link
-              to="/account/profile"
+              to="/admin/account"
               className="hidden sm:flex items-center gap-2 bg-[#f7f7f7] hover:bg-[#f0f0f0] border border-[#ececec] rounded-full pl-1.5 pr-3.5 py-1 transition-colors"
             >
               {user.avatar ? (

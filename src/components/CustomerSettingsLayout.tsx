@@ -1,8 +1,14 @@
 import { useState } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { MessageCircle } from 'lucide-react';
+import {
+  Link,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
+import { LogOut, MessageCircle } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { formatShortDate } from '../utils/currency';
+import { getUserDashboardPath } from '../utils/authRedirect';
 import { FigmaIcon, type FigmaIconName } from './FigmaIcon';
 import { KovaLogo } from './KovaLogo';
 import { NotificationModal } from './NotificationModal';
@@ -100,6 +106,14 @@ export function CustomerSettingsLayout() {
         </div>
       </div>
     );
+  }
+
+  const dashboardPath = getUserDashboardPath(user);
+  if (dashboardPath === '/admin') {
+    return <Navigate to="/admin/account" replace />;
+  }
+  if (dashboardPath === '/seller') {
+    return <Navigate to="/seller/settings" replace />;
   }
 
   const initials = user.name
@@ -295,48 +309,15 @@ export function CustomerSettingsLayout() {
           </nav>
         </div>
 
-        <div className="pt-3 flex flex-col gap-2">
-          <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[12px] px-3 py-2.5 flex flex-col gap-1">
-            <p className="text-[11.5px] font-semibold text-black">
-              Kova Customer Account
-            </p>
-            <p className="text-[10.5px] text-[#767676]">
-              Joined {formatShortDate(user.created_at)}
-            </p>
-            {(user.roles?.includes('admin') ||
-              user.roles?.includes('root_admin')) && (
-              <Link
-                to="/admin"
-                className="mt-1 text-center bg-black text-white text-[11px] font-semibold py-1.5 rounded-full"
-              >
-                Root Admin Dashboard
-              </Link>
-            )}
-            {(user.roles?.includes('store_owner') || user.store) && (
-              <Link
-                to="/seller"
-                className="mt-1 text-center bg-[#ffefe6] text-[#ff6e20] text-[11px] font-semibold py-1.5 rounded-full"
-              >
-                Seller Center
-              </Link>
-            )}
-            <div className="flex items-center justify-between pt-1">
-              <Link
-                to="/"
-                state={{ allowStorefront: true }}
-                className="text-[11px] font-semibold text-[#ff6e20] hover:underline"
-              >
-                Back to marketplace
-              </Link>
-              <button
-                type="button"
-                onClick={() => void signOut().then(() => navigate('/login'))}
-                className="text-[11px] font-medium text-[#767676] hover:text-[#e5322d]"
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
+        <div className="pt-3">
+          <button
+            type="button"
+            onClick={() => void signOut().then(() => navigate('/login'))}
+            className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            <span>Log out</span>
+          </button>
         </div>
       </aside>
 

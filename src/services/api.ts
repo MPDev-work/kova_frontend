@@ -808,8 +808,54 @@ export const customerApi = {
     });
   },
 
-  async deleteAccount() {
-    return apiRequest<null>('/users/delete-account', { method: 'DELETE' });
+  async sendContactChangeCode(channel: 'email' | 'phone', value: string) {
+    return apiRequest<{
+      channel: 'email' | 'phone';
+      target: string;
+      expires_in_seconds: number;
+    }>('/users/contact/change/send', {
+      method: 'POST',
+      body: JSON.stringify({ channel, value: value.trim() }),
+    });
+  },
+
+  async confirmContactChangeCode(channel: 'email' | 'phone', code: string) {
+    return apiRequest<UserProfile>('/users/contact/change/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ channel, code: code.trim() }),
+    });
+  },
+
+  async sendSecurityActionCode(
+    action: 'deactivate' | 'delete',
+    channel: 'email' | 'phone',
+  ) {
+    return apiRequest<{
+      action: 'deactivate' | 'delete';
+      channel: 'email' | 'phone';
+      target: string;
+      expires_in_seconds: number;
+    }>('/users/security/action-code', {
+      method: 'POST',
+      body: JSON.stringify({ action, channel }),
+    });
+  },
+
+  async deactivateAccount(code: string) {
+    return apiRequest<null>('/users/deactivate', {
+      method: 'POST',
+      body: JSON.stringify({ code: code.trim() }),
+    });
+  },
+
+  async deleteAccount(code: string) {
+    return apiRequest<{
+      deletion_scheduled_at: string;
+      grace_period_days: number;
+    }>('/users/delete-account', {
+      method: 'DELETE',
+      body: JSON.stringify({ code: code.trim() }),
+    });
   },
 
   async getAddresses() {

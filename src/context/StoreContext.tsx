@@ -123,7 +123,8 @@ interface StoreContextValue {
     password: string;
     password_confirmation: string;
   }) => Promise<void>;
-  deleteAccount: () => Promise<void>;
+  deactivateAccount: (code: string) => Promise<void>;
+  deleteAccount: (code: string) => Promise<void>;
 
   // Cart & Coupons
   cart: CartSummary;
@@ -729,11 +730,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       challenge_token: challengeToken,
       code,
     });
-    await afterAuthSuccess(
-      res.data.user,
-      res.data.token,
-      `Welcome back, ${res.data.user.name}`,
-    );
+    const welcomeMsg =
+      res.message && res.message !== 'Login successful.'
+        ? res.message
+        : `Welcome back, ${res.data.user.name}`;
+    await afterAuthSuccess(res.data.user, res.data.token, welcomeMsg);
     return res.data.user;
   };
 
@@ -849,15 +850,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showToast('Password updated.');
   };
 
-  const deleteAccount = async () => {
-    await customerApi.deleteAccount();
+  const deactivateAccount = async (code: string) => {
+    const res = await customerApi.deactivateAccount(code);
     setAuthToken(null);
     setUser(null);
     setCart(EMPTY_CART);
     setWishlist([]);
     setOrders([]);
     setAddresses([]);
-    showToast('Your account has been deleted.');
+    setReviews([]);
+    setTickets([]);
+    setAppliedCoupon(null);
+    showToast(
+      res.message ||
+        'Your account has been deactivated. Sign back in anytime to reactivate.',
+    );
+  };
+
+  const deleteAccount = async (code: string) => {
+    const res = await customerApi.deleteAccount(code);
+    setAuthToken(null);
+    setUser(null);
+    setCart(EMPTY_CART);
+    setWishlist([]);
+    setOrders([]);
+    setAddresses([]);
+    setReviews([]);
+    setTickets([]);
+    setAppliedCoupon(null);
+    showToast(
+      res.message ||
+        'Your account is scheduled for permanent deletion in 30 days. Sign back in within 30 days to cancel.',
+    );
   };
 
   const addToCart = async (
@@ -1216,6 +1240,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updateProfile,
         uploadAvatar,
         changePassword,
+        deactivateAccount,
         deleteAccount,
         cart,
         cartCount: cart.total_items,

@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, ExternalLink, Package, ShoppingBag, X } from 'lucide-react';
+import {
+  ArrowUpRight,
+  ExternalLink,
+  Package,
+  ShoppingBag,
+  X,
+} from 'lucide-react';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import type { ChatContextCard, ChatMessageMetadata } from '../types/marketplace';
+import type {
+  ChatContextCard,
+  ChatMessageMetadata,
+} from '../types/marketplace';
 
 function getCardDestination(
   card: ChatContextCard,

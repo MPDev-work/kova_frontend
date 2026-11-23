@@ -10,6 +10,7 @@ import {
   useParams,
 } from 'react-router-dom';
 import { StoreProvider, useStore } from './context/StoreContext';
+import { ConfirmDeleteProvider } from './context/ConfirmDeleteContext';
 import { getUserDashboardPath } from './utils/authRedirect';
 import { Layout } from './components/Layout';
 import { CustomerSettingsLayout } from './components/CustomerSettingsLayout';
@@ -86,6 +87,7 @@ import {
 import { SellerReviewsPage } from './pages/seller/SellerReviewsPage';
 import { SellerAccountSettingsPage } from './pages/seller/SellerAccountSettingsPage';
 import { SellerStorePreviewPage } from './pages/seller/SellerStorePreviewPage';
+import { DashboardAccountSettingsPage } from './components/DashboardAccountSettingsPage';
 import { TicketInboxPanel } from './components/TicketInboxPanel';
 
 function LegacyOrderRedirect({ suffix = '' }: { suffix?: string }) {
@@ -102,6 +104,11 @@ function RoleNavigationGate() {
     if (!isSignedIn || !user) return;
     const dashboardPath = getUserDashboardPath(user);
     const path = location.pathname;
+
+    // Allow password reset links even if a session is still active
+    if (path === '/reset-password') {
+      return;
+    }
 
     // Redirect authenticated users away from auth screens to their workspace
     if (path === '/login' || path === '/register') {
@@ -124,15 +131,15 @@ function RoleNavigationGate() {
       return;
     }
 
-    // Automatically route Root Admin from root landing page to their dashboard
-    // unless they explicitly clicked the "Marketplace" storefront link.
-    if (path === '/' && dashboardPath === '/admin') {
-      const state = location.state as { allowStorefront?: boolean } | null;
-      const allowBrowse =
-        Boolean(state?.allowStorefront) ||
-        new URLSearchParams(location.search).has('browse');
-      if (!allowBrowse) {
-        navigate(dashboardPath, { replace: true });
+    // Strict isolation for Root Admin accounts: keep them exclusively
+    // inside the Admin Dashboard (/admin/*) — never customer profile or storefront.
+    if (dashboardPath === '/admin' && !path.startsWith('/admin')) {
+      if (path.startsWith('/account')) {
+        navigate('/admin/account', { replace: true });
+      } else if (path.startsWith('/help/tickets')) {
+        navigate('/admin/tickets', { replace: true });
+      } else {
+        navigate('/admin', { replace: true });
       }
     }
   }, [
@@ -170,8 +177,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <StoreProvider>
-        <RoleNavigationGate />
-        <Routes>
+        <ConfirmDeleteProvider>
+          <RoleNavigationGate />
+          <Routes>
           {/* Storefront Shell */}
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
@@ -262,6 +270,10 @@ export default function App() {
             <Route path="tickets" element={<TicketInboxPanel mode="admin" />} />
             <Route path="disputes" element={<AdminDisputesPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
+            <Route
+              path="account"
+              element={<DashboardAccountSettingsPage workspace="admin" />}
+            />
             <Route path="audit-logs" element={<AdminAuditLogsPage />} />
           </Route>
 
@@ -313,6 +325,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <GlobalToast />
+        </ConfirmDeleteProvider>
       </StoreProvider>
     </BrowserRouter>
   );

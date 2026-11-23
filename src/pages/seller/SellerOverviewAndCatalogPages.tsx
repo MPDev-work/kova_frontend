@@ -6,12 +6,12 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { useStore } from '../../context/StoreContext';
+import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError } from '../../services/api';
 import {
   storeOwnerApi,
   type InventoryMovementItem,
   type SellerDashboardData,
-  type SellerOrderItem,
   type SellerProductItem,
 } from '../../services/dashboardApi';
 import { formatRiel, formatShortDate } from '../../utils/currency';
@@ -35,7 +35,32 @@ import {
   DashboardTableSkeleton,
 } from '../../components/Skeleton';
 
-type SellerRange = 'today' | '7d' | '30d' | 'all';
+type SellerRange = 'today' | '7d' | '30d' | 'all' | 'custom';
+
+function toLocalIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getDefaultCustomRange(): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 13);
+  return { start: toLocalIsoDate(start), end: toLocalIsoDate(end) };
+}
+
+function formatCompactRangeLabel(startIso: string, endIso: string): string {
+  if (!startIso || !endIso) return 'Custom';
+  const fmt = (iso: string) => {
+    const dt = new Date(`${iso}T00:00:00`);
+    return Number.isNaN(dt.getTime())
+      ? iso
+      : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  return startIso === endIso ? fmt(startIso) : `${fmt(startIso)} – ${fmt(endIso)}`;
+}
 
 function getTimeGreeting(): string {
   const h = new Date().getHours();
@@ -44,154 +69,134 @@ function getTimeGreeting(): string {
   return 'Good evening';
 }
 
-function buildSellerTrendPoints(
-  orders: SellerOrderItem[],
-  range: SellerRange,
-  grossFallback: number,
-  netFallback: number,
-): TrendSeriesPoint[] {
-  const now = new Date();
-  const bucketCount = range === 'today' ? 6 : range === '7d' ? 7 : 7;
-  const daysSpan =
-    range === 'today' ? 1 : range === '7d' ? 7 : range === '30d' ? 30 : 90;
-  const stepMs = (daysSpan * 24 * 60 * 60 * 1000) / bucketCount;
-  const startMs = now.getTime() - daysSpan * 24 * 60 * 60 * 1000;
-
-  const netRatio =
-    grossFallback > 0 ? Math.min(netFallback / grossFallback, 1) : 0.95;
-
-  const buckets = Array.from({ length: bucketCount }, (_, i) => {
-    const endDate = new Date(startMs + stepMs * (i + 1));
-    const label =
-      range === 'today'
-        ? endDate.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
-        : endDate.toLocaleDateString('en-US', {
-            day: '2-digit',
-            month: 'short',
-          });
-    return {
-      label,
-      start: startMs + stepMs * i,
-      end: startMs + stepMs * (i + 1),
-      primary: 0,
-      secondary: 0,
-    };
-  });
-
-  const validOrders = orders.filter((o) => o.status !== 'cancelled');
-  let cumGross = 0;
-  let cumNet = 0;
-
-  if (validOrders.length > 0) {
-    for (const b of buckets) {
-      for (const ord of validOrders) {
-        const ts = new Date(ord.created_at).getTime();
-        if (ts >= b.start && ts <= b.end) {
-          const amt = Number(ord.total_amount) || 0;
-          cumGross += amt;
-          cumNet += amt * netRatio;
-        }
-      }
-      b.primary = Number(cumGross.toFixed(2));
-      b.secondary = Number(cumNet.toFixed(2));
-    }
-  } else if (grossFallback > 0) {
-    buckets[buckets.length - 1].primary = Number(grossFallback.toFixed(2));
-    buckets[buckets.length - 1].secondary = Number(netFallback.toFixed(2));
-  }
-
-  return buckets.map(({ label, primary, secondary }) => ({
-    label,
-    primary,
-    secondary,
-  }));
-}
-
 // ==========================================
 // 1. Seller Overview Dashboard (/seller) — Figma Seller · 01
 // ==========================================
 export function SellerOverviewPage() {
   const { user, khrRate, showToast } = useStore();
+  const defaultCustom = useMemo(() => getDefaultCustomRange(), []);
   const [range, setRange] = useState<SellerRange>('30d');
+  const [customStart, setCustomStart] = useState(defaultCustom.start);
+  const [customEnd, setCustomEnd] = useState(defaultCustom.end);
+  const [appliedCustom, setAppliedCustom] = useState(defaultCustom);
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [data, setData] = useState<SellerDashboardData | null>(null);
-  const [allOrders, setAllOrders] = useState<SellerOrderItem[]>([]);
   const [products, setProducts] = useState<SellerProductItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = useCallback(async () => {
+  // Load catalog products once for low-stock list & product thumbnails
+  useEffect(() => {
+    let active = true;
+    storeOwnerApi
+      .getProducts({ per_page: 100 })
+      .then((res) => {
+        if (active) setProducts(res.data);
+      })
+      .catch(() => {
+        /* non-blocking */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const loadDashboard = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const [dash, ordersRes, productsRes] = await Promise.all([
-        storeOwnerApi.getDashboard(),
-        storeOwnerApi.getOrders({ page: 1 }),
-        storeOwnerApi.getProducts({ per_page: 100 }),
-      ]);
+      const params =
+        range === 'custom'
+          ? {
+              range: 'custom' as const,
+              start_date: appliedCustom.start,
+              end_date: appliedCustom.end,
+            }
+          : { range };
+      const dash = await storeOwnerApi.getDashboard(params);
       setData(dash);
-      setAllOrders(ordersRes.data);
-      setProducts(productsRes.data);
     } catch (err) {
       showToast(
         err instanceof ApiError ? err.message : 'Unable to load store metrics.',
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [showToast]);
+  }, [range, appliedCustom.start, appliedCustom.end, showToast]);
 
   useEffect(() => {
     let active = true;
     Promise.resolve().then(() => {
-      if (active) void loadData();
+      if (active) void loadDashboard();
     });
     return () => {
       active = false;
     };
-  }, [loadData]);
+  }, [loadDashboard]);
 
-  const trendPoints = useMemo(() => {
-    if (!data) return [];
-    return buildSellerTrendPoints(
-      allOrders,
-      range,
-      data.financials.gross_sales,
-      data.financials.net_earnings,
-    );
-  }, [allOrders, range, data]);
+  const handleSelectPreset = (next: Exclude<SellerRange, 'custom'>) => {
+    setRange(next);
+    setShowCustomPicker(false);
+  };
+
+  const handleToggleCustom = () => {
+    if (range === 'custom') {
+      setShowCustomPicker((prev) => !prev);
+      return;
+    }
+    setCustomStart(appliedCustom.start);
+    setCustomEnd(appliedCustom.end);
+    setShowCustomPicker(true);
+  };
+
+  const handleApplyCustom = () => {
+    if (!customStart || !customEnd) {
+      showToast('Please select both a start date and an end date.');
+      return;
+    }
+    if (customEnd < customStart) {
+      showToast('End date must be on or after the start date.');
+      return;
+    }
+    setAppliedCustom({ start: customStart, end: customEnd });
+    setRange('custom');
+    setShowCustomPicker(false);
+  };
+
+  const trendPoints: TrendSeriesPoint[] = useMemo(() => {
+    if (!data?.trend || data.trend.length === 0) return [];
+    return data.trend.map((pt) => ({
+      label: pt.label,
+      primary: Number(pt.primary) || 0,
+      secondary: Number(pt.secondary) || 0,
+    }));
+  }, [data]);
 
   const categoryBreakdown: BreakdownBarItem[] = useMemo(() => {
-    if (products.length === 0) {
+    const rows = data?.category_breakdown ?? [];
+    if (rows.length === 0) {
       return [
         {
-          label: 'Catalog categories',
-          rightText: '0 products',
+          label: 'No category sales in this period',
+          rightText: '0 units',
           percent: 0,
-          color: 'orange',
+          color: 'neutral',
         },
       ];
     }
-    const counts = new Map<string, number>();
-    products.forEach((p) => {
-      const cat = p.category?.name || 'Uncategorized';
-      counts.set(cat, (counts.get(cat) ?? 0) + 1);
-    });
-    const sorted = Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4);
     const colors: BreakdownBarItem['color'][] = [
       'orange',
       'green',
       'orange',
       'neutral',
     ];
-    return sorted.map(([name, count], i) => {
-      const pct = Math.round((count / products.length) * 100);
-      return {
-        label: name,
-        rightText: `${count} SKUs (${pct}%)`,
-        percent: pct,
-        color: colors[i] ?? 'neutral',
-      };
-    });
-  }, [products]);
+    return rows.map((row, i) => ({
+      label: row.category_name,
+      rightText: `${row.units_sold} sold · $${Number(row.revenue).toFixed(2)} (${row.percent}%)`,
+      percent: row.percent,
+      color: colors[i] ?? 'neutral',
+    }));
+  }, [data]);
 
   const lowStockProducts = useMemo(
     () =>
@@ -202,6 +207,7 @@ export function SellerOverviewPage() {
   );
 
   const firstName = user?.name?.split(' ')[0] || 'Seller';
+  const todayIso = toLocalIsoDate(new Date());
 
   if (loading || !data) {
     return (
@@ -219,14 +225,45 @@ export function SellerOverviewPage() {
   const f = data.financials;
   const o = data.orders;
   const inv = data.inventory;
+  const isFiltered = range !== 'all';
+  const activePeriodLabel =
+    data.range?.label ||
+    (range === 'today'
+      ? 'Today'
+      : range === '7d'
+        ? 'Last 7 days'
+        : range === '30d'
+          ? 'Last 30 days'
+          : range === 'custom'
+            ? formatCompactRangeLabel(appliedCustom.start, appliedCustom.end)
+            : 'All time');
+
+  const subtitleSuffix =
+    range === 'today'
+      ? 'today.'
+      : range === '7d'
+        ? 'over the last 7 days.'
+        : range === '30d'
+          ? 'over the last 30 days.'
+          : range === 'custom'
+            ? `for ${activePeriodLabel}.`
+            : 'across all time.';
+
   const avgOrder = o.total > 0 ? f.gross_sales / o.total : 0;
-  const outOfStockCount = products.filter((p) => p.stock_quantity === 0).length;
+  const publishedCount =
+    inv.published_products ??
+    products.filter((p) => p.status === 'published').length;
+  const outOfStockCount =
+    inv.out_of_stock_count ??
+    products.filter((p) => p.stock_quantity === 0).length;
+  const lifetimeWithdrawable =
+    f.lifetime_available_balance ?? f.available_balance;
 
   const kpis: KpiCardItem[] = [
     {
       label: 'Total revenue',
       value: `$${f.gross_sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      sub: `${formatRiel(f.gross_sales, khrRate)} · Gross sales`,
+      sub: `${formatRiel(f.gross_sales, khrRate)} · ${activePeriodLabel}`,
       badge: 'Gross',
       tone: 'green',
     },
@@ -252,23 +289,29 @@ export function SellerOverviewPage() {
       tone: 'green',
     },
     {
-      label: 'Available balance',
+      label: isFiltered ? 'Period net balance' : 'Available balance',
       value: `$${f.available_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      sub: `$${f.pending_payouts.toFixed(2)} pending withdrawal`,
-      badge: 'Withdrawable',
+      sub: isFiltered
+        ? `$${lifetimeWithdrawable.toFixed(2)} total withdrawable`
+        : `$${f.pending_payouts.toFixed(2)} pending withdrawal`,
+      badge: isFiltered ? activePeriodLabel : 'Withdrawable',
       tone: 'orange',
     },
     {
-      label: 'Catalog SKUs',
-      value: String(inv.total_products),
-      sub: `${products.filter((p) => p.status === 'published').length} published listings`,
-      badge: 'Active',
+      label: isFiltered ? 'New catalog SKUs' : 'Catalog SKUs',
+      value: String(isFiltered ? (inv.new_products ?? 0) : inv.total_products),
+      sub: isFiltered
+        ? `${inv.total_products} total · ${publishedCount} published`
+        : `${publishedCount} published listings`,
+      badge: isFiltered ? 'Added' : 'Active',
       tone: 'green',
     },
     {
       label: 'Paid payouts',
       value: `$${f.paid_payouts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      sub: 'Settled to bank / Bakong',
+      sub: isFiltered
+        ? `Settled in ${activePeriodLabel.toLowerCase()}`
+        : 'Settled to bank / Bakong',
       badge: 'Settled',
       tone: 'green',
     },
@@ -282,28 +325,28 @@ export function SellerOverviewPage() {
     },
   ];
 
-  const recentOrders = allOrders.slice(0, 5);
+  const recentOrders = data.recent_orders ?? [];
 
   return (
     <div className="flex flex-col gap-5">
       <DashboardPageHeader
         title={`${getTimeGreeting()}, ${firstName}`}
-        subtitle={`Here is how ${user?.store?.name || 'your store'} is performing across Cambodia today.`}
+        subtitle={`Here is how ${user?.store?.name || 'your store'} is performing across Cambodia ${subtitleSuffix}`}
         actions={
           <>
-            <div className="inline-flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {(
                 [
                   { id: 'today', label: 'Today' },
                   { id: '7d', label: 'Last 7 days' },
                   { id: '30d', label: 'Last 30 days' },
                   { id: 'all', label: 'All time' },
-                ] as { id: SellerRange; label: string }[]
+                ] as { id: Exclude<SellerRange, 'custom'>; label: string }[]
               ).map((t) => (
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setRange(t.id)}
+                  onClick={() => handleSelectPreset(t.id)}
                   className={`px-3.5 py-[7px] rounded-full text-[12px] font-semibold transition-colors ${
                     range === t.id
                       ? 'bg-[#ff6e20] text-white border border-[#ff6e20]'
@@ -313,6 +356,36 @@ export function SellerOverviewPage() {
                   {t.label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={handleToggleCustom}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-full text-[12px] font-semibold transition-colors ${
+                  range === 'custom' || showCustomPicker
+                    ? 'bg-[#ff6e20] text-white border border-[#ff6e20]'
+                    : 'bg-white border border-[#ececec] text-[#555555] hover:border-[#cccccc] hover:text-black'
+                }`}
+              >
+                <svg
+                  className="w-3.5 h-3.5 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                {range === 'custom'
+                  ? formatCompactRangeLabel(
+                      appliedCustom.start,
+                      appliedCustom.end,
+                    )
+                  : 'Custom'}
+              </button>
             </div>
             <Link
               to="/seller/products/new"
@@ -324,223 +397,277 @@ export function SellerOverviewPage() {
         }
       />
 
-      {/* 8 KPI Cards (Exact Figma Seller · 01) */}
-      <KpiGrid items={kpis} />
-
-      {/* Middle 2:1 Chart + Order Stats Row (Exact Figma Seller · 01) */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4">
-        <TrendAreaChart
-          title="Revenue & sales performance"
-          subtitle="Gross order revenue vs net seller earnings (USD)"
-          badge="Live ledger"
-          badgeTone="green"
-          primaryLabel="Gross sales"
-          secondaryLabel="Net earnings"
-          secondaryDashed
-          points={trendPoints}
-          emptyHint="Revenue curves populate automatically as orders are placed in your store."
-        />
-
-        <ProgressBreakdownCard
-          title="Order statistics & categories"
-          subtitle={`${o.total} orders · ${inv.total_products} listed products`}
-          items={categoryBreakdown}
-          footerPills={[
-            { label: `${o.completed} Completed`, tone: 'green' },
-            { label: `${o.pending} Pending`, tone: 'orange' },
-            { label: `${o.processing} Processing`, tone: 'neutral' },
-          ]}
-        />
-      </div>
-
-      {/* Bottom 2:1 Orders + Top Products & Low Stock Row (Exact Figma Seller · 01) */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4 items-start">
-        <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-[15.5px] font-bold text-black">
-                Recent orders
-              </h2>
-              <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                Latest incoming customer orders
-              </p>
-            </div>
-            <Link
-              to="/seller/orders"
-              className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
-            >
-              View all orders
-            </Link>
+      {showCustomPicker && (
+        <div className="bg-white border border-[#ececec] rounded-[18px] px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[12.5px] font-semibold text-black">
+              Custom date range
+            </span>
+            <label className="inline-flex items-center gap-2 text-[12px] text-[#767676]">
+              <span>From</span>
+              <input
+                type="date"
+                value={customStart}
+                max={customEnd || todayIso}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="h-[38px] rounded-full px-3.5 bg-[#f7f7f7] border border-[#e5e5e5] text-[12.5px] text-black focus:outline-none focus:border-[#ff6e20]"
+              />
+            </label>
+            <label className="inline-flex items-center gap-2 text-[12px] text-[#767676]">
+              <span>To</span>
+              <input
+                type="date"
+                value={customEnd}
+                min={customStart || undefined}
+                max={todayIso}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="h-[38px] rounded-full px-3.5 bg-[#f7f7f7] border border-[#e5e5e5] text-[12.5px] text-black focus:outline-none focus:border-[#ff6e20]"
+              />
+            </label>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCustomPicker(false)}
+              className="px-3.5 py-1.5 rounded-full text-[12px] font-semibold bg-white border border-[#ececec] text-[#555555] hover:border-[#cccccc] hover:text-black transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyCustom}
+              className="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-[#ff6e20] hover:bg-[#e85d12] text-white transition-colors"
+            >
+              Apply range
+            </button>
+          </div>
+        </div>
+      )}
 
-          {recentOrders.length === 0 ? (
-            <div className="py-12 text-center bg-[#f7f7f7] rounded-[14px]">
-              <p className="text-[14px] font-semibold text-black">
-                No incoming orders yet
-              </p>
-              <p className="text-[12.5px] text-[#767676] mt-1">
-                Publish products and connect Bakong KHQR to start receiving
-                orders.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#f7f7f7] text-[11.5px] font-semibold text-[#767676]">
-                    <th className="py-2.5 px-3.5 rounded-l-[10px]">Order</th>
-                    <th className="py-2.5 px-3.5">Customer</th>
-                    <th className="py-2.5 px-3.5">Total</th>
-                    <th className="py-2.5 px-3.5">Payment</th>
-                    <th className="py-2.5 px-3.5 rounded-r-[10px]">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#f1f1f1] text-[13px]">
-                  {recentOrders.map((ord) => (
-                    <tr
-                      key={ord.id}
-                      className="hover:bg-[#fafafa] transition-colors"
-                    >
-                      <td className="py-3.5 px-3.5">
-                        <p className="font-semibold text-black">
-                          #{ord.order_number}
-                        </p>
-                        <p className="text-[11px] text-[#8a8a8a]">
-                          {formatShortDate(ord.created_at)}
-                        </p>
-                      </td>
-                      <td className="py-3.5 px-3.5 font-medium text-black">
-                        {ord.customer_name}
-                      </td>
-                      <td className="py-3.5 px-3.5">
-                        <p className="font-bold text-[#ff6e20]">
-                          ${Number(ord.total_amount).toFixed(2)}
-                        </p>
-                        <p className="text-[11px] text-[#8a8a8a]">
-                          {formatRiel(Number(ord.total_amount), khrRate)}
-                        </p>
-                      </td>
-                      <td className="py-3.5 px-3.5">
-                        <StatusPill label={ord.payment_status} />
-                      </td>
-                      <td className="py-3.5 px-3.5">
-                        <StatusPill label={ord.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+      {/* 8 KPI Cards (Exact Figma Seller · 01) */}
+      <div
+        className={`flex flex-col gap-5 transition-opacity duration-200 ${
+          refreshing ? 'opacity-65' : 'opacity-100'
+        }`}
+      >
+        <KpiGrid items={kpis} />
 
-        <div className="flex flex-col gap-4">
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
-            <div>
-              <h2 className="text-[15.5px] font-bold text-black">
-                Top-selling products
-              </h2>
-              <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                Highest revenue items
-              </p>
-            </div>
-            {data.top_products.length === 0 ? (
-              <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
-                No product sales recorded yet.
-              </p>
-            ) : (
-              <div className="flex flex-col divide-y divide-[#f1f1f1]">
-                {data.top_products.map((tp) => {
-                  const matched = products.find((p) => p.id === tp.product_id);
-                  return (
-                    <div
-                      key={tp.product_id}
-                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {matched?.primary_image?.image_url ? (
-                          <img
-                            src={matched.primary_image.image_url}
-                            alt={tp.product_name}
-                            className="w-10 h-10 rounded-[10px] object-cover border border-[#ececec] shrink-0"
-                          />
-                        ) : (
-                          <span className="w-10 h-10 rounded-[10px] bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0">
-                            <FigmaIcon
-                              name="package"
-                              className="w-4 h-4 text-[#979797]"
-                            />
-                          </span>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-semibold text-black truncate">
-                            {tp.product_name}
-                          </p>
-                          <p className="text-[11px] text-[#8a8a8a]">
-                            {tp.total_sold} sold
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-[13px] font-bold text-[#ff6e20] shrink-0">
-                        ${Number(tp.revenue).toFixed(2)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+        {/* Middle 2:1 Chart + Order Stats Row (Exact Figma Seller · 01) */}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4">
+          <TrendAreaChart
+            title="Revenue & sales performance"
+            subtitle={`Gross order revenue vs net seller earnings (${activePeriodLabel})`}
+            badge={refreshing ? 'Updating...' : activePeriodLabel}
+            badgeTone={refreshing ? 'orange' : 'green'}
+            primaryLabel="Gross sales"
+            secondaryLabel="Net earnings"
+            secondaryDashed
+            points={trendPoints}
+            emptyHint={`No settled sales recorded for ${activePeriodLabel.toLowerCase()}.`}
+          />
 
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+          <ProgressBreakdownCard
+            title="Order statistics & categories"
+            subtitle={`${o.total} orders · ${activePeriodLabel}`}
+            items={categoryBreakdown}
+            footerPills={[
+              { label: `${o.completed} Completed`, tone: 'green' },
+              { label: `${o.pending} Pending`, tone: 'orange' },
+              { label: `${o.processing} Processing`, tone: 'neutral' },
+            ]}
+          />
+        </div>
+
+        {/* Bottom 2:1 Orders + Top Products & Low Stock Row (Exact Figma Seller · 01) */}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4 items-start">
+          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
-                  Inventory alerts
+                  Recent orders
                 </h2>
                 <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                  Immediate restock needed
+                  Incoming customer orders · {activePeriodLabel}
                 </p>
               </div>
-              {inv.low_stock_count > 0 && (
-                <StatusPill
-                  label={`${inv.low_stock_count} low stock`}
-                  tone="red"
-                />
-              )}
+              <Link
+                to="/seller/orders"
+                className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
+              >
+                View all orders
+              </Link>
             </div>
-            {lowStockProducts.length === 0 ? (
-              <p className="text-[12.5px] text-[#029500] py-5 text-center bg-[#e7f6e7] rounded-[12px] font-semibold">
-                All SKUs are well-stocked.
-              </p>
+
+            {recentOrders.length === 0 ? (
+              <div className="py-12 text-center bg-[#f7f7f7] rounded-[14px]">
+                <p className="text-[14px] font-semibold text-black">
+                  No orders in {activePeriodLabel.toLowerCase()}
+                </p>
+                <p className="text-[12.5px] text-[#767676] mt-1">
+                  Try widening your date range or switch to All time to inspect
+                  older orders.
+                </p>
+              </div>
             ) : (
-              <div className="flex flex-col divide-y divide-[#f1f1f1]">
-                {lowStockProducts.map((p) => (
-                  <Link
-                    key={p.id}
-                    to="/seller/inventory"
-                    className="flex items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-black truncate">
-                        {p.name}
-                      </p>
-                      <p className="text-[11px] text-[#8a8a8a] font-mono">
-                        {p.sku}
-                      </p>
-                    </div>
-                    <StatusPill
-                      label={
-                        p.stock_quantity === 0
-                          ? 'Out of stock'
-                          : `${p.stock_quantity} left`
-                      }
-                      tone="red"
-                    />
-                  </Link>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#f7f7f7] text-[11.5px] font-semibold text-[#767676]">
+                      <th className="py-2.5 px-3.5 rounded-l-[10px]">Order</th>
+                      <th className="py-2.5 px-3.5">Customer</th>
+                      <th className="py-2.5 px-3.5">Total</th>
+                      <th className="py-2.5 px-3.5">Payment</th>
+                      <th className="py-2.5 px-3.5 rounded-r-[10px]">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f1f1f1] text-[13px]">
+                    {recentOrders.map((ord) => (
+                      <tr
+                        key={ord.id}
+                        className="hover:bg-[#fafafa] transition-colors"
+                      >
+                        <td className="py-3.5 px-3.5">
+                          <p className="font-semibold text-black">
+                            #{ord.order_number}
+                          </p>
+                          <p className="text-[11px] text-[#8a8a8a]">
+                            {formatShortDate(ord.created_at)}
+                          </p>
+                        </td>
+                        <td className="py-3.5 px-3.5 font-medium text-black">
+                          {ord.customer_name}
+                        </td>
+                        <td className="py-3.5 px-3.5">
+                          <p className="font-bold text-[#ff6e20]">
+                            ${Number(ord.total_amount).toFixed(2)}
+                          </p>
+                          <p className="text-[11px] text-[#8a8a8a]">
+                            {formatRiel(Number(ord.total_amount), khrRate)}
+                          </p>
+                        </td>
+                        <td className="py-3.5 px-3.5">
+                          <StatusPill label={ord.payment_status} />
+                        </td>
+                        <td className="py-3.5 px-3.5">
+                          <StatusPill label={ord.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </section>
+
+          <div className="flex flex-col gap-4">
+            <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+              <div>
+                <h2 className="text-[15.5px] font-bold text-black">
+                  Top-selling products
+                </h2>
+                <p className="text-[12px] text-[#8a8a8a] mt-0.5">
+                  Highest revenue items · {activePeriodLabel}
+                </p>
+              </div>
+              {data.top_products.length === 0 ? (
+                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
+                  No product sales recorded for {activePeriodLabel.toLowerCase()}
+                  .
+                </p>
+              ) : (
+                <div className="flex flex-col divide-y divide-[#f1f1f1]">
+                  {data.top_products.map((tp) => {
+                    const matched = products.find((p) => p.id === tp.product_id);
+                    return (
+                      <div
+                        key={tp.product_id}
+                        className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {matched?.primary_image?.image_url ? (
+                            <img
+                              src={matched.primary_image.image_url}
+                              alt={tp.product_name}
+                              className="w-10 h-10 rounded-[10px] object-cover border border-[#ececec] shrink-0"
+                            />
+                          ) : (
+                            <span className="w-10 h-10 rounded-[10px] bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0">
+                              <FigmaIcon
+                                name="package"
+                                className="w-4 h-4 text-[#979797]"
+                              />
+                            </span>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold text-black truncate">
+                              {tp.product_name}
+                            </p>
+                            <p className="text-[11px] text-[#8a8a8a]">
+                              {tp.total_sold} sold
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[13px] font-bold text-[#ff6e20] shrink-0">
+                          ${Number(tp.revenue).toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-[15.5px] font-bold text-black">
+                    Inventory alerts
+                  </h2>
+                  <p className="text-[12px] text-[#8a8a8a] mt-0.5">
+                    Immediate restock needed
+                  </p>
+                </div>
+                {inv.low_stock_count > 0 && (
+                  <StatusPill
+                    label={`${inv.low_stock_count} low stock`}
+                    tone="red"
+                  />
+                )}
+              </div>
+              {lowStockProducts.length === 0 ? (
+                <p className="text-[12.5px] text-[#029500] py-5 text-center bg-[#e7f6e7] rounded-[12px] font-semibold">
+                  All SKUs are well-stocked.
+                </p>
+              ) : (
+                <div className="flex flex-col divide-y divide-[#f1f1f1]">
+                  {lowStockProducts.map((p) => (
+                    <Link
+                      key={p.id}
+                      to="/seller/inventory"
+                      className="flex items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-black truncate">
+                          {p.name}
+                        </p>
+                        <p className="text-[11px] text-[#8a8a8a] font-mono">
+                          {p.sku}
+                        </p>
+                      </div>
+                      <StatusPill
+                        label={
+                          p.stock_quantity === 0
+                            ? 'Out of stock'
+                            : `${p.stock_quantity} left`
+                        }
+                        tone="red"
+                      />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       </div>
     </div>
@@ -560,6 +687,7 @@ type ProductFilterTab =
 export function SellerProductsPage() {
   const [searchParams] = useSearchParams();
   const { khrRate, categories, showToast, refreshCatalog } = useStore();
+  const { confirmDelete } = useConfirmDelete();
 
   const [tab, setTab] = useState<ProductFilterTab>('all');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -670,20 +798,30 @@ export function SellerProductsPage() {
     }
   };
 
-  const handleDelete = async (p: SellerProductItem) => {
-    setDeletingId(p.id);
-    try {
-      await storeOwnerApi.deleteProduct(p.id);
-      showToast(`Deleted "${p.name}".`);
-      setSelectedIds((prev) => prev.filter((id) => id !== p.id));
-      await Promise.all([loadProducts(), refreshCatalog()]);
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to delete product.',
-      );
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDelete = (p: SellerProductItem) => {
+    confirmDelete({
+      title: 'Delete product?',
+      description: `"${p.name}" will be removed from your store catalog.`,
+      itemLabel: p.name,
+      onOptimisticRemove: () => {
+        setProducts((prev) => prev.filter((item) => item.id !== p.id));
+        setSelectedIds((prev) => prev.filter((id) => id !== p.id));
+      },
+      onUndo: () => {
+        void loadProducts();
+      },
+      onCommit: async () => {
+        setDeletingId(p.id);
+        try {
+          await storeOwnerApi.deleteProduct(p.id);
+          showToast(`Deleted "${p.name}".`);
+          setSelectedIds((prev) => prev.filter((id) => id !== p.id));
+          await Promise.all([loadProducts(), refreshCatalog()]);
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   const handleExport = () => {
@@ -1235,12 +1373,6 @@ export function SellerProductFormPage() {
         subtitle="Create a product listing with pricing, product media, inventory, and SEO preview."
         actions={
           <>
-            <Link
-              to="/seller/products"
-              className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
-            >
-              Discard
-            </Link>
             <button
               type="button"
               disabled={saving || uploadingImg}

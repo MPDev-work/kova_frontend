@@ -9,7 +9,6 @@ import {
   type AdminDisputeItem,
   type AdminStoreApplication,
   type AdminStoreItem,
-  type BakongTxItem,
 } from '../../services/dashboardApi';
 import { formatRiel, formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
@@ -33,68 +32,33 @@ import {
 } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 
-type OverviewRange = 'today' | '7d' | '30d' | 'ytd';
+type OverviewRange = 'today' | '7d' | '30d' | 'ytd' | 'all' | 'custom';
 
-function buildAdminTrendPoints(
-  txs: BakongTxItem[],
-  range: OverviewRange,
-  fallbackGmv: number,
-  fallbackCommission: number,
-): TrendSeriesPoint[] {
-  const now = new Date();
-  const bucketCount = range === 'today' ? 6 : range === '7d' ? 7 : range === '30d' ? 8 : 6;
-  const daysSpan = range === 'today' ? 1 : range === '7d' ? 7 : range === '30d' ? 30 : 180;
-  const stepMs = (daysSpan * 24 * 60 * 60 * 1000) / bucketCount;
-  const startMs = now.getTime() - daysSpan * 24 * 60 * 60 * 1000;
+function toLocalIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
-  const buckets = Array.from({ length: bucketCount }, (_, i) => {
-    const endDate = new Date(startMs + stepMs * (i + 1));
-    const label =
-      range === 'today'
-        ? endDate.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
-        : range === 'ytd'
-          ? endDate.toLocaleDateString('en-US', { month: 'short' })
-          : endDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
-    return {
-      label,
-      start: startMs + stepMs * i,
-      end: startMs + stepMs * (i + 1),
-      primary: 0,
-      secondary: 0,
-    };
-  });
+function getDefaultAdminCustomRange(): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 13);
+  return { start: toLocalIsoDate(start), end: toLocalIsoDate(end) };
+}
 
-  const paidTxs = txs.filter((t) => t.payment_status === 'successful');
-  const commRatio =
-    fallbackGmv > 0 ? Math.min(fallbackCommission / fallbackGmv, 0.5) : 0.05;
-
-  let cumulativeGmv = 0;
-  let cumulativeComm = 0;
-
-  if (paidTxs.length > 0) {
-    for (const b of buckets) {
-      for (const tx of paidTxs) {
-        const ts = new Date(tx.created_at).getTime();
-        if (ts >= b.start && ts <= b.end) {
-          const amt = Number(tx.amount) || 0;
-          cumulativeGmv += amt;
-          cumulativeComm += amt * commRatio;
-        }
-      }
-      b.primary = Number(cumulativeGmv.toFixed(2));
-      b.secondary = Number(cumulativeComm.toFixed(2));
-    }
-  } else if (fallbackGmv > 0) {
-    // Live orders exist outside recent KHQR window — plot final point truthfully
-    buckets[buckets.length - 1].primary = Number(fallbackGmv.toFixed(2));
-    buckets[buckets.length - 1].secondary = Number(fallbackCommission.toFixed(2));
-  }
-
-  return buckets.map(({ label, primary, secondary }) => ({
-    label,
-    primary,
-    secondary,
-  }));
+function formatAdminCompactRange(startIso: string, endIso: string): string {
+  if (!startIso || !endIso) return 'Custom';
+  const fmt = (iso: string) => {
+    const dt = new Date(`${iso}T00:00:00`);
+    return Number.isNaN(dt.getTime())
+      ? iso
+      : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  return startIso === endIso
+    ? fmt(startIso)
+    : `${fmt(startIso)} – ${fmt(endIso)}`;
 }
 
 // ==========================================
@@ -102,35 +66,47 @@ function buildAdminTrendPoints(
 // ==========================================
 export function AdminOverviewPage() {
   const { khrRate, showToast, refreshCatalog } = useStore();
+  const defaultCustom = useMemo(() => getDefaultAdminCustomRange(), []);
   const [range, setRange] = useState<OverviewRange>('30d');
+  const [customStart, setCustomStart] = useState(defaultCustom.start);
+  const [customEnd, setCustomEnd] = useState(defaultCustom.end);
+  const [appliedCustom, setAppliedCustom] = useState(defaultCustom);
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [bakong, setBakong] = useState<AdminBakongOverview | null>(null);
-  const [recentTxs, setRecentTxs] = useState<BakongTxItem[]>([]);
   const [pendingApps, setPendingApps] = useState<AdminStoreApplication[]>([]);
   const [openDisputes, setOpenDisputes] = useState<AdminDisputeItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadAuxQueues = useCallback(async () => {
+    const [appsRes, bakongRes, dispRes] = await Promise.allSettled([
+      adminApi.getStoreApplications({ status: 'pending', per_page: 6 }),
+      adminApi.getBakongOverview(),
+      adminApi.getDisputes({ status: 'open', page: 1 }),
+    ]);
+
+    if (appsRes.status === 'fulfilled') setPendingApps(appsRes.value.data);
+    if (bakongRes.status === 'fulfilled') setBakong(bakongRes.value);
+    if (dispRes.status === 'fulfilled') {
+      setOpenDisputes(dispRes.value.data.slice(0, 4));
+    }
+  }, []);
+
+  const loadDashboard = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const [dashRes, appsRes, bakongRes, txRes, dispRes] =
-        await Promise.allSettled([
-          adminApi.getDashboard(),
-          adminApi.getStoreApplications({ status: 'pending', per_page: 6 }),
-          adminApi.getBakongOverview(),
-          adminApi.getBakongTransactions({ page: 1 }),
-          adminApi.getDisputes({ status: 'open', page: 1 }),
-        ]);
-
-      if (dashRes.status === 'fulfilled') setData(dashRes.value);
-      else throw dashRes.reason;
-
-      if (appsRes.status === 'fulfilled') setPendingApps(appsRes.value.data);
-      if (bakongRes.status === 'fulfilled') setBakong(bakongRes.value);
-      if (txRes.status === 'fulfilled') setRecentTxs(txRes.value.data);
-      if (dispRes.status === 'fulfilled') {
-        setOpenDisputes(dispRes.value.data.slice(0, 4));
-      }
+      const params =
+        range === 'custom'
+          ? {
+              range: 'custom' as const,
+              start_date: appliedCustom.start,
+              end_date: appliedCustom.end,
+            }
+          : { range };
+      const dash = await adminApi.getDashboard(params);
+      setData(dash);
     } catch (err) {
       showToast(
         err instanceof ApiError
@@ -139,25 +115,36 @@ export function AdminOverviewPage() {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [showToast]);
+  }, [range, appliedCustom.start, appliedCustom.end, showToast]);
 
   useEffect(() => {
     let active = true;
     Promise.resolve().then(() => {
-      if (active) void loadData();
+      if (active) void loadAuxQueues();
     });
     return () => {
       active = false;
     };
-  }, [loadData]);
+  }, [loadAuxQueues]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) void loadDashboard();
+    });
+    return () => {
+      active = false;
+    };
+  }, [loadDashboard]);
 
   const handleQuickApprove = async (id: number) => {
     setBusyId(id);
     try {
       const res = await adminApi.approveApplication(id);
       showToast(res.message || 'Store application approved.');
-      await Promise.all([loadData(), refreshCatalog()]);
+      await Promise.all([loadDashboard(), loadAuxQueues(), refreshCatalog()]);
     } catch (err) {
       showToast(
         err instanceof ApiError ? err.message : 'Unable to approve store.',
@@ -167,15 +154,45 @@ export function AdminOverviewPage() {
     }
   };
 
-  const trendPoints = useMemo(() => {
-    if (!data) return [];
-    return buildAdminTrendPoints(
-      recentTxs,
-      range,
-      data.metrics.total_gross_revenue,
-      data.metrics.total_platform_commission,
-    );
-  }, [recentTxs, range, data]);
+  const handleSelectPreset = (next: Exclude<OverviewRange, 'custom'>) => {
+    setRange(next);
+    setShowCustomPicker(false);
+  };
+
+  const handleToggleCustom = () => {
+    if (range === 'custom') {
+      setShowCustomPicker((prev) => !prev);
+      return;
+    }
+    setCustomStart(appliedCustom.start);
+    setCustomEnd(appliedCustom.end);
+    setShowCustomPicker(true);
+  };
+
+  const handleApplyCustom = () => {
+    if (!customStart || !customEnd) {
+      showToast('Please select both a start date and an end date.');
+      return;
+    }
+    if (customEnd < customStart) {
+      showToast('End date must be on or after the start date.');
+      return;
+    }
+    setAppliedCustom({ start: customStart, end: customEnd });
+    setRange('custom');
+    setShowCustomPicker(false);
+  };
+
+  const trendPoints: TrendSeriesPoint[] = useMemo(() => {
+    if (!data?.trend || data.trend.length === 0) return [];
+    return data.trend.map((pt) => ({
+      label: pt.label,
+      primary: Number(pt.primary) || 0,
+      secondary: Number(pt.secondary) || 0,
+    }));
+  }, [data]);
+
+  const todayIso = toLocalIsoDate(new Date());
 
   if (loading || !data) {
     return (
@@ -191,6 +208,21 @@ export function AdminOverviewPage() {
   }
 
   const m = data.metrics;
+  const isFiltered = range !== 'all';
+  const activePeriodLabel =
+    data.range?.label ||
+    (range === 'today'
+      ? 'Today'
+      : range === '7d'
+        ? 'Last 7 days'
+        : range === '30d'
+          ? 'Last 30 days'
+          : range === 'ytd'
+            ? 'Year to date'
+            : range === 'custom'
+              ? formatAdminCompactRange(appliedCustom.start, appliedCustom.end)
+              : 'All time');
+
   const avgTakeRate =
     m.total_gross_revenue > 0
       ? ((m.total_platform_commission / m.total_gross_revenue) * 100).toFixed(1)
@@ -201,7 +233,7 @@ export function AdminOverviewPage() {
       label: 'Marketplace GMV',
       value: `$${m.total_gross_revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       sub: `${formatRiel(m.total_gross_revenue, khrRate)} · ${m.total_orders} orders`,
-      badge: 'Live GMV',
+      badge: activePeriodLabel,
       tone: 'green',
     },
     {
@@ -221,14 +253,16 @@ export function AdminOverviewPage() {
     {
       label: 'Total orders',
       value: m.total_orders.toLocaleString('en-US'),
-      sub: 'Across all marketplace stores',
+      sub: `Orders in ${activePeriodLabel.toLowerCase()}`,
       badge: 'Orders',
       tone: 'neutral',
     },
     {
-      label: 'Active stores',
+      label: isFiltered ? 'New stores' : 'Active stores',
       value: String(m.total_stores),
-      sub: `${m.pending_store_applications} pending approval`,
+      sub: isFiltered
+        ? `${m.total_stores_all ?? m.total_stores} total active · ${m.pending_store_applications} pending`
+        : `${m.pending_store_applications} pending approval`,
       badge:
         m.pending_store_applications > 0
           ? `${m.pending_store_applications} pending`
@@ -236,37 +270,52 @@ export function AdminOverviewPage() {
       tone: m.pending_store_applications > 0 ? 'orange' : 'green',
     },
     {
-      label: 'Total customers',
+      label: isFiltered ? 'New customers' : 'Total customers',
       value: m.total_customers.toLocaleString('en-US'),
-      sub: 'Registered buyer accounts',
+      sub: isFiltered
+        ? `${(m.total_customers_all ?? m.total_customers).toLocaleString('en-US')} total buyers`
+        : 'Registered buyer accounts',
       badge: 'Buyers',
       tone: 'green',
     },
     {
-      label: 'Total products',
+      label: isFiltered ? 'New products' : 'Total products',
       value: m.total_products.toLocaleString('en-US'),
-      sub: 'Active marketplace catalog',
+      sub: isFiltered
+        ? `${(m.total_products_all ?? m.total_products).toLocaleString('en-US')} active catalog`
+        : 'Active marketplace catalog',
       badge: 'Catalog',
       tone: 'neutral',
     },
     {
       label: 'Pending queue',
-      value: String(m.pending_store_applications + openDisputes.length),
-      sub: `${m.pending_store_applications} KYC · ${openDisputes.length} disputes`,
+      value: String(
+        (m.pending_store_applications_all ?? m.pending_store_applications) +
+          openDisputes.length,
+      ),
+      sub: `${m.pending_store_applications_all ?? m.pending_store_applications} KYC · ${openDisputes.length} disputes`,
       badge:
-        m.pending_store_applications + openDisputes.length > 0
+        (m.pending_store_applications_all ?? m.pending_store_applications) +
+          openDisputes.length >
+        0
           ? 'Action needed'
           : 'All clear',
       tone:
-        m.pending_store_applications + openDisputes.length > 0 ? 'red' : 'green',
+        (m.pending_store_applications_all ?? m.pending_store_applications) +
+          openDisputes.length >
+        0
+          ? 'red'
+          : 'green',
     },
   ];
 
-  // Real breakdown bars derived from live Bakong & Store metrics
-  const totalTxCount =
-    (bakong?.transactions.successful_count ?? 0) +
-    (bakong?.transactions.pending_count ?? 0) +
-    (bakong?.transactions.failed_count ?? 0);
+  // Real breakdown bars derived from filtered Bakong & Store metrics
+  const succTxCount =
+    m.successful_payments_count ?? bakong?.transactions.successful_count ?? 0;
+  const pendingTxCount = m.pending_payments_count;
+  const failedTxCount =
+    m.failed_payments_count ?? bakong?.transactions.failed_count ?? 0;
+  const totalTxCount = succTxCount + pendingTxCount + failedTxCount;
 
   const totalStoreConnections =
     (bakong?.stores.connected ?? 0) +
@@ -279,8 +328,8 @@ export function AdminOverviewPage() {
   const breakdownItems: BreakdownBarItem[] = [
     {
       label: 'KHQR Paid Payments',
-      rightText: `${pct(bakong?.transactions.successful_count ?? 0, totalTxCount)}% · $${(bakong?.transactions.total_volume ?? m.successful_payments_volume).toFixed(2)}`,
-      percent: pct(bakong?.transactions.successful_count ?? 0, totalTxCount),
+      rightText: `${pct(succTxCount, totalTxCount)}% · $${m.successful_payments_volume.toFixed(2)}`,
+      percent: pct(succTxCount, totalTxCount),
       color: 'orange',
     },
     {
@@ -291,26 +340,23 @@ export function AdminOverviewPage() {
     },
     {
       label: 'Pending KHQR Invoices',
-      rightText: `${pct(bakong?.transactions.pending_count ?? m.pending_payments_count, totalTxCount)}% · ${bakong?.transactions.pending_count ?? m.pending_payments_count} tx`,
-      percent: pct(
-        bakong?.transactions.pending_count ?? m.pending_payments_count,
-        totalTxCount,
-      ),
+      rightText: `${pct(pendingTxCount, totalTxCount)}% · ${pendingTxCount} tx`,
+      percent: pct(pendingTxCount, totalTxCount),
       color: 'neutral',
     },
     {
       label: 'Expired / Failed KHQR',
-      rightText: `${pct(bakong?.transactions.failed_count ?? 0, totalTxCount)}% · ${bakong?.transactions.failed_count ?? 0} tx`,
-      percent: pct(bakong?.transactions.failed_count ?? 0, totalTxCount),
+      rightText: `${pct(failedTxCount, totalTxCount)}% · ${failedTxCount} tx`,
+      percent: pct(failedTxCount, totalTxCount),
       color: 'red',
     },
   ];
 
   const handleExportReport = () => {
     exportRowsToCsv(
-      `kova-platform-overview-${new Date().toISOString().slice(0, 10)}.csv`,
-      ['Metric', 'Value'],
-      kpis.map((k) => [k.label, k.value]),
+      `kova-platform-overview-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Period', 'Metric', 'Value'],
+      kpis.map((k) => [activePeriodLabel, k.label, k.value]),
     );
     showToast('Platform overview CSV exported.');
   };
@@ -319,22 +365,23 @@ export function AdminOverviewPage() {
     <div className="flex flex-col gap-5">
       <DashboardPageHeader
         title="Platform overview"
-        subtitle={`Real-time marketplace command center across ${m.total_stores} stores, ${m.total_customers} customers, and ${m.total_products} products.`}
+        subtitle={`Showing ${activePeriodLabel.toLowerCase()} performance across the store`}
         actions={
           <>
-            <div className="inline-flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {(
                 [
                   { id: 'today', label: 'Today' },
                   { id: '7d', label: '7D' },
                   { id: '30d', label: '30D' },
                   { id: 'ytd', label: 'YTD' },
-                ] as { id: OverviewRange; label: string }[]
+                  { id: 'all', label: 'All time' },
+                ] as { id: Exclude<OverviewRange, 'custom'>; label: string }[]
               ).map((t) => (
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setRange(t.id)}
+                  onClick={() => handleSelectPreset(t.id)}
                   className={`px-3.5 py-[7px] rounded-full text-[12px] font-semibold transition-colors ${
                     range === t.id
                       ? 'bg-[#ff6e20] text-white border border-[#ff6e20]'
@@ -344,6 +391,36 @@ export function AdminOverviewPage() {
                   {t.label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={handleToggleCustom}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-full text-[12px] font-semibold transition-colors ${
+                  range === 'custom' || showCustomPicker
+                    ? 'bg-[#ff6e20] text-white border border-[#ff6e20]'
+                    : 'bg-white border border-[#ececec] text-[#555555] hover:border-[#cccccc] hover:text-black'
+                }`}
+              >
+                <svg
+                  className="w-3.5 h-3.5 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                {range === 'custom'
+                  ? formatAdminCompactRange(
+                      appliedCustom.start,
+                      appliedCustom.end,
+                    )
+                  : 'Custom'}
+              </button>
             </div>
             <button
               type="button"
@@ -356,273 +433,331 @@ export function AdminOverviewPage() {
         }
       />
 
-      {/* 8 KPI Cards (2 rows of 4 — Exact Figma Admin · 01) */}
-      <KpiGrid items={kpis} />
-
-      {/* Middle 2:1 Analytics Row (Exact Figma Admin · 01) */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4">
-        <TrendAreaChart
-          title="Platform GMV & commission revenue"
-          subtitle="Marketplace transaction volume across Cambodia (USD)"
-          badge={bakong ? `ENV: ${bakong.environment}` : 'Live'}
-          badgeTone="green"
-          primaryLabel="GMV"
-          secondaryLabel="Commission"
-          points={trendPoints}
-          emptyHint="Trend lines populate automatically as customer KHQR payments settle."
-        />
-
-        <ProgressBreakdownCard
-          title="Payment & merchant health"
-          subtitle="Live Bakong KHQR & store readiness"
-          items={breakdownItems}
-          footerPills={[
-            {
-              label: `${bakong?.stores.connected ?? 0} Connected`,
-              tone: 'green',
-            },
-            {
-              label: `${m.pending_payments_count} Pending`,
-              tone: 'orange',
-            },
-            {
-              label: `${bakong?.stores.not_configured ?? 0} Unconfigured`,
-              tone: 'neutral',
-            },
-          ]}
-        />
-      </div>
-
-      {/* Bottom 2:1 Operations Row (Exact Figma Admin · 01) */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4 items-start">
-        <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-[15.5px] font-bold text-black">
-                Pending approvals &amp; system alerts
-              </h2>
-              <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                Requires Root Admin review
-              </p>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <StatusPill
-                label={`${pendingApps.length} stores · ${openDisputes.length} disputes`}
-                tone={
-                  pendingApps.length + openDisputes.length > 0
-                    ? 'orange'
-                    : 'green'
-                }
+      {showCustomPicker && (
+        <div className="bg-white border border-[#ececec] rounded-[18px] px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[12.5px] font-semibold text-black">
+              Custom date range
+            </span>
+            <label className="inline-flex items-center gap-2 text-[12px] text-[#767676]">
+              <span>From</span>
+              <input
+                type="date"
+                value={customStart}
+                max={customEnd || todayIso}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="h-[38px] rounded-full px-3.5 bg-[#f7f7f7] border border-[#e5e5e5] text-[12.5px] text-black focus:outline-none focus:border-[#ff6e20]"
               />
-              <Link
-                to="/admin/stores?tab=applications"
-                className="text-[12px] font-semibold text-[#ff6e20] hover:underline"
-              >
-                View all
-              </Link>
-            </div>
+            </label>
+            <label className="inline-flex items-center gap-2 text-[12px] text-[#767676]">
+              <span>To</span>
+              <input
+                type="date"
+                value={customEnd}
+                min={customStart || undefined}
+                max={todayIso}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="h-[38px] rounded-full px-3.5 bg-[#f7f7f7] border border-[#e5e5e5] text-[12.5px] text-black focus:outline-none focus:border-[#ff6e20]"
+              />
+            </label>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCustomPicker(false)}
+              className="px-3.5 py-1.5 rounded-full text-[12px] font-semibold bg-white border border-[#ececec] text-[#555555] hover:border-[#cccccc] hover:text-black transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyCustom}
+              className="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-[#ff6e20] hover:bg-[#e85d12] text-white transition-colors"
+            >
+              Apply range
+            </button>
+          </div>
+        </div>
+      )}
 
-          {pendingApps.length === 0 && openDisputes.length === 0 ? (
-            <div className="py-12 text-center bg-[#f7f7f7] rounded-[14px]">
-              <p className="text-[14px] font-semibold text-black">
-                All queues are clear
-              </p>
-              <p className="text-[12.5px] text-[#767676] mt-1">
-                New store applications and escalated customer disputes will
-                appear here immediately.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#f7f7f7] text-[11.5px] font-semibold text-[#767676]">
-                    <th className="py-2.5 px-3.5 rounded-l-[10px]">
-                      Queue item
-                    </th>
-                    <th className="py-2.5 px-3.5">Owner / Entity</th>
-                    <th className="py-2.5 px-3.5">Submitted</th>
-                    <th className="py-2.5 px-3.5">Type</th>
-                    <th className="py-2.5 px-3.5 rounded-r-[10px] text-right">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#f1f1f1] text-[13px]">
-                  {pendingApps.map((app) => (
-                    <tr
-                      key={`app-${app.id}`}
-                      className="hover:bg-[#fafafa] transition-colors"
-                    >
-                      <td className="py-3.5 px-3.5">
-                        <p className="font-semibold text-black">
-                          {app.store_name}
-                        </p>
-                        <p className="text-[11.5px] text-[#8a8a8a] truncate max-w-[220px]">
-                          {app.store_address || app.email}
-                        </p>
-                      </td>
-                      <td className="py-3.5 px-3.5 text-[#333333] font-medium">
-                        {app.user?.name || app.phone}
-                      </td>
-                      <td className="py-3.5 px-3.5 text-[#767676] whitespace-nowrap">
-                        {formatShortDate(app.created_at)}
-                      </td>
-                      <td className="py-3.5 px-3.5">
-                        <StatusPill label="New store" tone="orange" />
-                      </td>
-                      <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-3">
-                          <button
-                            type="button"
-                            disabled={busyId === app.id}
-                            onClick={() => void handleQuickApprove(app.id)}
-                            className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-50"
-                          >
-                            {busyId === app.id ? 'Approving...' : 'Approve'}
-                          </button>
-                          <Link
-                            to="/admin/stores?tab=applications"
-                            className="text-[12.5px] font-semibold text-[#555555] hover:text-black"
-                          >
-                            Review
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+      {/* 8 KPI Cards (2 rows of 4 — Exact Figma Admin · 01) */}
+      <div
+        className={`flex flex-col gap-5 transition-opacity duration-200 ${
+          refreshing ? 'opacity-65' : 'opacity-100'
+        }`}
+      >
+        <KpiGrid items={kpis} />
 
-                  {openDisputes.map((disp) => (
-                    <tr
-                      key={`disp-${disp.id}`}
-                      className="hover:bg-[#fafafa] transition-colors"
-                    >
-                      <td className="py-3.5 px-3.5">
-                        <p className="font-semibold text-black">
-                          Dispute #{disp.id}
-                          {disp.refund?.amount
-                            ? ` ($${Number(disp.refund.amount).toFixed(2)})`
-                            : ''}
-                        </p>
-                        <p className="text-[11.5px] text-[#8a8a8a] truncate max-w-[220px]">
-                          {disp.reason || 'Refund dispute'}
-                        </p>
-                      </td>
-                      <td className="py-3.5 px-3.5 text-[#333333] font-medium">
-                        {disp.user?.name || 'Customer'} vs{' '}
-                        {disp.store?.name || 'Store'}
-                      </td>
-                      <td className="py-3.5 px-3.5 text-[#767676] whitespace-nowrap">
-                        {formatShortDate(disp.created_at)}
-                      </td>
-                      <td className="py-3.5 px-3.5">
-                        <StatusPill label="Dispute" tone="red" />
-                      </td>
-                      <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
-                        <Link
-                          to="/admin/disputes"
-                          className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
-                        >
-                          Mediate
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+        {/* Middle 2:1 Analytics Row (Exact Figma Admin · 01) */}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4">
+          <TrendAreaChart
+            title="Platform GMV & commission revenue"
+            subtitle={`Marketplace transaction volume across Cambodia (${activePeriodLabel})`}
+            badge={refreshing ? 'Updating...' : activePeriodLabel}
+            badgeTone={refreshing ? 'orange' : 'green'}
+            primaryLabel="GMV"
+            secondaryLabel="Commission"
+            points={trendPoints}
+            emptyHint={`No settled payments recorded for ${activePeriodLabel.toLowerCase()}.`}
+          />
 
-        <div className="flex flex-col gap-4">
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
-            <div>
-              <h2 className="text-[15.5px] font-bold text-black">
-                Top-performing stores
-              </h2>
-              <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                Gross marketplace sales
-              </p>
+          <ProgressBreakdownCard
+            title="Payment & merchant health"
+            subtitle={`KHQR payment status · ${activePeriodLabel}`}
+            items={breakdownItems}
+            footerPills={[
+              {
+                label: `${bakong?.stores.connected ?? 0} Connected`,
+                tone: 'green',
+              },
+              {
+                label: `${m.pending_payments_count} Pending`,
+                tone: 'orange',
+              },
+              {
+                label: `${bakong?.stores.not_configured ?? 0} Unconfigured`,
+                tone: 'neutral',
+              },
+            ]}
+          />
+        </div>
+
+        {/* Bottom 2:1 Operations Row (Exact Figma Admin · 01) */}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4 items-start">
+          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-[15.5px] font-bold text-black">
+                  Pending approvals &amp; system alerts
+                </h2>
+                <p className="text-[12px] text-[#8a8a8a] mt-0.5">
+                  Requires Root Admin review
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <StatusPill
+                  label={`${pendingApps.length} stores · ${openDisputes.length} disputes`}
+                  tone={
+                    pendingApps.length + openDisputes.length > 0
+                      ? 'orange'
+                      : 'green'
+                  }
+                />
+                <Link
+                  to="/admin/stores?tab=applications"
+                  className="text-[12px] font-semibold text-[#ff6e20] hover:underline"
+                >
+                  View all
+                </Link>
+              </div>
             </div>
-            {data.top_stores.length === 0 ? (
-              <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
-                No store sales recorded yet.
-              </p>
+
+            {pendingApps.length === 0 && openDisputes.length === 0 ? (
+              <div className="py-12 text-center bg-[#f7f7f7] rounded-[14px]">
+                <p className="text-[14px] font-semibold text-black">
+                  All queues are clear
+                </p>
+                <p className="text-[12.5px] text-[#767676] mt-1">
+                  New store applications and escalated customer disputes will
+                  appear here immediately.
+                </p>
+              </div>
             ) : (
-              <div className="flex flex-col divide-y divide-[#f1f1f1]">
-                {data.top_stores.map((s) => (
-                  <Link
-                    key={s.id}
-                    to={`/store/${s.slug}`}
-                    className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-85 transition-opacity"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {s.logo ? (
-                        <img
-                          src={s.logo}
-                          alt={s.name}
-                          className="w-9 h-9 rounded-[10px] object-cover border border-[#ececec] shrink-0"
-                        />
-                      ) : (
-                        <span className="w-9 h-9 rounded-[10px] bg-[#ff6e20] text-white text-[12px] font-bold flex items-center justify-center shrink-0">
-                          {s.name.slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#f7f7f7] text-[11.5px] font-semibold text-[#767676]">
+                      <th className="py-2.5 px-3.5 rounded-l-[10px]">
+                        Queue item
+                      </th>
+                      <th className="py-2.5 px-3.5">Owner / Entity</th>
+                      <th className="py-2.5 px-3.5">Submitted</th>
+                      <th className="py-2.5 px-3.5">Type</th>
+                      <th className="py-2.5 px-3.5 rounded-r-[10px] text-right">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f1f1f1] text-[13px]">
+                    {pendingApps.map((app) => (
+                      <tr
+                        key={`app-${app.id}`}
+                        className="hover:bg-[#fafafa] transition-colors"
+                      >
+                        <td className="py-3.5 px-3.5">
+                          <p className="font-semibold text-black">
+                            {app.store_name}
+                          </p>
+                          <p className="text-[11.5px] text-[#8a8a8a] truncate max-w-[220px]">
+                            {app.store_address || app.email}
+                          </p>
+                        </td>
+                        <td className="py-3.5 px-3.5 text-[#333333] font-medium">
+                          {app.user?.name || app.phone}
+                        </td>
+                        <td className="py-3.5 px-3.5 text-[#767676] whitespace-nowrap">
+                          {formatShortDate(app.created_at)}
+                        </td>
+                        <td className="py-3.5 px-3.5">
+                          <StatusPill label="New store" tone="orange" />
+                        </td>
+                        <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center gap-3">
+                            <button
+                              type="button"
+                              disabled={busyId === app.id}
+                              onClick={() => void handleQuickApprove(app.id)}
+                              className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-50"
+                            >
+                              {busyId === app.id ? 'Approving...' : 'Approve'}
+                            </button>
+                            <Link
+                              to="/admin/stores?tab=applications"
+                              className="text-[12.5px] font-semibold text-[#555555] hover:text-black"
+                            >
+                              Review
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {openDisputes.map((disp) => (
+                      <tr
+                        key={`disp-${disp.id}`}
+                        className="hover:bg-[#fafafa] transition-colors"
+                      >
+                        <td className="py-3.5 px-3.5">
+                          <p className="font-semibold text-black">
+                            Dispute #{disp.id}
+                            {disp.refund?.amount
+                              ? ` ($${Number(disp.refund.amount).toFixed(2)})`
+                              : ''}
+                          </p>
+                          <p className="text-[11.5px] text-[#8a8a8a] truncate max-w-[220px]">
+                            {disp.reason || 'Refund dispute'}
+                          </p>
+                        </td>
+                        <td className="py-3.5 px-3.5 text-[#333333] font-medium">
+                          {disp.user?.name || 'Customer'} vs{' '}
+                          {disp.store?.name || 'Store'}
+                        </td>
+                        <td className="py-3.5 px-3.5 text-[#767676] whitespace-nowrap">
+                          {formatShortDate(disp.created_at)}
+                        </td>
+                        <td className="py-3.5 px-3.5">
+                          <StatusPill label="Dispute" tone="red" />
+                        </td>
+                        <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
+                          <Link
+                            to="/admin/disputes"
+                            className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
+                          >
+                            Mediate
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <div className="flex flex-col gap-4">
+            <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+              <div>
+                <h2 className="text-[15.5px] font-bold text-black">
+                  Top-performing stores
+                </h2>
+                <p className="text-[12px] text-[#8a8a8a] mt-0.5">
+                  Gross marketplace sales · {activePeriodLabel}
+                </p>
+              </div>
+              {data.top_stores.length === 0 ? (
+                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
+                  No store sales recorded for {activePeriodLabel.toLowerCase()}.
+                </p>
+              ) : (
+                <div className="flex flex-col divide-y divide-[#f1f1f1]">
+                  {data.top_stores.map((s) => (
+                    <Link
+                      key={s.id}
+                      to={`/admin/stores?search=${encodeURIComponent(s.name)}`}
+                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-85 transition-opacity"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {s.logo ? (
+                          <img
+                            src={s.logo}
+                            alt={s.name}
+                            className="w-9 h-9 rounded-[10px] object-cover border border-[#ececec] shrink-0"
+                          />
+                        ) : (
+                          <span className="w-9 h-9 rounded-[10px] bg-[#ff6e20] text-white text-[12px] font-bold flex items-center justify-center shrink-0">
+                            {s.name.slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-black truncate">
+                            {s.name}
+                          </p>
+                          <p className="text-[11px] text-[#8a8a8a] truncate">
+                            /store/{s.slug}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[13.5px] font-bold text-[#029500] shrink-0">
+                        $
+                        {Number(s.total_sales).toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+              <div>
+                <h2 className="text-[15.5px] font-bold text-black">
+                  Best-selling products
+                </h2>
+                <p className="text-[12px] text-[#8a8a8a] mt-0.5">
+                  Platform-wide unit volume · {activePeriodLabel}
+                </p>
+              </div>
+              {data.best_selling_products.length === 0 ? (
+                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
+                  No product orders recorded for{' '}
+                  {activePeriodLabel.toLowerCase()}.
+                </p>
+              ) : (
+                <div className="flex flex-col divide-y divide-[#f1f1f1]">
+                  {data.best_selling_products.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between gap-2.5 py-2.5 first:pt-0 last:pb-0"
+                    >
                       <div className="min-w-0">
                         <p className="text-[13px] font-semibold text-black truncate">
-                          {s.name}
+                          {p.name}
                         </p>
                         <p className="text-[11px] text-[#8a8a8a] truncate">
-                          /store/{s.slug}
+                          {p.store?.name || p.sku}
                         </p>
                       </div>
+                      <span className="text-[12.5px] font-bold text-[#ff6e20] shrink-0">
+                        {p.units_sold} sold
+                      </span>
                     </div>
-                    <span className="text-[13.5px] font-bold text-[#029500] shrink-0">
-                      ${Number(s.total_sales).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
-            <div>
-              <h2 className="text-[15.5px] font-bold text-black">
-                Best-selling products
-              </h2>
-              <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                Platform-wide unit volume
-              </p>
-            </div>
-            {data.best_selling_products.length === 0 ? (
-              <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
-                No product orders recorded yet.
-              </p>
-            ) : (
-              <div className="flex flex-col divide-y divide-[#f1f1f1]">
-                {data.best_selling_products.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-2.5 py-2.5 first:pt-0 last:pb-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-black truncate">
-                        {p.name}
-                      </p>
-                      <p className="text-[11px] text-[#8a8a8a] truncate">
-                        {p.store?.name || p.sku}
-                      </p>
-                    </div>
-                    <span className="text-[12.5px] font-bold text-[#ff6e20] shrink-0">
-                      {p.units_sold} sold
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       </div>
     </div>
@@ -657,7 +792,9 @@ export function AdminStoresPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
 
   // Store Administration Drawer (Figma Admin · 03)
-  const [selectedStore, setSelectedStore] = useState<AdminStoreItem | null>(null);
+  const [selectedStore, setSelectedStore] = useState<AdminStoreItem | null>(
+    null,
+  );
   const [commissionDraft, setCommissionDraft] = useState('');
 
   // Application KYC Review Drawer
@@ -677,10 +814,10 @@ export function AdminStoresPage() {
       setApplications(appsRes.data);
 
       setSelectedStore((prev) =>
-        prev ? storesRes.data.find((s) => s.id === prev.id) ?? null : null,
+        prev ? (storesRes.data.find((s) => s.id === prev.id) ?? null) : null,
       );
       setSelectedApp((prev) =>
-        prev ? appsRes.data.find((a) => a.id === prev.id) ?? null : null,
+        prev ? (appsRes.data.find((a) => a.id === prev.id) ?? null) : null,
       );
     } catch (err) {
       showToast(
@@ -924,21 +1061,13 @@ export function AdminStoresPage() {
         title="Store management"
         subtitle="Approve new seller applications, verify Cambodia business KYC, and manage store commissions and status."
         actions={
-          <>
-            <Link
-              to="/admin/catalog"
-              className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
-            >
-              Store categories
-            </Link>
-            <button
-              type="button"
-              onClick={handleExportDirectory}
-              className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
-            >
-              Export directory
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={handleExportDirectory}
+            className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
+          >
+            Export directory
+          </button>
         }
       />
 
@@ -1213,12 +1342,6 @@ export function AdminStoresPage() {
         footer={
           selectedStore && (
             <>
-              <Link
-                to={`/store/${selectedStore.slug}`}
-                className="bg-white border border-[#ececec] hover:border-black text-black text-[12.5px] font-semibold px-4 py-2 rounded-full"
-              >
-                View storefront
-              </Link>
               <button
                 type="button"
                 disabled={busyId === selectedStore.id}

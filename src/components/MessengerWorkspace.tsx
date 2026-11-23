@@ -26,6 +26,7 @@ import { consumePendingChatCard } from '../utils/chatContextCard';
 import { FigmaIcon } from './FigmaIcon';
 import { VerifiedBadge } from './VerifiedBadge';
 import { useStore } from '../context/StoreContext';
+import { useConfirmDelete } from '../context/ConfirmDeleteContext';
 import { ApiError, customerApi } from '../services/api';
 import {
   adminApi,
@@ -33,12 +34,23 @@ import {
   type DashboardTicketItem,
 } from '../services/dashboardApi';
 import { formatChatTimestamp, formatShortDate } from '../utils/currency';
-import type { ChatContextCard, SupportTicket } from '../types/marketplace';
+import type {
+  ChatContextCard,
+  ChatMessageMetadata,
+  SupportTicket,
+} from '../types/marketplace';
 
 type WorkspaceMode = 'customer' | 'seller' | 'admin';
-type FilterTab = 'all' | 'unread' | 'open' | 'in_progress' | 'resolved';
+type FilterTab = 'all' | 'active' | 'unread';
 
 type UnifiedTicket = SupportTicket | DashboardTicketItem;
+
+function getMessageMinuteKey(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
+}
 
 function getLastPreview(ticket: UnifiedTicket, mode: WorkspaceMode): string {
   const latest = ticket.latest_message;
@@ -80,6 +92,7 @@ export function MessengerWorkspace({
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, refreshNotifications, showToast } = useStore();
+  const { confirmDelete } = useConfirmDelete();
 
   const [tickets, setTickets] = useState<UnifiedTicket[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -430,12 +443,9 @@ export function MessengerWorkspace({
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
       if (filterTab === 'unread' && !t.is_unread) return false;
-      if (filterTab === 'open' && t.status !== 'open') return false;
-      if (filterTab === 'in_progress' && t.status !== 'in_progress') return false;
       if (
-        filterTab === 'resolved' &&
-        t.status !== 'resolved' &&
-        t.status !== 'closed'
+        filterTab === 'active' &&
+        (Boolean(t.is_blocked) || !t.peer_is_online)
       ) {
         return false;
       }
@@ -546,6 +556,38 @@ export function MessengerWorkspace({
     } finally {
       setBulkBusy(false);
     }
+  };
+
+  const requestDeleteConversations = (ids: number[], label?: string) => {
+    if (ids.length === 0) return;
+    const idList = [...ids];
+    const count = idList.length;
+    const itemLabel =
+      label || (count === 1 ? 'conversation' : `${count} conversations`);
+
+    confirmDelete({
+      title:
+        count === 1 ? 'Delete conversation?' : `Delete ${count} conversations?`,
+      description:
+        count === 1
+          ? `Remove "${itemLabel}" from your inbox?`
+          : `Remove ${count} selected conversations from your inbox?`,
+      itemLabel,
+      onOptimisticRemove: () => {
+        setTickets((prev) => prev.filter((t) => !idList.includes(t.id)));
+        if (selectedId && idList.includes(selectedId)) {
+          selectChat(null);
+          setActiveTicket(null);
+        }
+        exitSelectionMode();
+      },
+      onUndo: () => {
+        void fetchList(true);
+      },
+      onCommit: async () => {
+        await runBulkAction('delete', idList);
+      },
+    });
   };
 
   const handleMarkAllAsRead = async () => {
@@ -661,8 +703,8 @@ export function MessengerWorkspace({
   const activePeer = activeTicket ? getPeerProfile(activeTicket) : null;
   const activeViewingAsStaff = Boolean(
     activeTicket &&
-      (mode !== 'customer' ||
-        (user && activeTicket.user_id && activeTicket.user_id !== user.id)),
+    (mode !== 'customer' ||
+      (user && activeTicket.user_id && activeTicket.user_id !== user.id)),
   );
 
   return (
@@ -800,7 +842,9 @@ export function MessengerWorkspace({
                     : 'bg-white border-[#cfcfcf]'
                 }`}
               >
-                {allVisibleSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                {allVisibleSelected && (
+                  <Check className="w-3 h-3" strokeWidth={3} />
+                )}
               </span>
               <span>
                 {selectedChatIds.length > 0
@@ -821,10 +865,8 @@ export function MessengerWorkspace({
             {(
               [
                 { id: 'all', label: 'All' },
+                { id: 'active', label: 'Active' },
                 { id: 'unread', label: 'Unread' },
-                { id: 'open', label: 'Open' },
-                { id: 'in_progress', label: 'Active' },
-                { id: 'resolved', label: 'Resolved' },
               ] as const
             ).map((tab) => {
               const active = filterTab === tab.id;
@@ -861,11 +903,13 @@ export function MessengerWorkspace({
                 No conversations
               </p>
               <p className="text-[12px] text-[#8a8a8a]">
-                {search.trim() || filterTab !== 'all'
-                  ? 'Try clearing your search or filter.'
-                  : mode === 'customer'
-                    ? 'Start a chat with a store or Kova Support.'
-                    : 'Incoming customer messages will appear here.'}
+                {filterTab === 'active' && !search.trim()
+                  ? 'No one is currently online.'
+                  : search.trim() || filterTab !== 'all'
+                    ? 'Try clearing your search or filter.'
+                    : mode === 'customer'
+                      ? 'Start a chat with a store or Kova Support.'
+                      : 'Incoming customer messages will appear here.'}
               </p>
             </div>
           ) : (
@@ -903,7 +947,9 @@ export function MessengerWorkspace({
                           : 'bg-white border-[#cfcfcf]'
                       }`}
                     >
-                      {isChecked && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                      {isChecked && (
+                        <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                      )}
                     </span>
                   )}
 
@@ -948,14 +994,14 @@ export function MessengerWorkspace({
                     </div>
                     <p
                       className={`text-[12.5px] truncate mt-0.5 ${
-                        isUnread
-                          ? 'text-black font-semibold'
-                          : 'text-[#767676]'
+                        isUnread ? 'text-black font-semibold' : 'text-[#767676]'
                       }`}
                     >
                       {preview} ·{' '}
                       {formatChatTimestamp(
-                        t.latest_message?.created_at || t.updated_at || t.created_at,
+                        t.latest_message?.created_at ||
+                          t.updated_at ||
+                          t.created_at,
                       )}
                     </p>
                   </div>
@@ -998,7 +1044,7 @@ export function MessengerWorkspace({
             <button
               type="button"
               disabled={selectedChatIds.length === 0 || bulkBusy}
-              onClick={() => void runBulkAction('delete', selectedChatIds)}
+              onClick={() => requestDeleteConversations(selectedChatIds)}
               className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#fff0f0] hover:bg-[#d93025] text-[#d93025] hover:text-white disabled:opacity-45 text-[12px] font-semibold py-2 px-2.5 rounded-full transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -1162,7 +1208,10 @@ export function MessengerWorkspace({
                       disabled={bulkBusy}
                       onClick={() => {
                         setChatMenuOpen(false);
-                        void runBulkAction('delete', [activeTicket.id]);
+                        requestDeleteConversations(
+                          [activeTicket.id],
+                          activePeer?.name || activeTicket.subject,
+                        );
                       }}
                       className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-[#d93025] hover:bg-[#fff0f0] flex items-center gap-2.5 transition-colors disabled:opacity-50"
                     >
@@ -1179,144 +1228,192 @@ export function MessengerWorkspace({
               <div
                 ref={messagesContainerRef}
                 onScroll={handleMessagesScroll}
-                className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-3.5"
+                className="flex-1 overflow-y-auto px-5 py-5 flex flex-col"
               >
-              {/* Empty new conversation welcome header */}
-              {!activeTicket.message?.trim() &&
-                (!activeTicket.attachments ||
-                  activeTicket.attachments.length === 0) &&
-                (!activeTicket.messages ||
-                  activeTicket.messages.length === 0) && (
-                  <div className="flex-1 flex flex-col items-center justify-center py-10 text-center select-none">
-                    <span className="w-16 h-16 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden flex items-center justify-center text-[20px] font-bold mb-3">
-                      {activePeer.avatar ? (
-                        <img
-                          src={activePeer.avatar}
-                          alt={activePeer.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : activePeer.isStore ? (
-                        <FigmaIcon name="home" className="w-7 h-7" />
-                      ) : (
-                        <MessageCircle className="w-7 h-7" />
-                      )}
-                    </span>
-                    <p className="text-[16px] font-bold text-black flex items-center gap-1.5">
-                      <span>{activePeer.name}</span>
-                      {activePeer.verified && <VerifiedBadge size="xs" />}
-                    </p>
-                    <p className="text-[13px] text-[#767676] mt-1 max-w-[300px]">
-                      Start a conversation with {activePeer.name}. Send a
-                      message or photo below.
-                    </p>
-                  </div>
-                )}
+                {/* Empty new conversation welcome header */}
+                {!activeTicket.message?.trim() &&
+                  (!activeTicket.attachments ||
+                    activeTicket.attachments.length === 0) &&
+                  (!activeTicket.messages ||
+                    activeTicket.messages.length === 0) && (
+                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-center select-none">
+                      <span className="w-16 h-16 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden flex items-center justify-center text-[20px] font-bold mb-3">
+                        {activePeer.avatar ? (
+                          <img
+                            src={activePeer.avatar}
+                            alt={activePeer.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : activePeer.isStore ? (
+                          <FigmaIcon name="home" className="w-7 h-7" />
+                        ) : (
+                          <MessageCircle className="w-7 h-7" />
+                        )}
+                      </span>
+                      <p className="text-[16px] font-bold text-black flex items-center gap-1.5">
+                        <span>{activePeer.name}</span>
+                        {activePeer.verified && <VerifiedBadge size="xs" />}
+                      </p>
+                      <p className="text-[13px] text-[#767676] mt-1 max-w-[300px]">
+                        Start a conversation with {activePeer.name}. Send a
+                        message or photo below.
+                      </p>
+                    </div>
+                  )}
 
-              {/* Initial message */}
-              {(() => {
-                const hasInitialContent =
-                  Boolean(activeTicket.message?.trim()) ||
-                  Boolean(
-                    activeTicket.attachments &&
+                {(() => {
+                  const threadItems: {
+                    key: string;
+                    isOwn: boolean;
+                    senderKey: string;
+                    senderName: string;
+                    senderAvatar: string | null;
+                    isSupportFallback: boolean;
+                    message?: string | null;
+                    attachments?: string[] | null;
+                    metadata?: ChatMessageMetadata | null;
+                    createdAt: string;
+                    minuteKey: string;
+                  }[] = [];
+
+                  const hasInitialContent =
+                    Boolean(activeTicket.message?.trim()) ||
+                    Boolean(
+                      activeTicket.attachments &&
                       activeTicket.attachments.length > 0,
-                  );
-                if (!hasInitialContent) return null;
-                const isOwnInitial = !activeViewingAsStaff;
-                const customerName = activeTicket.user?.name || 'Customer';
-                const customerAvatar = activeTicket.user?.avatar || null;
-                return (
-                  <div
-                    className={`flex items-end gap-2.5 ${
-                      isOwnInitial ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    {!isOwnInitial && (
-                      <span className="w-8 h-8 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden shrink-0 flex items-center justify-center text-[11px] font-bold">
-                        {customerAvatar ? (
-                          <img
-                            src={customerAvatar}
-                            alt={customerName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          customerName.charAt(0).toUpperCase()
-                        )}
-                      </span>
-                    )}
-                    <div
-                      className={`max-w-[78%] flex flex-col ${
-                        isOwnInitial ? 'items-end' : 'items-start'
-                      }`}
-                    >
-                      <ChatMessageBody
-                        message={activeTicket.message}
-                        attachments={activeTicket.attachments}
-                        isOwn={isOwnInitial}
-                      />
-                      <span className="text-[11px] text-[#8a8a8a] mt-1 px-1">
-                        {formatChatTimestamp(activeTicket.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
+                    );
 
-              {(activeTicket.messages || []).map((msg) => {
-                const isOwn = activeViewingAsStaff
-                  ? msg.is_admin_reply
-                  : !msg.is_admin_reply;
-                const senderName = isOwn
-                  ? 'You'
-                  : msg.is_admin_reply
-                    ? activeTicket.store?.name || 'Kova Support'
-                    : msg.user?.name || activeTicket.user?.name || 'Customer';
-                const senderAvatar = isOwn
-                  ? null
-                  : msg.is_admin_reply
-                    ? activeTicket.store?.logo || msg.user?.avatar || null
-                    : msg.user?.avatar || activeTicket.user?.avatar || null;
+                  if (hasInitialContent) {
+                    const isOwnInitial = !activeViewingAsStaff;
+                    const customerName = activeTicket.user?.name || 'Customer';
+                    const customerAvatar = activeTicket.user?.avatar || null;
+                    threadItems.push({
+                      key: `initial-${activeTicket.id}`,
+                      isOwn: isOwnInitial,
+                      senderKey: isOwnInitial
+                        ? 'self'
+                        : `customer-${activeTicket.user_id ?? '0'}`,
+                      senderName: isOwnInitial ? 'You' : customerName,
+                      senderAvatar: isOwnInitial ? null : customerAvatar,
+                      isSupportFallback: false,
+                      message: activeTicket.message,
+                      attachments: activeTicket.attachments,
+                      metadata: null,
+                      createdAt: activeTicket.created_at,
+                      minuteKey: getMessageMinuteKey(activeTicket.created_at),
+                    });
+                  }
 
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex items-end gap-2.5 ${
-                      isOwn ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    {!isOwn && (
-                      <span className="w-8 h-8 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden shrink-0 flex items-center justify-center text-[11px] font-bold">
-                        {senderAvatar ? (
-                          <img
-                            src={senderAvatar}
-                            alt={senderName}
-                            className="w-full h-full object-cover"
+                  (activeTicket.messages || []).forEach((msg) => {
+                    const isOwn = activeViewingAsStaff
+                      ? msg.is_admin_reply
+                      : !msg.is_admin_reply;
+                    const senderName = isOwn
+                      ? 'You'
+                      : msg.is_admin_reply
+                        ? activeTicket.store?.name || 'Kova Support'
+                        : msg.user?.name ||
+                          activeTicket.user?.name ||
+                          'Customer';
+                    const senderAvatar = isOwn
+                      ? null
+                      : msg.is_admin_reply
+                        ? activeTicket.store?.logo || msg.user?.avatar || null
+                        : msg.user?.avatar || activeTicket.user?.avatar || null;
+                    threadItems.push({
+                      key: String(msg.id),
+                      isOwn,
+                      senderKey: isOwn
+                        ? 'self'
+                        : msg.is_admin_reply
+                          ? `staff-${activeTicket.store?.id ?? 'support'}`
+                          : `customer-${msg.user?.id ?? activeTicket.user_id ?? '0'}`,
+                      senderName,
+                      senderAvatar,
+                      isSupportFallback: Boolean(
+                        msg.is_admin_reply && !activeTicket.store,
+                      ),
+                      message: msg.message,
+                      attachments: msg.attachments,
+                      metadata: msg.metadata ?? null,
+                      createdAt: msg.created_at,
+                      minuteKey: getMessageMinuteKey(msg.created_at),
+                    });
+                  });
+
+                  return threadItems.map((item, idx) => {
+                    const prev = idx > 0 ? threadItems[idx - 1] : null;
+                    const next =
+                      idx < threadItems.length - 1
+                        ? threadItems[idx + 1]
+                        : null;
+                    const sameMinuteAsPrev = Boolean(
+                      prev &&
+                      prev.senderKey === item.senderKey &&
+                      prev.minuteKey !== '' &&
+                      prev.minuteKey === item.minuteKey,
+                    );
+                    const sameMinuteAsNext = Boolean(
+                      next &&
+                      next.senderKey === item.senderKey &&
+                      next.minuteKey !== '' &&
+                      next.minuteKey === item.minuteKey,
+                    );
+                    const showTimestamp = !sameMinuteAsNext;
+                    const showPeerAvatar = !item.isOwn && !sameMinuteAsNext;
+
+                    return (
+                      <div
+                        key={item.key}
+                        className={`flex items-end gap-2.5 ${
+                          item.isOwn ? 'justify-end' : 'justify-start'
+                        } ${
+                          idx === 0 ? '' : sameMinuteAsPrev ? 'mt-1' : 'mt-3.5'
+                        }`}
+                      >
+                        {!item.isOwn &&
+                          (showPeerAvatar ? (
+                            <span className="w-8 h-8 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden shrink-0 flex items-center justify-center text-[11px] font-bold">
+                              {item.senderAvatar ? (
+                                <img
+                                  src={item.senderAvatar}
+                                  alt={item.senderName}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : item.isSupportFallback ? (
+                                <MessageCircle className="w-4 h-4" />
+                              ) : (
+                                item.senderName.charAt(0).toUpperCase()
+                              )}
+                            </span>
+                          ) : (
+                            <span
+                              className="w-8 h-8 shrink-0"
+                              aria-hidden="true"
+                            />
+                          ))}
+                        <div
+                          className={`max-w-[78%] flex flex-col ${
+                            item.isOwn ? 'items-end' : 'items-start'
+                          }`}
+                        >
+                          <ChatMessageBody
+                            message={item.message}
+                            attachments={item.attachments}
+                            metadata={item.metadata}
+                            isOwn={item.isOwn}
+                            viewerMode={mode}
                           />
-                        ) : msg.is_admin_reply && !activeTicket.store ? (
-                          <MessageCircle className="w-4 h-4" />
-                        ) : (
-                          senderName.charAt(0).toUpperCase()
-                        )}
-                      </span>
-                    )}
-                    <div
-                      className={`max-w-[78%] flex flex-col ${
-                        isOwn ? 'items-end' : 'items-start'
-                      }`}
-                    >
-                      <ChatMessageBody
-                        message={msg.message}
-                        attachments={msg.attachments}
-                        metadata={msg.metadata}
-                        isOwn={isOwn}
-                        viewerMode={mode}
-                      />
-                      <span className="text-[11px] text-[#8a8a8a] mt-1 px-1">
-                        {formatChatTimestamp(msg.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                          {showTimestamp && (
+                            <span className="text-[11px] text-[#8a8a8a] mt-1 px-1">
+                              {formatChatTimestamp(item.createdAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
 
               {showScrollBottom && (
@@ -1347,7 +1444,9 @@ export function MessengerWorkspace({
                   <button
                     type="button"
                     disabled={bulkBusy}
-                    onClick={() => void runBulkAction('unblock', [activeTicket.id])}
+                    onClick={() =>
+                      void runBulkAction('unblock', [activeTicket.id])
+                    }
                     className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[12.5px] font-semibold px-4 py-1.5 rounded-full transition-colors"
                   >
                     Unblock
@@ -1355,82 +1454,84 @@ export function MessengerWorkspace({
                 )}
               </div>
             ) : (
-            <form
-              onSubmit={handleSendReply}
-              className="bg-white border-t border-[#ececec] px-4 py-3 flex flex-col gap-2 shrink-0"
-            >
-              <PendingContextCardBar
-                card={pendingContextCard}
-                onRemove={() => setPendingContextCard(null)}
-              />
-              <PendingAttachmentsBar
-                attachments={replyAttachments}
-                onRemove={(idx) =>
-                  setReplyAttachments((prev) => prev.filter((_, i) => i !== idx))
-                }
-              />
+              <form
+                onSubmit={handleSendReply}
+                className="bg-white border-t border-[#ececec] px-4 py-3 flex flex-col gap-2 shrink-0"
+              >
+                <PendingContextCardBar
+                  card={pendingContextCard}
+                  onRemove={() => setPendingContextCard(null)}
+                />
+                <PendingAttachmentsBar
+                  attachments={replyAttachments}
+                  onRemove={(idx) =>
+                    setReplyAttachments((prev) =>
+                      prev.filter((_, i) => i !== idx),
+                    )
+                  }
+                />
 
-              <div className="flex items-end gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => void handleImageUpload(e.target.files)}
-                />
-                <button
-                  type="button"
-                  disabled={uploadingImage}
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Send photo"
-                  aria-label="Send photo"
-                  className="w-9 h-9 mb-0.5 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center shrink-0 transition-colors disabled:opacity-50"
-                >
-                  <ImagePlus className="w-4 h-4" />
-                </button>
-                <textarea
-                  ref={replyTextareaRef}
-                  rows={1}
-                  value={replyText}
-                  onChange={(e) => {
-                    setReplyText(e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
-                  }}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === 'Enter' &&
-                      !e.shiftKey &&
-                      !e.nativeEvent.isComposing
-                    ) {
-                      e.preventDefault();
-                      e.currentTarget.form?.requestSubmit();
+                <div className="flex items-end gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => void handleImageUpload(e.target.files)}
+                  />
+                  <button
+                    type="button"
+                    disabled={uploadingImage}
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Send photo"
+                    aria-label="Send photo"
+                    className="w-9 h-9 mb-0.5 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center shrink-0 transition-colors disabled:opacity-50"
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                  </button>
+                  <textarea
+                    ref={replyTextareaRef}
+                    rows={1}
+                    value={replyText}
+                    onChange={(e) => {
+                      setReplyText(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
+                    }}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === 'Enter' &&
+                        !e.shiftKey &&
+                        !e.nativeEvent.isComposing
+                      ) {
+                        e.preventDefault();
+                        e.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                    placeholder={
+                      uploadingImage
+                        ? 'Uploading photo...'
+                        : 'Write a message... (Shift + Enter for new line)'
                     }
-                  }}
-                  placeholder={
-                    uploadingImage
-                      ? 'Uploading photo...'
-                      : 'Write a message... (Shift + Enter for new line)'
-                  }
-                  className="flex-1 bg-[#f4f4f4] focus:bg-white border border-transparent focus:border-[#ff6e20] rounded-[20px] px-4 py-2.5 text-[14px] leading-[1.45] text-black placeholder:text-[#8a8a8a] outline-none transition-colors min-w-0 resize-none max-h-[140px] overflow-y-auto no-scrollbar"
-                />
-                <button
-                  type="submit"
-                  disabled={
-                    sending ||
-                    uploadingImage ||
-                    (!replyText.trim() &&
-                      replyAttachments.length === 0 &&
-                      !pendingContextCard)
-                  }
-                  className="mb-0.5 inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-45 text-white px-4.5 py-2 rounded-full text-[13px] font-semibold transition-colors shrink-0"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{sending ? 'Sending...' : 'Send'}</span>
-                </button>
-              </div>
-            </form>
+                    className="flex-1 bg-[#f4f4f4] focus:bg-white border border-transparent focus:border-[#ff6e20] rounded-[20px] px-4 py-2.5 text-[14px] leading-[1.45] text-black placeholder:text-[#8a8a8a] outline-none transition-colors min-w-0 resize-none max-h-[140px] overflow-y-auto no-scrollbar"
+                  />
+                  <button
+                    type="submit"
+                    disabled={
+                      sending ||
+                      uploadingImage ||
+                      (!replyText.trim() &&
+                        replyAttachments.length === 0 &&
+                        !pendingContextCard)
+                    }
+                    className="mb-0.5 inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-45 text-white px-4.5 py-2 rounded-full text-[13px] font-semibold transition-colors shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{sending ? 'Sending...' : 'Send'}</span>
+                  </button>
+                </div>
+              </form>
             )}
           </>
         )}

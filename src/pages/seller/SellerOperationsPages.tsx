@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { Check, MapPin } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError } from '../../services/api';
 import {
   storeOwnerApi,
@@ -664,6 +665,7 @@ export function SellerOrdersPage() {
 // ==========================================
 export function SellerShippingPage() {
   const { showToast } = useStore();
+  const { confirmDelete } = useConfirmDelete();
   const [methods, setMethods] = useState<SellerShippingMethod[]>([]);
   const [orders, setOrders] = useState<SellerOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -758,14 +760,25 @@ export function SellerShippingPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      await storeOwnerApi.deleteShippingMethod(id);
-      showToast('Shipping method removed.');
-      await loadData();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Unable to delete.');
-    }
+  const handleDelete = (id: number) => {
+    const target = methods.find((m) => m.id === id);
+    const label = target?.name || 'shipping method';
+    confirmDelete({
+      title: 'Delete shipping method?',
+      description: `"${label}" will be removed from your store checkout options.`,
+      itemLabel: label,
+      onOptimisticRemove: () => {
+        setMethods((prev) => prev.filter((m) => m.id !== id));
+      },
+      onUndo: () => {
+        void loadData();
+      },
+      onCommit: async () => {
+        await storeOwnerApi.deleteShippingMethod(id);
+        showToast('Shipping method removed.');
+        await loadData();
+      },
+    });
   };
 
   const pendingShip = orders.filter(
@@ -1137,6 +1150,7 @@ function formatPromoDateTime(iso?: string | null): string {
 
 export function SellerPromotionsPage() {
   const { showToast, refreshCatalog } = useStore();
+  const { confirmDelete } = useConfirmDelete();
   const [promos, setPromos] = useState<SellerPromotionItem[]>([]);
   const [tab, setTab] = useState<PromoFilterTab>('all');
   const [loading, setLoading] = useState(true);
@@ -1326,14 +1340,25 @@ export function SellerPromotionsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      await storeOwnerApi.deletePromotion(id);
-      showToast('Promotion deleted.');
-      await Promise.all([loadPromos(), refreshCatalog()]);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Unable to delete.');
-    }
+  const handleDelete = (id: number) => {
+    const target = promos.find((pr) => pr.id === id);
+    const label = target?.code || target?.name || 'discount voucher';
+    confirmDelete({
+      title: 'Delete discount voucher?',
+      description: `Voucher "${label}" will be removed and can no longer be redeemed by buyers.`,
+      itemLabel: label,
+      onOptimisticRemove: () => {
+        setPromos((prev) => prev.filter((pr) => pr.id !== id));
+      },
+      onUndo: () => {
+        void loadPromos();
+      },
+      onCommit: async () => {
+        await storeOwnerApi.deletePromotion(id);
+        showToast('Promotion deleted.');
+        await Promise.all([loadPromos(), refreshCatalog()]);
+      },
+    });
   };
 
   const activeCount = promos.filter((p) => p.is_active).length;
@@ -2214,24 +2239,16 @@ export function SellerPayoutsPage() {
         title="Payouts & bank accounts"
         subtitle="Track net earnings settlements to your Cambodian bank or Bakong account and request withdrawals."
         actions={
-          <>
-            <Link
-              to="/seller/bakong"
-              className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
-            >
-              Configure Bakong
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                setAmount(avail >= 10 ? avail.toFixed(2) : '10.00');
-                setDrawerOpen(true);
-              }}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
-            >
-              Withdraw ${avail.toFixed(2)}
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => {
+              setAmount(avail >= 10 ? avail.toFixed(2) : '10.00');
+              setDrawerOpen(true);
+            }}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
+          >
+            Withdraw ${avail.toFixed(2)}
+          </button>
         }
       />
 
@@ -2489,7 +2506,6 @@ export function SellerStorefrontPage() {
   const [description, setDescription] = useState('');
   const [announcements, setAnnouncements] = useState('');
   const [policies, setPolicies] = useState('');
-  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -2540,9 +2556,13 @@ export function SellerStorefrontPage() {
     };
   }, [loadProfile]);
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const [savingSection, setSavingSection] = useState<
+    'identity' | 'policies' | null
+  >(null);
+
+  const handleSaveIdentity = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
+    setSavingSection('identity');
     try {
       const addressParts = [
         commune.trim(),
@@ -2559,17 +2579,34 @@ export function SellerStorefrontPage() {
         address: addressParts.length > 0 ? addressParts.join(', ') : null,
         google_maps_url: googleMapsUrl.trim() || null,
         description: description.trim() || null,
-        announcements: announcements.trim() || null,
-        policies: policies.trim() || null,
       });
       await Promise.all([loadProfile(), refreshUser(), refreshCatalog()]);
-      showToast('Storefront profile updated.');
+      showToast('Store identity & address saved.');
     } catch (err) {
       showToast(
         err instanceof ApiError ? err.message : 'Unable to save storefront.',
       );
     } finally {
-      setSaving(false);
+      setSavingSection(null);
+    }
+  };
+
+  const handleSavePolicies = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSection('policies');
+    try {
+      await storeOwnerApi.updateProfile({
+        announcements: announcements.trim() || null,
+        policies: policies.trim() || null,
+      });
+      await Promise.all([loadProfile(), refreshUser(), refreshCatalog()]);
+      showToast('Store announcements & policies saved.');
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to save policies.',
+      );
+    } finally {
+      setSavingSection(null);
     }
   };
 
@@ -2598,35 +2635,64 @@ export function SellerStorefrontPage() {
     return <DashboardTableSkeleton rows={6} />;
   }
 
+  const savedLocParts =
+    profile.province || profile.district || profile.commune
+      ? {
+          province: profile.province || 'Phnom Penh',
+          district: profile.district || '',
+          commune: profile.commune || '',
+        }
+      : profile.address
+        ? (() => {
+            const parts = profile.address
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+            return {
+              province: parts[parts.length - 1] || 'Phnom Penh',
+              district: parts.length >= 2 ? parts[parts.length - 2] : '',
+              commune: parts.length >= 3 ? parts[parts.length - 3] : '',
+            };
+          })()
+        : { province: 'Phnom Penh', district: '', commune: '' };
+
+  const isIdentityDirty =
+    name.trim() !== (profile.name || '').trim() ||
+    description.trim() !== (profile.description || '').trim() ||
+    phone.trim() !== (profile.phone || '').trim() ||
+    email.trim() !== (profile.email || '').trim() ||
+    province.trim() !== savedLocParts.province.trim() ||
+    district.trim() !== savedLocParts.district.trim() ||
+    commune.trim() !== savedLocParts.commune.trim() ||
+    googleMapsUrl.trim() !== (profile.google_maps_url || '').trim();
+
+  const isPoliciesDirty =
+    announcements.trim() !== (profile.announcements || '').trim() ||
+    policies.trim() !== (profile.policies || '').trim();
+
   return (
-    <form onSubmit={handleSaveProfile} className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <DashboardPageHeader
         title="Storefront profile"
         subtitle="Manage your public store identity, logo, cover banner, contact info, and buyer policies."
         actions={
-          <>
-            <button
-              type="button"
-              onClick={() => setPreviewOpen(true)}
-              className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
-            >
-              Preview live store
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
-            >
-              {saving ? 'Saving...' : 'Save changes'}
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            className="bg-white border border-[#ececec] hover:border-[#cccccc] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
+          >
+            Preview live store
+          </button>
         }
       />
 
       {/* Exact Figma Seller · 11 2:1 Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)] gap-5 items-start">
         <div className="flex flex-col gap-4">
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+          <form
+            onSubmit={handleSaveIdentity}
+            className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4"
+          >
             <h2 className="text-[15.5px] font-bold text-black">
               Store identity &amp; URL
             </h2>
@@ -2764,9 +2830,35 @@ export function SellerStorefrontPage() {
                 })()}
               </div>
             </div>
-          </section>
 
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-end pt-3 border-t border-[#f1f1f1]">
+              <button
+                type="submit"
+                disabled={!isIdentityDirty || savingSection === 'identity'}
+                className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors ${
+                  isIdentityDirty
+                    ? 'bg-[#ff6e20] hover:bg-[#e85d12] text-white cursor-pointer disabled:opacity-60'
+                    : 'bg-[#e7f6e7] text-[#029500] cursor-default'
+                }`}
+              >
+                {savingSection === 'identity' ? (
+                  <span>Saving...</span>
+                ) : isIdentityDirty ? (
+                  <span>Save</span>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Saved</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          <form
+            onSubmit={handleSavePolicies}
+            className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4"
+          >
             <div>
               <h2 className="text-[15.5px] font-bold text-black">
                 Store announcements &amp; policies
@@ -2801,7 +2893,30 @@ export function SellerStorefrontPage() {
                 className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] p-3.5 text-[13.5px] outline-none"
               />
             </label>
-          </section>
+
+            <div className="flex items-center justify-end pt-3 border-t border-[#f1f1f1]">
+              <button
+                type="submit"
+                disabled={!isPoliciesDirty || savingSection === 'policies'}
+                className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors ${
+                  isPoliciesDirty
+                    ? 'bg-[#ff6e20] hover:bg-[#e85d12] text-white cursor-pointer disabled:opacity-60'
+                    : 'bg-[#e7f6e7] text-[#029500] cursor-default'
+                }`}
+              >
+                {savingSection === 'policies' ? (
+                  <span>Saving...</span>
+                ) : isPoliciesDirty ? (
+                  <span>Save</span>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Saved</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* Right Logo & Banner + Status Cards (Exact Figma Seller · 11) */}
@@ -2911,6 +3026,6 @@ export function SellerStorefrontPage() {
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
       />
-    </form>
+    </div>
   );
 }

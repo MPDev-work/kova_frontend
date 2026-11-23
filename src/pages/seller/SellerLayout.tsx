@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, Moon, Sun } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useDashboardTheme } from '../../utils/useDashboardTheme';
 import {
   storeOwnerApi,
   type SellerDashboardData,
@@ -84,6 +85,7 @@ export function SellerLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickQuery, setQuickQuery] = useState('');
   const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const { isDark, toggleTheme } = useDashboardTheme('seller');
   const [storeProfile, setStoreProfile] = useState<SellerStoreProfile | null>(
     null,
   );
@@ -519,6 +521,20 @@ export function SellerLayout() {
           </form>
 
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-black w-9 h-9 rounded-full transition-colors cursor-pointer"
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-[#ff6e20]" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => setNotifModalOpen(true)}

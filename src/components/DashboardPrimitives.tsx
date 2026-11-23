@@ -139,7 +139,13 @@ export interface KpiCardItem {
   tone?: BadgeTone;
 }
 
-export function KpiCard({ label, value, sub, badge, tone = 'neutral' }: KpiCardItem) {
+export function KpiCard({
+  label,
+  value,
+  sub,
+  badge,
+  tone = 'neutral',
+}: KpiCardItem) {
   return (
     <div className="bg-white border border-[#ececec] rounded-[18px] px-[20px] py-[18px] flex flex-col justify-between gap-2.5 min-w-0">
       <div className="flex items-center justify-between gap-2">
@@ -354,7 +360,13 @@ export function TrendAreaChart({
           aria-label={title}
         >
           <defs>
-            <linearGradient id={`kovaGrad-${gradId}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              id={`kovaGrad-${gradId}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
               <stop offset="0%" stopColor="#ff6e20" stopOpacity="0.16" />
               <stop offset="100%" stopColor="#ff6e20" stopOpacity="0.01" />
             </linearGradient>
@@ -375,9 +387,7 @@ export function TrendAreaChart({
             );
           })}
 
-          {areaPath && (
-            <path d={areaPath} fill={`url(#kovaGrad-${gradId})`} />
-          )}
+          {areaPath && <path d={areaPath} fill={`url(#kovaGrad-${gradId})`} />}
 
           {secondaryPath && (
             <path
@@ -425,7 +435,10 @@ export function TrendAreaChart({
               idx === safePoints.length - 1 ||
               idx % Math.ceil(safePoints.length / 6) === 0;
             return (
-              <span key={`${pt.label}-${idx}`} className={show ? '' : 'hidden sm:inline'}>
+              <span
+                key={`${pt.label}-${idx}`}
+                className={show ? '' : 'hidden sm:inline'}
+              >
                 {show ? pt.label : ''}
               </span>
             );
@@ -495,7 +508,9 @@ export function ProgressBreakdownCard({
               <div className="w-full h-[7px] rounded-full bg-[#f1f1f1] overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${BAR_COLORS[item.color]}`}
-                  style={{ width: `${Math.max(Math.min(item.percent, 100), item.percent > 0 ? 4 : 0)}%` }}
+                  style={{
+                    width: `${Math.max(Math.min(item.percent, 100), item.percent > 0 ? 4 : 0)}%`,
+                  }}
                 />
               </div>
             </div>

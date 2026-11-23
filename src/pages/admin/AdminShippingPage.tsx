@@ -8,6 +8,7 @@ import {
 import { DashboardKpiSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { useStore } from '../../context/StoreContext';
+import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError } from '../../services/api';
 import {
   adminApi,
@@ -27,6 +28,7 @@ const SHIPMENT_FILTERS = [
 
 export function AdminShippingPage() {
   const { showToast } = useStore();
+  const { confirmDelete } = useConfirmDelete();
   const [methods, setMethods] = useState<AdminShippingMethod[]>([]);
   const [shipments, setShipments] = useState<AdminShipmentItem[]>([]);
   const [stats, setStats] = useState<AdminShippingStats>({
@@ -177,18 +179,25 @@ export function AdminShippingPage() {
     }
   };
 
-  const handleDeleteMethod = async (id: number) => {
-    try {
-      await adminApi.deleteShippingMethod(id);
-      showToast('Shipping method removed.');
-      await loadData();
-    } catch (err) {
-      showToast(
-        err instanceof ApiError
-          ? err.message
-          : 'Unable to delete shipping method.',
-      );
-    }
+  const handleDeleteMethod = (id: number) => {
+    const target = methods.find((m) => m.id === id);
+    const label = target?.name || 'shipping method';
+    confirmDelete({
+      title: 'Delete shipping method?',
+      description: `"${label}" will be removed from platform shipping options.`,
+      itemLabel: label,
+      onOptimisticRemove: () => {
+        setMethods((prev) => prev.filter((m) => m.id !== id));
+      },
+      onUndo: () => {
+        void loadData();
+      },
+      onCommit: async () => {
+        await adminApi.deleteShippingMethod(id);
+        showToast('Shipping method removed.');
+        await loadData();
+      },
+    });
   };
 
   const openShipmentDrawer = (ord: AdminShipmentItem) => {

@@ -32,18 +32,46 @@ function normalizePaginated<T>(raw: PaginatedResult<T> | T[]): PaginatedResult<T
 // Admin Types & API
 // ==========================================
 
+export interface DashboardDateRangeParams {
+  range?: 'today' | '7d' | '30d' | 'ytd' | 'all' | 'custom';
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface DashboardRangeMeta {
+  key: 'today' | '7d' | '30d' | 'ytd' | 'all' | 'custom';
+  start_date: string | null;
+  end_date: string | null;
+  label: string;
+  is_filtered: boolean;
+}
+
+export interface DashboardTrendPoint {
+  label: string;
+  primary: number;
+  secondary: number;
+}
+
 export interface AdminDashboardData {
+  range?: DashboardRangeMeta;
   metrics: {
     total_gross_revenue: number;
     total_platform_commission: number;
     total_orders: number;
     total_stores: number;
+    total_stores_all?: number;
     total_customers: number;
+    total_customers_all?: number;
     total_products: number;
+    total_products_all?: number;
     pending_store_applications: number;
+    pending_store_applications_all?: number;
     pending_payments_count: number;
+    successful_payments_count?: number;
+    failed_payments_count?: number;
     successful_payments_volume: number;
   };
+  trend?: DashboardTrendPoint[];
   top_stores: {
     id: number;
     name: string;
@@ -262,8 +290,13 @@ export interface AdminShipmentItem {
 }
 
 export const adminApi = {
-  async getDashboard() {
-    const res = await apiRequest<AdminDashboardData>('/admin/dashboard');
+  async getDashboard(params?: DashboardDateRangeParams) {
+    const qs = new URLSearchParams();
+    if (params?.range) qs.set('range', params.range);
+    if (params?.start_date) qs.set('start_date', params.start_date);
+    if (params?.end_date) qs.set('end_date', params.end_date);
+    const q = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiRequest<AdminDashboardData>(`/admin/dashboard${q}`);
     return res.data;
   },
 
@@ -635,11 +668,13 @@ export const adminApi = {
 // ==========================================
 
 export interface SellerDashboardData {
+  range?: DashboardRangeMeta;
   financials: {
     gross_sales: number;
     platform_commission: number;
     net_earnings: number;
     available_balance: number;
+    lifetime_available_balance?: number;
     paid_payouts: number;
     pending_payouts: number;
   };
@@ -648,16 +683,39 @@ export interface SellerDashboardData {
     pending: number;
     processing: number;
     completed: number;
+    cancelled?: number;
   };
   inventory: {
     total_products: number;
+    published_products?: number;
+    new_products?: number;
     low_stock_count: number;
+    out_of_stock_count?: number;
   };
+  trend?: DashboardTrendPoint[];
+  category_breakdown?: {
+    category_name: string;
+    orders_count: number;
+    units_sold: number;
+    revenue: number;
+    percent: number;
+  }[];
   top_products: {
     product_id: number;
     product_name: string;
     total_sold: number | string;
     revenue: number | string;
+  }[];
+  recent_orders?: {
+    id: number;
+    order_number: string;
+    child_order_number?: string;
+    customer_name: string;
+    total_amount: number | string;
+    currency: string;
+    payment_status: string;
+    status: string;
+    created_at: string;
   }[];
 }
 
@@ -919,8 +977,13 @@ export interface SellerReviewItem {
 }
 
 export const storeOwnerApi = {
-  async getDashboard() {
-    const res = await apiRequest<SellerDashboardData>('/store-owner/dashboard');
+  async getDashboard(params?: DashboardDateRangeParams) {
+    const qs = new URLSearchParams();
+    if (params?.range) qs.set('range', params.range);
+    if (params?.start_date) qs.set('start_date', params.start_date);
+    if (params?.end_date) qs.set('end_date', params.end_date);
+    const q = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiRequest<SellerDashboardData>(`/store-owner/dashboard${q}`);
     return res.data;
   },
 
