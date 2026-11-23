@@ -59,7 +59,9 @@ function formatCompactRangeLabel(startIso: string, endIso: string): string {
       ? iso
       : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
-  return startIso === endIso ? fmt(startIso) : `${fmt(startIso)} – ${fmt(endIso)}`;
+  return startIso === endIso
+    ? fmt(startIso)
+    : `${fmt(startIso)} – ${fmt(endIso)}`;
 }
 
 function getTimeGreeting(): string {
@@ -571,13 +573,15 @@ export function SellerOverviewPage() {
               </div>
               {data.top_products.length === 0 ? (
                 <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
-                  No product sales recorded for {activePeriodLabel.toLowerCase()}
-                  .
+                  No product sales recorded for{' '}
+                  {activePeriodLabel.toLowerCase()}.
                 </p>
               ) : (
                 <div className="flex flex-col divide-y divide-[#f1f1f1]">
                   {data.top_products.map((tp) => {
-                    const matched = products.find((p) => p.id === tp.product_id);
+                    const matched = products.find(
+                      (p) => p.id === tp.product_id,
+                    );
                     return (
                       <div
                         key={tp.product_id}

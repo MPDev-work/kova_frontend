@@ -1512,7 +1512,9 @@ export function SellerPromotionsPage() {
                     <td className="py-3.5 px-3.5 text-[12px] text-[#555555] whitespace-nowrap">
                       {pr.start_date || pr.end_date ? (
                         <div className="flex flex-col">
-                          <span>Start: {formatPromoDateTime(pr.start_date)}</span>
+                          <span>
+                            Start: {formatPromoDateTime(pr.start_date)}
+                          </span>
                           <span className="text-[#767676]">
                             End: {formatPromoDateTime(pr.end_date)}
                           </span>

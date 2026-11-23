@@ -5,7 +5,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import { Check, Package, Star, Trash2 } from 'lucide-react';
+import { Check, Loader2, Package, Star, Trash2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError, authApi, customerApi } from '../../services/api';
@@ -17,6 +17,7 @@ import { ProductCard } from '../../components/ProductCard';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
 import { ToggleSwitch } from '../../components/ToggleSwitch';
+import { PasswordInput } from '../../components/PasswordInput';
 
 // My Profile (with real Cloudinary avatar upload + real API update)
 export function MyProfilePage() {
@@ -370,9 +371,7 @@ export function AddAddressPage() {
   return (
     <div className="flex flex-col gap-[18px]">
       <div>
-        <h1 className="text-[22px] font-bold text-black">
-          Add a new address
-        </h1>
+        <h1 className="text-[22px] font-bold text-black">Add a new address</h1>
         <p className="text-[12.5px] text-[#767676] mt-0.5">
           Save a delivery location to your account.
         </p>
@@ -1522,9 +1521,8 @@ export function AccountSecurityPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send verification code.';
+          : 'We could not send the verification code right now.';
       setEmailError(msg);
-      showToast(msg);
     } finally {
       setEmailBusy(false);
     }
@@ -1553,9 +1551,8 @@ export function AccountSecurityPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Invalid or expired verification code.';
+          : 'That verification code is not correct. Please check and try again.';
       setEmailError(msg);
-      showToast(msg);
     } finally {
       setEmailBusy(false);
     }
@@ -1578,9 +1575,8 @@ export function AccountSecurityPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send SMS verification code.';
+          : 'We could not send the SMS verification code right now.';
       setPhoneError(msg);
-      showToast(msg);
     } finally {
       setPhoneBusy(false);
     }
@@ -1609,9 +1605,8 @@ export function AccountSecurityPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Invalid or expired verification code.';
+          : 'That verification code is not correct. Please check and try again.';
       setPhoneError(msg);
-      showToast(msg);
     } finally {
       setPhoneBusy(false);
     }
@@ -1633,9 +1628,8 @@ export function AccountSecurityPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send verification code.';
+          : 'We could not send the verification code right now.';
       setDeactivateError(msg);
-      showToast(msg);
     } finally {
       setDeactivateBusy(false);
     }
@@ -1653,9 +1647,10 @@ export function AccountSecurityPage() {
       navigate('/login', { replace: true });
     } catch (err) {
       const msg =
-        err instanceof ApiError ? err.message : 'Unable to deactivate account.';
+        err instanceof ApiError
+          ? err.message
+          : 'We could not deactivate your account right now.';
       setDeactivateError(msg);
-      showToast(msg);
     } finally {
       setDeactivateBusy(false);
     }
@@ -2009,21 +2004,59 @@ export function AccountSecurityPage() {
 
 // Change Password (with integrated Forgot Password flow)
 export function ChangePasswordPage() {
-  const { user, changePassword, showToast } = useStore();
+  const { user, changePassword } = useStore();
   const navigate = useNavigate();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{
+    current?: string;
+    password?: string;
+    confirm?: string;
+  }>({});
+  const [shakeKey, setShakeKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [resetCooldown, setResetCooldown] = useState(0);
   const [resetFeedback, setResetFeedback] = useState<{
     ok: boolean;
     message: string;
   } | null>(null);
 
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResetCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resetCooldown]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nextErrors: {
+      current?: string;
+      password?: string;
+      confirm?: string;
+    } = {};
+
+    if (!currentPassword) {
+      nextErrors.current = 'Please enter your current password.';
+    }
+    if (password.length < 8) {
+      nextErrors.password = 'Your new password must be at least 8 characters.';
+    }
+    if (password !== confirm) {
+      nextErrors.confirm = "Your passwords don't match.";
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      setShakeKey((k) => k + 1);
+      return;
+    }
+
+    setFieldErrors({});
     setSaving(true);
     try {
       await changePassword({
@@ -2033,32 +2066,47 @@ export function ChangePasswordPage() {
       });
       navigate('/account/security');
     } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to update password.',
-      );
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'We could not update your password. Please try again.';
+      if (
+        err instanceof ApiError &&
+        (err.errors?.current_password || /current password/i.test(msg))
+      ) {
+        setFieldErrors({ current: msg });
+      } else if (err instanceof ApiError && err.errors?.password) {
+        setFieldErrors({ password: msg });
+      } else {
+        setFieldErrors({ current: msg });
+      }
+      setShakeKey((k) => k + 1);
     } finally {
       setSaving(false);
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!user?.email || sendingReset) return;
+    if (!user?.email || sendingReset || resetCooldown > 0) return;
     setSendingReset(true);
     setResetFeedback(null);
     try {
       const res = await authApi.forgotPassword(user.email);
       const msg =
         res.message ||
-        `Password reset link sent to ${user.email}. Check your inbox.`;
+        `We sent a password reset link to ${user.email}. Please check your inbox and spam folder.`;
       setResetFeedback({ ok: true, message: msg });
-      showToast(msg);
+      setResetCooldown(60);
     } catch (err) {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send password reset link.';
+          : 'We could not send the reset email right now. Please try again.';
+      const waitMatch = msg.match(/wait (\d+) seconds?/i);
+      if (waitMatch) {
+        setResetCooldown(Number(waitMatch[1]));
+      }
       setResetFeedback({ ok: false, message: msg });
-      showToast(msg);
     } finally {
       setSendingReset(false);
     }
@@ -2072,27 +2120,43 @@ export function ChangePasswordPage() {
 
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="bg-white border border-[#ececec] rounded-[16px] p-6 max-w-[540px] flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1.5">
-          <input
-            type="password"
+          <PasswordInput
+            label="Current password"
             required
+            autoComplete="current-password"
             value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder="Current password"
-            className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+            onChange={(e) => {
+              setCurrentPassword(e.target.value);
+              if (fieldErrors.current) {
+                setFieldErrors((prev) => ({ ...prev, current: undefined }));
+              }
+            }}
+            placeholder="Enter your current password"
+            error={fieldErrors.current}
+            shakeKey={shakeKey}
+            inputClassName="text-[13px]"
           />
           <div className="flex justify-end px-1">
             <button
               type="button"
-              disabled={sendingReset || !user?.email}
+              disabled={sendingReset || resetCooldown > 0 || !user?.email}
               onClick={() => void handleForgotPassword()}
-              className="text-[12px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
-              {sendingReset
-                ? 'Sending link to you mail...'
-                : 'Forgot password?'}
+              {sendingReset && (
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              )}
+              <span>
+                {sendingReset
+                  ? 'Sending reset link...'
+                  : resetCooldown > 0
+                    ? `Resend link in ${resetCooldown}s`
+                    : 'Forgot password?'}
+              </span>
             </button>
           </div>
         </div>
@@ -2109,23 +2173,39 @@ export function ChangePasswordPage() {
           </div>
         )}
 
-        <input
-          type="password"
+        <PasswordInput
+          label="New password"
           required
           minLength={8}
+          autoComplete="new-password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (fieldErrors.password) {
+              setFieldErrors((prev) => ({ ...prev, password: undefined }));
+            }
+          }}
           placeholder="New password (min 8 characters)"
-          className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+          error={fieldErrors.password}
+          shakeKey={shakeKey}
+          inputClassName="text-[13px]"
         />
-        <input
-          type="password"
+        <PasswordInput
+          label="Confirm new password"
           required
           minLength={8}
+          autoComplete="new-password"
           value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
+          onChange={(e) => {
+            setConfirm(e.target.value);
+            if (fieldErrors.confirm) {
+              setFieldErrors((prev) => ({ ...prev, confirm: undefined }));
+            }
+          }}
           placeholder="Confirm new password"
-          className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] outline-none"
+          error={fieldErrors.confirm}
+          shakeKey={shakeKey}
+          inputClassName="text-[13px]"
         />
         <div className="flex gap-2.5 pt-1">
           <Link
@@ -2186,9 +2266,8 @@ export function DeleteAccountPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send verification code.';
+          : 'We could not send the verification code right now.';
       setError(msg);
-      showToast(msg);
     } finally {
       setSending(false);
     }
@@ -2212,9 +2291,8 @@ export function DeleteAccountPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to schedule account deletion.';
+          : 'We could not schedule account deletion right now.';
       setError(msg);
-      showToast(msg);
     } finally {
       setDeleting(false);
     }

@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore, type LoginChallenge } from '../../context/StoreContext';
-import { ApiError, authApi } from '../../services/api';
+import { ApiError, authApi, toFriendlyErrorMessage } from '../../services/api';
 import { getUserDashboardPath } from '../../utils/authRedirect';
 import { KovaLogo } from '../../components/KovaLogo';
+import {
+  PasswordInput,
+  useShakeAnimation,
+} from '../../components/PasswordInput';
 
 function AuthStaticHeroPanel() {
   return (
@@ -28,17 +32,27 @@ export function LoginPage() {
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const rawGoogleError = searchParams.get('google_error');
   const [error, setError] = useState<string | null>(
-    searchParams.get('google_error'),
+    rawGoogleError ? toFriendlyErrorMessage(rawGoogleError, 0) : null,
   );
+  const [credentialError, setCredentialError] = useState<string | null>(null);
+  const [loginShakeKey, setLoginShakeKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
   // Step 2: OTP verification state
   const [challenge, setChallenge] = useState<LoginChallenge | null>(null);
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpShakeKey, setOtpShakeKey] = useState(0);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resending, setResending] = useState(false);
   const digitRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const identifierShaking = useShakeAnimation(
+    Boolean(credentialError),
+    loginShakeKey,
+  );
+  const otpShaking = useShakeAnimation(Boolean(otpError), otpShakeKey);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -59,12 +73,14 @@ export function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setCredentialError(null);
     setSubmitting(true);
     try {
       const result = await login(identifier.trim(), password);
       if (result.requires_verification) {
         setChallenge(result);
         setDigits(['', '', '', '', '', '']);
+        setOtpError(null);
         setResendCooldown(60);
         showToast(
           result.channel === 'email'
@@ -75,9 +91,19 @@ export function LoginPage() {
         navigate(getUserDashboardPath(result.user) ?? '/', { replace: true });
       }
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Unable to sign in.';
-      setError(msg);
-      showToast(msg);
+      const isFieldAuthError =
+        err instanceof ApiError && (err.status === 422 || err.status === 401);
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Something went wrong. Please try again.';
+      if (isFieldAuthError) {
+        setCredentialError(msg);
+        setLoginShakeKey((k) => k + 1);
+      } else {
+        setError(msg);
+        setLoginShakeKey((k) => k + 1);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -89,10 +115,12 @@ export function LoginPage() {
     e.preventDefault();
     if (!challenge) return;
     if (!/^\d{6}$/.test(otpCode)) {
-      setError('Please enter all 6 digits of your verification code.');
+      setOtpError('Please enter all 6 digits of your verification code.');
+      setOtpShakeKey((k) => k + 1);
       return;
     }
     setError(null);
+    setOtpError(null);
     setSubmitting(true);
     try {
       const signedInUser = await verifyLoginOtp(
@@ -104,9 +132,9 @@ export function LoginPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Invalid or expired verification code.';
-      setError(msg);
-      showToast(msg);
+          : 'That verification code is not correct.';
+      setOtpError(msg);
+      setOtpShakeKey((k) => k + 1);
     } finally {
       setSubmitting(false);
     }
@@ -116,6 +144,7 @@ export function LoginPage() {
     if (!challenge || resending) return;
     if (!nextChannel && resendCooldown > 0) return;
     setError(null);
+    setOtpError(null);
     setResending(true);
     try {
       const updated = await resendLoginOtp(
@@ -132,15 +161,15 @@ export function LoginPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send verification code.';
+          : 'We could not send a new verification code right now.';
       setError(msg);
-      showToast(msg);
     } finally {
       setResending(false);
     }
   };
 
   const handleDigitChange = (idx: number, raw: string) => {
+    if (otpError) setOtpError(null);
     const clean = raw.replace(/\D/g, '');
     if (clean.length > 1) {
       const next = [...digits];
@@ -238,25 +267,42 @@ export function LoginPage() {
               )}
 
               {/* 6 Individual Rounded OTP Digit Boxes */}
-              <div className="flex items-center gap-2.5 sm:gap-3 pt-1">
-                {digits.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    ref={(el) => {
-                      digitRefs.current[idx] = el;
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-                    maxLength={6}
-                    value={digit}
-                    aria-label={`Digit ${idx + 1}`}
-                    onChange={(e) => handleDigitChange(idx, e.target.value)}
-                    onKeyDown={(e) => handleDigitKeyDown(idx, e)}
-                    onPaste={handleDigitPaste}
-                    className="w-[46px] h-[58px] sm:w-[54px] sm:h-[66px] bg-[#f5f5f5] focus:bg-white border-2 border-transparent focus:border-[#ff6e20] rounded-[16px] text-center text-[22px] font-bold text-black outline-none transition-all tabular-nums"
-                  />
-                ))}
+              <div className="flex flex-col gap-2 pt-1">
+                {otpError && (
+                  <span
+                    role="alert"
+                    className="text-[12.5px] font-semibold text-[#e5322d]"
+                  >
+                    {otpError}
+                  </span>
+                )}
+                <div
+                  className={`flex items-center gap-2.5 sm:gap-3 ${otpShaking ? 'kova-input-shake' : ''}`}
+                >
+                  {digits.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      ref={(el) => {
+                        digitRefs.current[idx] = el;
+                      }}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+                      maxLength={6}
+                      value={digit}
+                      aria-label={`Digit ${idx + 1}`}
+                      aria-invalid={Boolean(otpError) || undefined}
+                      onChange={(e) => handleDigitChange(idx, e.target.value)}
+                      onKeyDown={(e) => handleDigitKeyDown(idx, e)}
+                      onPaste={handleDigitPaste}
+                      className={`w-[46px] h-[58px] sm:w-[54px] sm:h-[66px] bg-[#f5f5f5] focus:bg-white border-2 rounded-[16px] text-center text-[22px] font-bold text-black outline-none transition-all tabular-nums ${
+                        otpError
+                          ? 'kova-input-error border-[#e5322d] focus:border-[#e5322d]'
+                          : 'border-transparent focus:border-[#ff6e20]'
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
 
               <p className="text-[13.5px] text-[#767676]">
@@ -351,7 +397,11 @@ export function LoginPage() {
 
               <form onSubmit={handleLogin} className="flex flex-col gap-4">
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-semibold text-black">
+                  <span
+                    className={`text-[12px] font-semibold ${
+                      credentialError ? 'text-[#e5322d]' : 'text-black'
+                    }`}
+                  >
                     Email or phone number
                   </span>
                   <input
@@ -359,26 +409,34 @@ export function LoginPage() {
                     required
                     autoComplete="username"
                     value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
+                    aria-invalid={Boolean(credentialError) || undefined}
+                    onChange={(e) => {
+                      setIdentifier(e.target.value);
+                      if (credentialError) setCredentialError(null);
+                    }}
                     placeholder="you@example.com or 012 345 678"
-                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[14px] outline-none"
+                    className={`h-[42px] border rounded-full px-4 text-[14px] outline-none transition-colors ${
+                      credentialError
+                        ? 'kova-input-error border-[#e5322d] focus:border-[#e5322d]'
+                        : 'border-[#ececec] focus:border-[#ff6e20]'
+                    } ${identifierShaking ? 'kova-input-shake' : ''}`}
                   />
                 </label>
 
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-semibold text-black">
-                    Password
-                  </span>
-                  <input
-                    type="password"
-                    required
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[14px] outline-none"
-                  />
-                </label>
+                <PasswordInput
+                  label="Password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (credentialError) setCredentialError(null);
+                  }}
+                  placeholder="Enter your password"
+                  error={credentialError}
+                  shakeKey={loginShakeKey}
+                  inputClassName="text-[14px]"
+                />
 
                 <div className="flex items-center justify-end text-[13px]">
                   <Link
@@ -394,7 +452,7 @@ export function LoginPage() {
                   disabled={submitting}
                   className="w-full bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[14.5px] font-semibold py-3.5 rounded-full transition-colors cursor-pointer"
                 >
-                  {submitting ? 'Continueing...' : 'Continue'}
+                  {submitting ? 'Signing in...' : 'Continue'}
                 </button>
               </form>
 
@@ -414,7 +472,7 @@ export function LoginPage() {
 
 // Register Page
 export function RegisterPage() {
-  const { register, showToast } = useStore();
+  const { register } = useStore();
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
@@ -423,15 +481,39 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [shakeKey, setShakeKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+
+  const nameShaking = useShakeAnimation(Boolean(fieldErrors.name), shakeKey);
+  const emailShaking = useShakeAnimation(Boolean(fieldErrors.email), shakeKey);
+  const phoneShaking = useShakeAnimation(Boolean(fieldErrors.phone), shakeKey);
+
+  const clearFieldError = (field: string) => {
+    if (!fieldErrors[field]) return;
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const nextErrors: Record<string, string> = {};
+    if (password.length < 8) {
+      nextErrors.password = 'Your password must be at least 8 characters.';
+    }
     if (password !== passwordConfirmation) {
-      setError('Passwords do not match.');
+      nextErrors.password_confirmation = "Your passwords don't match.";
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      setShakeKey((k) => k + 1);
       return;
     }
+    setFieldErrors({});
     setSubmitting(true);
     try {
       await register({
@@ -443,10 +525,23 @@ export function RegisterPage() {
       });
       navigate('/');
     } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        const mapped: Record<string, string> = {};
+        Object.entries(err.errors).forEach(([key, msgs]) => {
+          const first = msgs[0];
+          if (first) mapped[key] = toFriendlyErrorMessage(first, err.status);
+        });
+        if (Object.keys(mapped).length > 0) {
+          setFieldErrors(mapped);
+          setShakeKey((k) => k + 1);
+          return;
+        }
+      }
       const msg =
-        err instanceof ApiError ? err.message : 'Unable to create account.';
+        err instanceof ApiError
+          ? err.message
+          : 'We could not create your account right now. Please try again.';
       setError(msg);
-      showToast(msg);
     } finally {
       setSubmitting(false);
     }
@@ -488,67 +583,112 @@ export function RegisterPage() {
               Continue with Google
             </button>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <form
+              onSubmit={handleSubmit}
+              noValidate
+              className="flex flex-col gap-4"
+            >
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold">Full name</span>
+                <span
+                  className={`text-[12px] font-semibold ${
+                    fieldErrors.name ? 'text-[#e5322d]' : 'text-black'
+                  }`}
+                >
+                  {fieldErrors.name || 'Full name'}
+                </span>
                 <input
                   type="text"
                   required
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    clearFieldError('name');
+                  }}
                   placeholder="Your full name"
-                  className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
+                  className={`h-[42px] border rounded-full px-4 text-[14px] outline-none transition-colors ${
+                    fieldErrors.name
+                      ? 'kova-input-error border-[#e5322d] focus:border-[#e5322d]'
+                      : 'border-[#ececec] focus:border-[#ff6e20]'
+                  } ${nameShaking ? 'kova-input-shake' : ''}`}
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold">Email address</span>
+                <span
+                  className={`text-[12px] font-semibold ${
+                    fieldErrors.email ? 'text-[#e5322d]' : 'text-black'
+                  }`}
+                >
+                  {fieldErrors.email || 'Email address'}
+                </span>
                 <input
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearFieldError('email');
+                  }}
                   placeholder="you@example.com"
-                  className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
+                  className={`h-[42px] border rounded-full px-4 text-[14px] outline-none transition-colors ${
+                    fieldErrors.email
+                      ? 'kova-input-error border-[#e5322d] focus:border-[#e5322d]'
+                      : 'border-[#ececec] focus:border-[#ff6e20]'
+                  } ${emailShaking ? 'kova-input-shake' : ''}`}
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold">
-                  Phone number (optional)
+                <span
+                  className={`text-[12px] font-semibold ${
+                    fieldErrors.phone ? 'text-[#e5322d]' : 'text-black'
+                  }`}
+                >
+                  {fieldErrors.phone || 'Phone number (optional)'}
                 </span>
                 <input
                   type="text"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    clearFieldError('phone');
+                  }}
                   placeholder="012 345 678 or +855 ..."
-                  className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
+                  className={`h-[42px] border rounded-full px-4 text-[14px] outline-none transition-colors ${
+                    fieldErrors.phone
+                      ? 'kova-input-error border-[#e5322d] focus:border-[#e5322d]'
+                      : 'border-[#ececec] focus:border-[#ff6e20]'
+                  } ${phoneShaking ? 'kova-input-shake' : ''}`}
                 />
               </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold">Password</span>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold">
-                  Confirm password
-                </span>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={passwordConfirmation}
-                  onChange={(e) => setPasswordConfirmation(e.target.value)}
-                  placeholder="Re-enter your password"
-                  className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
-                />
-              </label>
+              <PasswordInput
+                label="Password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearFieldError('password');
+                }}
+                placeholder="At least 8 characters"
+                error={fieldErrors.password}
+                shakeKey={shakeKey}
+                inputClassName="text-[14px]"
+              />
+              <PasswordInput
+                label="Confirm password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                value={passwordConfirmation}
+                onChange={(e) => {
+                  setPasswordConfirmation(e.target.value);
+                  clearFieldError('password_confirmation');
+                }}
+                placeholder="Re-enter your password"
+                error={fieldErrors.password_confirmation}
+                shakeKey={shakeKey}
+                inputClassName="text-[14px]"
+              />
               <button
                 type="submit"
                 disabled={submitting}
@@ -573,7 +713,7 @@ export function RegisterPage() {
 
 // Forgot & Reset Password Flow
 export function VerificationFlowPage({ mode }: { mode: 'forgot' | 'reset' }) {
-  const { showToast } = useStore();
+  const { showToast, signOut } = useStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -581,19 +721,61 @@ export function VerificationFlowPage({ mode }: { mode: 'forgot' | 'reset' }) {
   const token = searchParams.get('token') || '';
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [shakeKey, setShakeKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+
+  const emailShaking = useShakeAnimation(Boolean(fieldErrors.email), shakeKey);
+
+  const clearFieldError = (field: string) => {
+    if (!fieldErrors[field]) return;
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'reset' && (!token || !email.trim())) {
-      showToast('Invalid or missing reset link. Please request a new one.');
-      return;
+    setFormError(null);
+    if (mode === 'forgot') {
+      if (!email.trim()) {
+        setFieldErrors({ email: 'Please enter your email address.' });
+        setShakeKey((k) => k + 1);
+        return;
+      }
+    } else {
+      if (!token || !email.trim()) {
+        setFormError(
+          'This reset link is invalid or incomplete. Please request a new one.',
+        );
+        return;
+      }
+      const nextErrors: Record<string, string> = {};
+      if (password.length < 8) {
+        nextErrors.password = 'Your password must be at least 8 characters.';
+      }
+      if (password !== passwordConfirmation) {
+        nextErrors.password_confirmation = "Your passwords don't match.";
+      }
+      if (Object.keys(nextErrors).length > 0) {
+        setFieldErrors(nextErrors);
+        setShakeKey((k) => k + 1);
+        return;
+      }
     }
+
+    setFieldErrors({});
     setSubmitting(true);
     try {
       if (mode === 'forgot') {
         const res = await authApi.forgotPassword(email.trim());
-        showToast(res.message || 'Password reset link sent.');
+        showToast(
+          res.message ||
+            'We sent a password reset link to your email. Please check your inbox.',
+        );
         navigate('/login');
       } else {
         const res = await authApi.resetPassword({
@@ -602,13 +784,29 @@ export function VerificationFlowPage({ mode }: { mode: 'forgot' | 'reset' }) {
           password,
           password_confirmation: passwordConfirmation,
         });
-        showToast(res.message || 'Password reset successfully.');
-        navigate('/login');
+        await signOut({ silent: true });
+        showToast(
+          res.message ||
+            'Your password has been updated. Please sign in with your new password.',
+        );
+        navigate('/login', { replace: true });
       }
     } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to process request.',
-      );
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'Something went wrong. Please try again.';
+      if (mode === 'forgot') {
+        setFieldErrors({ email: msg });
+        setShakeKey((k) => k + 1);
+      } else if (err instanceof ApiError && err.errors?.password?.[0]) {
+        setFieldErrors({
+          password: toFriendlyErrorMessage(err.errors.password[0], err.status),
+        });
+        setShakeKey((k) => k + 1);
+      } else {
+        setFormError(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -631,37 +829,71 @@ export function VerificationFlowPage({ mode }: { mode: 'forgot' | 'reset' }) {
               : 'Choose a new password for your Kova account.'}
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {formError && (
+          <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] rounded-[14px] px-4 py-3 text-[13px] font-medium">
+            {formError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           {mode === 'forgot' ? (
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address"
-              className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
-            />
+            <label className="flex flex-col gap-1.5">
+              <span
+                className={`text-[12px] font-semibold ${
+                  fieldErrors.email ? 'text-[#e5322d]' : 'text-black'
+                }`}
+              >
+                {fieldErrors.email || 'Email address'}
+              </span>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearFieldError('email');
+                }}
+                placeholder="Email address"
+                className={`h-[42px] border rounded-full px-4 text-[14px] outline-none transition-colors ${
+                  fieldErrors.email
+                    ? 'kova-input-error border-[#e5322d] focus:border-[#e5322d]'
+                    : 'border-[#ececec] focus:border-[#ff6e20]'
+                } ${emailShaking ? 'kova-input-shake' : ''}`}
+              />
+            </label>
           ) : (
             <>
               <input type="hidden" name="email" value={email} />
               <input type="hidden" name="token" value={token} />
-              <input
-                type="password"
+              <PasswordInput
+                label="New password"
                 required
                 minLength={8}
+                autoComplete="new-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearFieldError('password');
+                }}
                 placeholder="New password (min 8 characters)"
-                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
+                error={fieldErrors.password}
+                shakeKey={shakeKey}
+                inputClassName="text-[14px]"
               />
-              <input
-                type="password"
+              <PasswordInput
+                label="Confirm new password"
                 required
                 minLength={8}
+                autoComplete="new-password"
                 value={passwordConfirmation}
-                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                onChange={(e) => {
+                  setPasswordConfirmation(e.target.value);
+                  clearFieldError('password_confirmation');
+                }}
                 placeholder="Confirm new password"
-                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
+                error={fieldErrors.password_confirmation}
+                shakeKey={shakeKey}
+                inputClassName="text-[14px]"
               />
             </>
           )}

@@ -395,9 +395,8 @@ export function CheckoutPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Checkout failed. Ensure the store has Bakong configured.';
+          : "We couldn't complete your checkout right now. Please try again.";
       setCheckoutError(msg);
-      showToast(msg);
     } finally {
       setSubmitting(false);
     }

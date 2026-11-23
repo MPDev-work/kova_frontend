@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   Camera,
   Check,
   KeyRound,
+  Loader2,
   LogOut,
   Mail,
   PauseCircle,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { ContactVerificationCard } from './ContactVerificationCard';
 import { DashboardPageHeader } from './DashboardPrimitives';
+import { PasswordInput } from './PasswordInput';
 import { VerifiedBadge } from './VerifiedBadge';
 import { useStore } from '../context/StoreContext';
 import { ApiError, authApi, customerApi } from '../services/api';
@@ -65,9 +67,27 @@ export function DashboardAccountSettingsPage({
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<{
+    current?: string;
+    password?: string;
+    confirm?: string;
+  }>({});
+  const [passwordShakeKey, setPasswordShakeKey] = useState(0);
   const [savingPassword, setSavingPassword] = useState(false);
   const [sendingResetLink, setSendingResetLink] = useState(false);
-  const [resetFeedback, setResetFeedback] = useState<string | null>(null);
+  const [resetCooldown, setResetCooldown] = useState(0);
+  const [resetFeedback, setResetFeedback] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResetCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resetCooldown]);
 
   // Verified Deactivate Account (Seller)
   const [deactivateOpen, setDeactivateOpen] = useState(false);
@@ -235,14 +255,29 @@ export function DashboardAccountSettingsPage({
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nextErrors: {
+      current?: string;
+      password?: string;
+      confirm?: string;
+    } = {};
+
+    if (!currentPassword) {
+      nextErrors.current = 'Please enter your current password.';
+    }
     if (newPassword.length < 8) {
-      showToast('New password must be at least 8 characters.');
-      return;
+      nextErrors.password = 'Your new password must be at least 8 characters.';
     }
     if (newPassword !== confirmPassword) {
-      showToast('Password confirmation does not match.');
+      nextErrors.confirm = "Your passwords don't match.";
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setPasswordErrors(nextErrors);
+      setPasswordShakeKey((k) => k + 1);
       return;
     }
+
+    setPasswordErrors({});
     setSavingPassword(true);
     try {
       await changePassword({
@@ -254,9 +289,21 @@ export function DashboardAccountSettingsPage({
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to update password.',
-      );
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : 'We could not update your password. Please try again.';
+      if (
+        err instanceof ApiError &&
+        (err.errors?.current_password || /current password/i.test(msg))
+      ) {
+        setPasswordErrors({ current: msg });
+      } else if (err instanceof ApiError && err.errors?.password) {
+        setPasswordErrors({ password: msg });
+      } else {
+        setPasswordErrors({ current: msg });
+      }
+      setPasswordShakeKey((k) => k + 1);
     } finally {
       setSavingPassword(false);
     }
@@ -267,20 +314,26 @@ export function DashboardAccountSettingsPage({
       showToast('No email address is linked to this account.');
       return;
     }
+    if (sendingResetLink || resetCooldown > 0) return;
     setSendingResetLink(true);
     setResetFeedback(null);
     try {
       const res = await authApi.forgotPassword(user.email);
       const msg =
-        res.message || `Password reset link sent to ${user.email}.`;
-      setResetFeedback(msg);
-      showToast(msg);
+        res.message ||
+        `We sent a password reset link to ${user.email}. Please check your inbox and spam folder.`;
+      setResetFeedback({ ok: true, message: msg });
+      setResetCooldown(60);
     } catch (err) {
-      showToast(
+      const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send password reset email.',
-      );
+          : 'We could not send the reset email right now. Please try again.';
+      const waitMatch = msg.match(/wait (\d+) seconds?/i);
+      if (waitMatch) {
+        setResetCooldown(Number(waitMatch[1]));
+      }
+      setResetFeedback({ ok: false, message: msg });
     } finally {
       setSendingResetLink(false);
     }
@@ -693,6 +746,7 @@ export function DashboardAccountSettingsPage({
           {/* 4. Change Password + Forgot Password */}
           <form
             onSubmit={handleChangePassword}
+            noValidate
             className="bg-white border border-[#ececec] rounded-[20px] p-5 sm:p-6 flex flex-col gap-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -711,66 +765,95 @@ export function DashboardAccountSettingsPage({
               </div>
               <button
                 type="button"
-                disabled={sendingResetLink}
+                disabled={sendingResetLink || resetCooldown > 0}
                 onClick={() => void handleForgotPasswordReset()}
-                className="text-[12px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
               >
-                {sendingResetLink
-                  ? 'Sending reset link...'
-                  : 'Forgot current password? Send reset link'}
+                {sendingResetLink && (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                )}
+                <span>
+                  {sendingResetLink
+                    ? 'Sending reset link...'
+                    : resetCooldown > 0
+                      ? `Resend link in ${resetCooldown}s`
+                      : 'Forgot current password? Send reset link'}
+                </span>
               </button>
             </div>
 
             {resetFeedback && (
-              <div className="bg-[#e7f6e7] text-[#029500] text-[12.5px] font-medium px-4 py-2.5 rounded-[12px]">
-                {resetFeedback}
+              <div
+                className={`text-[12.5px] font-medium px-4 py-2.5 rounded-[12px] border ${
+                  resetFeedback.ok
+                    ? 'bg-[#e7f6e7] border-[#029500]/25 text-[#029500]'
+                    : 'bg-[#fdecec] border-[#e5322d]/25 text-[#e5322d]'
+                }`}
+              >
+                {resetFeedback.message}
               </div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1.5 sm:col-span-2">
-                <span className="text-[12px] font-semibold text-black">
-                  Current password
-                </span>
-                <input
-                  type="password"
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter your current password"
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-                />
-              </label>
+              <PasswordInput
+                label="Current password"
+                required
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => {
+                  setCurrentPassword(e.target.value);
+                  if (passwordErrors.current) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      current: undefined,
+                    }));
+                  }
+                }}
+                placeholder="Enter your current password"
+                error={passwordErrors.current}
+                shakeKey={passwordShakeKey}
+                containerClassName="sm:col-span-2"
+              />
 
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-black">
-                  New password
-                </span>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimum 8 characters"
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-                />
-              </label>
+              <PasswordInput
+                label="New password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  if (passwordErrors.password) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      password: undefined,
+                    }));
+                  }
+                }}
+                placeholder="Minimum 8 characters"
+                error={passwordErrors.password}
+                shakeKey={passwordShakeKey}
+              />
 
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-black">
-                  Confirm new password
-                </span>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter new password"
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-                />
-              </label>
+              <PasswordInput
+                label="Confirm new password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (passwordErrors.confirm) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      confirm: undefined,
+                    }));
+                  }
+                }}
+                placeholder="Re-enter new password"
+                error={passwordErrors.confirm}
+                shakeKey={passwordShakeKey}
+              />
             </div>
 
             <div className="flex justify-end pt-1">

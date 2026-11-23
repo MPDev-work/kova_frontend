@@ -524,7 +524,9 @@ export function SellerLayout() {
             <button
               type="button"
               onClick={toggleTheme}
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={
+                isDark ? 'Switch to light mode' : 'Switch to dark mode'
+              }
               title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               className="inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-black w-9 h-9 rounded-full transition-colors cursor-pointer"
             >

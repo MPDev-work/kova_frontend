@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ApiError, customerApi } from '../services/api';
+import { useShakeAnimation } from './PasswordInput';
 
 interface ContactVerificationCardProps {
   /** Current phone value in the profile form so verifying can save & send OTP seamlessly */
@@ -21,13 +22,18 @@ export function ContactVerificationCard({
   const [emailCode, setEmailCode] = useState('');
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailShakeKey, setEmailShakeKey] = useState(0);
   const [emailCooldown, setEmailCooldown] = useState(0);
 
   const [phoneStep, setPhoneStep] = useState(false);
   const [phoneCode, setPhoneCode] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneShakeKey, setPhoneShakeKey] = useState(0);
   const [phoneCooldown, setPhoneCooldown] = useState(0);
+
+  const emailShaking = useShakeAnimation(Boolean(emailError), emailShakeKey);
+  const phoneShaking = useShakeAnimation(Boolean(phoneError), phoneShakeKey);
 
   useEffect(() => {
     if (emailCooldown <= 0 && phoneCooldown <= 0) return;
@@ -51,9 +57,8 @@ export function ContactVerificationCard({
 
   const handleSend = async (channel: 'email' | 'phone') => {
     if (channel === 'phone' && !effectivePhone) {
-      const msg = 'Please enter your phone number above before verifying.';
-      setPhoneError(msg);
-      showToast(msg);
+      setPhoneError('Please enter your phone number above before verifying.');
+      setPhoneShakeKey((k) => k + 1);
       return;
     }
 
@@ -89,10 +94,14 @@ export function ContactVerificationCard({
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Unable to send verification code.';
-      if (channel === 'email') setEmailError(msg);
-      else setPhoneError(msg);
-      showToast(msg);
+          : 'We could not send the verification code right now.';
+      if (channel === 'email') {
+        setEmailError(msg);
+        setEmailShakeKey((k) => k + 1);
+      } else {
+        setPhoneError(msg);
+        setPhoneShakeKey((k) => k + 1);
+      }
     } finally {
       if (channel === 'email') setEmailBusy(false);
       else setPhoneBusy(false);
@@ -103,9 +112,13 @@ export function ContactVerificationCard({
     const code = (channel === 'email' ? emailCode : phoneCode).trim();
     if (!/^\d{6}$/.test(code)) {
       const msg = 'Please enter the 6-digit verification code.';
-      if (channel === 'email') setEmailError(msg);
-      else setPhoneError(msg);
-      showToast(msg);
+      if (channel === 'email') {
+        setEmailError(msg);
+        setEmailShakeKey((k) => k + 1);
+      } else {
+        setPhoneError(msg);
+        setPhoneShakeKey((k) => k + 1);
+      }
       return;
     }
 
@@ -134,10 +147,14 @@ export function ContactVerificationCard({
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Invalid or expired verification code.';
-      if (channel === 'email') setEmailError(msg);
-      else setPhoneError(msg);
-      showToast(msg);
+          : 'That verification code is not correct. Please check and try again.';
+      if (channel === 'email') {
+        setEmailError(msg);
+        setEmailShakeKey((k) => k + 1);
+      } else {
+        setPhoneError(msg);
+        setPhoneShakeKey((k) => k + 1);
+      }
     } finally {
       if (channel === 'email') setEmailBusy(false);
       else setPhoneBusy(false);
@@ -215,11 +232,16 @@ export function ContactVerificationCard({
                 inputMode="numeric"
                 maxLength={6}
                 value={emailCode}
-                onChange={(e) =>
-                  setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))
-                }
+                onChange={(e) => {
+                  setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                  if (emailError) setEmailError(null);
+                }}
                 placeholder="Enter 6-digit code"
-                className="flex-1 min-w-[160px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest text-black outline-none"
+                className={`flex-1 min-w-[160px] h-[42px] bg-white border rounded-full px-4 text-[13px] font-mono tracking-widest text-black outline-none transition-colors ${
+                  emailError
+                    ? 'kova-input-error border-[#e5322d] focus:border-[#e5322d]'
+                    : 'border-[#ececec] focus:border-[#ff6e20]'
+                } ${emailShaking ? 'kova-input-shake' : ''}`}
               />
               <button
                 type="button"
@@ -300,11 +322,16 @@ export function ContactVerificationCard({
                   inputMode="numeric"
                   maxLength={6}
                   value={phoneCode}
-                  onChange={(e) =>
-                    setPhoneCode(e.target.value.replace(/\D/g, '').slice(0, 6))
-                  }
+                  onChange={(e) => {
+                    setPhoneCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                    if (phoneError) setPhoneError(null);
+                  }}
                   placeholder="Enter 6-digit SMS code"
-                  className="flex-1 min-w-[160px] h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest text-black outline-none"
+                  className={`flex-1 min-w-[160px] h-[42px] bg-white border rounded-full px-4 text-[13px] font-mono tracking-widest text-black outline-none transition-colors ${
+                    phoneError
+                      ? 'kova-input-error border-[#e5322d] focus:border-[#e5322d]'
+                      : 'border-[#ececec] focus:border-[#ff6e20]'
+                  } ${phoneShaking ? 'kova-input-shake' : ''}`}
                 />
                 <button
                   type="button"

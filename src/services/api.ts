@@ -97,6 +97,152 @@ interface RawEnvelope<T> {
   errors?: Record<string, string[]>;
 }
 
+const TECHNICAL_ERROR_PATTERN =
+  /sqlstate|pdoexception|queryexception|stack trace|undefined |syntaxerror|typeerror|referenceerror|curl error|call to a member|ensure laravel|unexpected server response|request failed \(\d+\)|internal server error|server error|http \d{3}|<!doctype|<html|vendor[\\/]|app[\\/]http/i;
+
+export function toFriendlyErrorMessage(
+  rawMessage: string | undefined | null,
+  status = 0,
+): string {
+  const cleaned = (rawMessage || '')
+    .replace(/\s*\(and \d+ more errors?\)\.?$/i, '')
+    .trim();
+  const lower = cleaned.toLowerCase();
+
+  // Network / offline
+  if (
+    status === 0 &&
+    (!cleaned ||
+      /failed to fetch|networkerror|network request failed|load failed|err_connection/i.test(
+        lower,
+      ))
+  ) {
+    return "We couldn't connect right now. Please check your internet connection and try again.";
+  }
+
+  // Wrong login credentials
+  if (
+    lower.includes('invalid email/phone or password') ||
+    lower.includes('these credentials do not match') ||
+    lower === 'invalid credentials.' ||
+    lower === 'invalid credentials'
+  ) {
+    return 'Email or phone number or password was not correct.';
+  }
+
+  // Password broker translation keys
+  if (lower === 'passwords.throttled' || lower.includes('please wait before retrying')) {
+    return 'Please wait a minute before requesting another reset link.';
+  }
+  if (lower === 'passwords.token' || lower.includes('this password reset token is invalid')) {
+    return 'This reset link has expired or was already used. Please request a new one.';
+  }
+  if (lower === 'passwords.user' || lower.includes("we can't find a user with that email")) {
+    return "We couldn't find an account with that email address.";
+  }
+
+  // Rate limits / out of attempts
+  if (
+    status === 429 ||
+    lower === 'too many attempts.' ||
+    lower === 'too many attempts' ||
+    lower.includes('too many requests')
+  ) {
+    if (
+      cleaned &&
+      !TECHNICAL_ERROR_PATTERN.test(cleaned) &&
+      (lower.includes('wait ') || lower.includes('sign in again'))
+    ) {
+      return cleaned;
+    }
+    return "You've tried too many times. Please wait a minute and try again.";
+  }
+
+  // Auth / session errors
+  if (
+    status === 401 ||
+    lower === 'unauthenticated.' ||
+    lower === 'unauthenticated'
+  ) {
+    return 'Please sign in again to continue.';
+  }
+
+  // Forbidden / role errors
+  if (
+    status === 403 &&
+    (!cleaned ||
+      lower === 'forbidden.' ||
+      lower === 'forbidden' ||
+      lower.includes('this action is unauthorized') ||
+      lower.includes('insufficient role') ||
+      lower.includes('tenant isolation'))
+  ) {
+    return "You don't have permission to do that.";
+  }
+
+  // Not found
+  if (
+    status === 404 &&
+    (!cleaned ||
+      lower === 'resource not found.' ||
+      lower === 'not found' ||
+      lower.includes('no query results') ||
+      lower.includes('could not be found'))
+  ) {
+    return "We couldn't find what you were looking for.";
+  }
+
+  // Method not allowed
+  if (status === 405) {
+    return 'That action is not available right now.';
+  }
+
+  // Technical errors or raw 5xx server failures
+  if (!cleaned || TECHNICAL_ERROR_PATTERN.test(cleaned)) {
+    return status >= 500
+      ? 'Something went wrong on our end. Please try again in a moment.'
+      : 'Something went wrong. Please try again.';
+  }
+
+  if (status >= 500 && cleaned.length > 160) {
+    return 'Something went wrong on our end. Please try again in a moment.';
+  }
+
+  // Soften raw Laravel default validation phrasing ("The current password field is required.")
+  if (/^the .+ field /i.test(cleaned)) {
+    return cleaned
+      .replace(/^the (.+?) field is required\.?$/i, 'Please enter your $1.')
+      .replace(
+        /^the (.+?) field must be a valid email address\.?$/i,
+        'Please enter a valid email address.',
+      )
+      .replace(
+        /^the (.+?) field confirmation does not match\.?$/i,
+        'The passwords do not match.',
+      )
+      .replace(
+        /^the (.+?) field must be at least (\d+) characters\.?$/i,
+        'Your $1 must be at least $2 characters long.',
+      )
+      .replace(
+        /^the (.+?) has already been taken\.?$/i,
+        'That $1 is already registered with another account.',
+      )
+      .replace(/_/g, ' ');
+  }
+
+  if (/^the .+ has already been taken\.?$/i.test(cleaned)) {
+    return cleaned
+      .replace(
+        /^the (.+?) has already been taken\.?$/i,
+        'That $1 is already registered with another account.',
+      )
+      .replace(/_/g, ' ');
+  }
+
+  return cleaned;
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit & { isFormData?: boolean } = {},
@@ -113,20 +259,28 @@ export async function apiRequest<T>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    throw new ApiError(
+      toFriendlyErrorMessage(
+        err instanceof Error ? err.message : undefined,
+        0,
+      ),
+      0,
+    );
+  }
 
   const text = await res.text();
   let json: RawEnvelope<T>;
   try {
     json = text ? (JSON.parse(text) as RawEnvelope<T>) : {};
   } catch {
-    throw new ApiError(
-      `Unexpected server response (${res.status}). Ensure Laravel backend is running.`,
-      res.status,
-    );
+    throw new ApiError(toFriendlyErrorMessage(undefined, res.status), res.status);
   }
 
   if (!res.ok || json.success === false) {
@@ -134,7 +288,7 @@ export async function apiRequest<T>(
       ? Object.values(json.errors).flat()[0]
       : undefined;
     throw new ApiError(
-      firstFieldError || json.message || `Request failed (${res.status})`,
+      toFriendlyErrorMessage(firstFieldError || json.message, res.status),
       res.status,
       json.errors,
     );

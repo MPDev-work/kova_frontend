@@ -28,6 +28,7 @@ import {
 } from '../../components/DashboardPrimitives';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { ToggleSwitch } from '../../components/ToggleSwitch';
+import { PasswordInput } from '../../components/PasswordInput';
 import {
   DashboardKpiSkeleton,
   DashboardTableSkeleton,
@@ -1874,8 +1875,8 @@ export function AdminSettingsPage() {
                                 </span>
                               )}
                             </div>
-                            <input
-                              type="password"
+                            <PasswordInput
+                              mono
                               value={draftValues[item.key] ?? ''}
                               onChange={(e) =>
                                 setDraftValues((prev) => ({
@@ -1888,7 +1889,6 @@ export function AdminSettingsPage() {
                                   ? 'Stored encrypted in database — leave blank to keep saved token'
                                   : 'Paste platform NBC Bakong Open API JWT token'
                               }
-                              className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono outline-none"
                             />
                             {item.description && (
                               <span className="text-[11px] text-[#8a8a8a]">

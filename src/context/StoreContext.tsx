@@ -19,6 +19,7 @@ import {
   orderApi,
   setAuthToken,
   setCachedUser,
+  toFriendlyErrorMessage,
   wishlistApi,
 } from '../services/api';
 import { DEFAULT_KHR_RATE } from '../utils/currency';
@@ -112,7 +113,7 @@ interface StoreContextValue {
   }) => Promise<void>;
   refreshUser: () => Promise<void>;
   completeGoogleAuth: (token: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: (options?: { silent?: boolean }) => Promise<void>;
   updateProfile: (patch: {
     name?: string;
     phone?: string | null;
@@ -346,10 +347,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const lastSeenNotifIdRef = useRef<number | null>(null);
 
   const showToast = useCallback((msg: string) => {
-    setToast(msg);
+    if (!msg || !msg.trim()) return;
+    const friendly = toFriendlyErrorMessage(msg, 0);
+    setToast(friendly);
     window.setTimeout(() => {
-      setToast((prev) => (prev === msg ? null : prev));
-    }, 3400);
+      setToast((prev) => (prev === friendly ? null : prev));
+    }, 3800);
   }, []);
 
   const refreshNotifications = useCallback(
@@ -811,7 +814,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [afterAuthSuccess],
   );
 
-  const signOut = async () => {
+  const signOut = async (options?: { silent?: boolean }) => {
     try {
       if (getAuthToken()) {
         await authApi.logout();
@@ -828,7 +831,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setTickets([]);
     setAppliedCoupon(null);
     await refreshCart();
-    showToast('Signed out.');
+    if (!options?.silent) {
+      showToast('Signed out.');
+    }
   };
 
   const updateProfile: StoreContextValue['updateProfile'] = async (patch) => {

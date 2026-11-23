@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
-import { ApiError, customerApi } from '../../services/api';
+import { ApiError, customerApi, toFriendlyErrorMessage } from '../../services/api';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
+import { PasswordInput } from '../../components/PasswordInput';
 import type { StoreApplication } from '../../types/marketplace';
 
 export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
@@ -37,6 +38,11 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
   const [ownerName, setOwnerName] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<{
+    password?: string;
+    confirm?: string;
+  }>({});
+  const [passwordShakeKey, setPasswordShakeKey] = useState(0);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -92,9 +98,8 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
         const msg =
           err instanceof ApiError
             ? err.message
-            : 'Unable to submit store application.';
+            : 'We could not submit your store application right now.';
         setError(msg);
-        showToast(msg);
       } finally {
         setSubmitting(false);
       }
@@ -103,10 +108,19 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
     const handleGuestSellerRegister = async (e: React.FormEvent) => {
       e.preventDefault();
       setError(null);
+      const nextErrors: { password?: string; confirm?: string } = {};
+      if (password.length < 8) {
+        nextErrors.password = 'Your password must be at least 8 characters.';
+      }
       if (password !== passwordConfirmation) {
-        setError('Passwords do not match.');
+        nextErrors.confirm = "Your passwords don't match.";
+      }
+      if (Object.keys(nextErrors).length > 0) {
+        setPasswordErrors(nextErrors);
+        setPasswordShakeKey((k) => k + 1);
         return;
       }
+      setPasswordErrors({});
       setSubmitting(true);
       try {
         await register({
@@ -127,12 +141,18 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
         const app = await customerApi.getMyStoreApplication();
         setMyApp(app && typeof app === 'object' && 'id' in app ? app : null);
       } catch (err) {
+        if (err instanceof ApiError && err.errors?.password?.[0]) {
+          setPasswordErrors({
+            password: toFriendlyErrorMessage(err.errors.password[0], err.status),
+          });
+          setPasswordShakeKey((k) => k + 1);
+          return;
+        }
         const msg =
           err instanceof ApiError
             ? err.message
-            : 'Unable to register seller account.';
+            : 'We could not register your seller account right now.';
         setError(msg);
-        showToast(msg);
       } finally {
         setSubmitting(false);
       }
@@ -420,33 +440,47 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
               />
             </label>
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold">Password</span>
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
-              />
-            </label>
+            <PasswordInput
+              label="Password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (passwordErrors.password) {
+                  setPasswordErrors((prev) => ({
+                    ...prev,
+                    password: undefined,
+                  }));
+                }
+              }}
+              placeholder="At least 8 characters"
+              error={passwordErrors.password}
+              shakeKey={passwordShakeKey}
+              inputClassName="text-[14px]"
+            />
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold">
-                Confirm password
-              </span>
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={passwordConfirmation}
-                onChange={(e) => setPasswordConfirmation(e.target.value)}
-                placeholder="Re-enter password"
-                className="h-[42px] border border-[#ececec] rounded-full px-4 text-[14px] outline-none focus:border-[#ff6e20]"
-              />
-            </label>
+            <PasswordInput
+              label="Confirm password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={passwordConfirmation}
+              onChange={(e) => {
+                setPasswordConfirmation(e.target.value);
+                if (passwordErrors.confirm) {
+                  setPasswordErrors((prev) => ({
+                    ...prev,
+                    confirm: undefined,
+                  }));
+                }
+              }}
+              placeholder="Re-enter password"
+              error={passwordErrors.confirm}
+              shakeKey={passwordShakeKey}
+              inputClassName="text-[14px]"
+            />
 
             <CambodiaLocationSelector
               province={province}

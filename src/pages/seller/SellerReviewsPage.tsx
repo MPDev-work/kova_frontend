@@ -43,8 +43,9 @@ export function SellerReviewsPage() {
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [selectedReview, setSelectedReview] =
-    useState<SellerReviewItem | null>(null);
+  const [selectedReview, setSelectedReview] = useState<SellerReviewItem | null>(
+    null,
+  );
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -498,7 +499,7 @@ export function SellerReviewsPage() {
                   {selectedReview.title}
                 </p>
               )}
-              <p className="text-[14px] text-black/85 leading-[1.6] whitespace-pre-line">
+              <p className="text-[14px] text-[#1c1c1c] leading-[1.6] whitespace-pre-line">
                 {selectedReview.comment}
               </p>
             </div>
