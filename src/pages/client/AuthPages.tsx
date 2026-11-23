@@ -8,7 +8,7 @@ import { KovaLogo } from '../../components/KovaLogo';
 function AuthStaticHeroPanel() {
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="w-full aspect-[4/3] sm:aspect-[16/11] lg:aspect-[5/4] rounded-[28px] overflow-hidden bg-[#ff5200] shadow-[0_14px_40px_rgba(255,110,32,0.18)]">
+      <div className="w-full h-full rounded-[28px] overflow-hidden bg-[#ff5200] shadow-[0_14px_40px_rgba(255,110,32,0.18)]">
         <img
           src="/images/auth-hero.jpg"
           alt="Kova Marketplace"
@@ -318,9 +318,9 @@ export function LoginPage() {
             </form>
           ) : (
             <div className="flex flex-col gap-5 w-full max-w-[440px]">
-              <div className="self-start">
+              {/* <div className="self-start">
                 <KovaLogo size="sm" />
-              </div>
+              </div> */}
 
               <div>
                 <h1 className="text-[34px] sm:text-[38px] font-bold text-black tracking-tight leading-[1.15]">
@@ -459,9 +459,9 @@ export function RegisterPage() {
           <AuthStaticHeroPanel />
 
           <div className="flex flex-col gap-5 w-full max-w-[440px]">
-            <div className="self-start">
+            {/* <div className="self-start">
               <KovaLogo size="sm" />
-            </div>
+            </div> */}
 
             <div>
               <h1 className="text-[32px] font-bold text-black tracking-tight leading-[1.15]">

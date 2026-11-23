@@ -250,7 +250,10 @@ const EMPTY_CART: CartSummary = {
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
+let consumedGoogleOAuthToken = false;
+
 function consumeUrlAuthToken(): boolean {
+  if (consumedGoogleOAuthToken) return true;
   try {
     const url = new URL(window.location.href);
     const token =
@@ -259,6 +262,7 @@ function consumeUrlAuthToken(): boolean {
         ? url.searchParams.get('token')
         : null);
     if (!token) return false;
+    consumedGoogleOAuthToken = true;
     setAuthToken(token);
     url.searchParams.delete('auth_token');
     url.searchParams.delete('token');
@@ -594,6 +598,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const meRes = await authApi.me();
             if (mounted) {
               setUser(meRes.data);
+              sessionBootedRef.current = true;
             }
           } catch (err) {
             if (
@@ -612,15 +617,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const tasks: Promise<void>[] = [];
 
       if (!catalogBootedRef.current) {
-        catalogBootedRef.current = true;
-        tasks.push(refreshCatalog());
+        tasks.push(
+          refreshCatalog().then(() => {
+            if (mounted) catalogBootedRef.current = true;
+          }),
+        );
       }
 
       if (!sessionBootedRef.current) {
-        sessionBootedRef.current = true;
         const restoreSession = async () => {
           if (!token) {
             await refreshCart();
+            if (mounted) sessionBootedRef.current = true;
             return;
           }
           try {
@@ -630,14 +638,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               if (fromGoogleOAuth) {
                 try {
                   const syncedCart = await cartApi.syncGuestCart();
-                  setCart(syncedCart);
+                  if (mounted) setCart(syncedCart);
                 } catch {
                   await refreshCart();
                 }
                 await loadAuthenticatedData();
-                showToast(`Signed in with Google as ${meRes.data.name}`);
+                if (mounted) {
+                  sessionBootedRef.current = true;
+                  showToast(`Signed in with Google as ${meRes.data.name}`);
+                }
               } else {
                 await Promise.all([refreshCart(), loadAuthenticatedData()]);
+                if (mounted) sessionBootedRef.current = true;
               }
             }
           } catch (err) {
@@ -651,6 +663,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               if (mounted) {
                 setUser(null);
                 await refreshCart();
+                sessionBootedRef.current = true;
               }
             }
           }
