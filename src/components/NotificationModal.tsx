@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Check, MessageCircle, ShoppingBag, Trash2 } from 'lucide-react';
+import { Check, MessageCircle, ShoppingBag } from 'lucide-react';
 import { DashboardModal } from './DashboardPrimitives';
 import { FigmaIcon } from './FigmaIcon';
 import { useStore } from '../context/StoreContext';
-import { useConfirmDelete } from '../context/ConfirmDeleteContext';
 import { formatShortDate } from '../utils/currency';
 import type { UserNotificationItem } from '../types/marketplace';
 
@@ -92,23 +91,14 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
     refreshNotifications,
     markNotificationRead,
     markAllNotificationsRead,
-    deleteNotification,
     clearAllNotifications,
   } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const { confirmDelete } = useConfirmDelete();
-  const [hiddenIds, setHiddenIds] = useState<number[]>([]);
-
-  const visibleNotifications = useMemo(() => {
-    if (hiddenIds.length === 0) return notifications;
-    const hidden = new Set(hiddenIds);
-    return notifications.filter((n) => !hidden.has(n.id));
-  }, [notifications, hiddenIds]);
 
   const grouped = useMemo(
-    () => groupNotifications(visibleNotifications),
-    [visibleNotifications],
+    () => groupNotifications(notifications),
+    [notifications],
   );
 
   useEffect(() => {
@@ -190,46 +180,8 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
     });
   };
 
-  const handleDeleteGroup = (group: GroupedNotification) => {
-    const ids = group.items.map((item) => item.id);
-    confirmDelete({
-      title: 'Delete notification?',
-      description: `Remove "${group.title}" from your notifications?`,
-      itemLabel: group.title,
-      onOptimisticRemove: () => {
-        setHiddenIds((prev) => Array.from(new Set([...prev, ...ids])));
-      },
-      onUndo: () => {
-        const idSet = new Set(ids);
-        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
-      },
-      onCommit: async () => {
-        await deleteNotification(ids);
-        const idSet = new Set(ids);
-        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
-      },
-    });
-  };
-
   const handleClearAll = () => {
-    const allIds = visibleNotifications.map((n) => n.id);
-    confirmDelete({
-      title: 'Clear all notifications?',
-      description: 'All notifications in your inbox will be deleted.',
-      itemLabel: 'all notifications',
-      confirmLabel: 'Clear all',
-      onOptimisticRemove: () => {
-        setHiddenIds((prev) => Array.from(new Set([...prev, ...allIds])));
-      },
-      onUndo: () => {
-        const idSet = new Set(allIds);
-        setHiddenIds((prev) => prev.filter((id) => !idSet.has(id)));
-      },
-      onCommit: async () => {
-        await clearAllNotifications();
-        setHiddenIds([]);
-      },
-    });
+    void clearAllNotifications();
   };
 
   return (
@@ -273,7 +225,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                 Mark all read
               </button>
             )}
-            {visibleNotifications.length > 0 && (
+            {notifications.length > 0 && (
               <button
                 type="button"
                 onClick={handleClearAll}
@@ -401,16 +353,6 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                           <span>Mark read</span>
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteGroup(group)}
-                        title="Delete notification"
-                        aria-label="Delete notification"
-                        className="inline-flex items-center gap-1 bg-white hover:bg-[#fff0f0] border border-[#ececec] hover:border-[#f8c7c7] text-[#767676] hover:text-[#e5322d] text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        <span>Delete</span>
-                      </button>
                     </div>
                     <button
                       type="button"

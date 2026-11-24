@@ -450,11 +450,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setUnreadNotificationsCount(0);
     try {
       await customerApi.clearAllNotifications();
-      showToast('All notifications cleared.');
     } catch {
       void refreshNotifications(false);
     }
-  }, [refreshNotifications, showToast]);
+  }, [refreshNotifications]);
 
   const refreshCatalog = useCallback(async () => {
     const [
