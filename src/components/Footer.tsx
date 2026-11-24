@@ -86,11 +86,11 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-2.5 text-[13px] text-black">
               <FigmaIcon name="phone" className="w-4 h-4 text-[#ff6e20]" />
-              <span>023 888 168 &nbsp;·&nbsp; 012 345 678</span>
+              <span>+855 88 337 4874</span>
             </div>
             <div className="flex items-center gap-2.5 text-[13px] text-black">
               <FigmaIcon name="mail" className="w-4 h-4 text-[#ff6e20]" />
-              <span>support@kova.com.kh</span>
+              <span>kova.support.kh@gmail.com</span>
             </div>
             <div className="max-w-[300px] flex items-center gap-2.5 text-[13px] text-black">
               <FigmaIcon name="map-pin" className="w-4 h-4 text-[#ff6e20]" />

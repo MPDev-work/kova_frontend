@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { Eye, LayoutGrid, List, Pencil, Trash2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError } from '../../services/api';
@@ -14,9 +10,10 @@ import {
   type SellerDashboardData,
   type SellerProductItem,
 } from '../../services/dashboardApi';
-import { formatRiel, formatShortDate } from '../../utils/currency';
+import { formatKhr, formatRiel, formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
 import {
+  DashboardModal,
   DashboardPageHeader,
   FilterPillTabs,
   KpiGrid,
@@ -30,6 +27,7 @@ import {
 } from '../../components/DashboardPrimitives';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { ToggleSwitch } from '../../components/ToggleSwitch';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
 import {
   DashboardKpiSkeleton,
   DashboardTableSkeleton,
@@ -390,7 +388,7 @@ export function SellerOverviewPage() {
               </button>
             </div>
             <Link
-              to="/seller/products/new"
+              to="/seller/products?add=1"
               className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
             >
               Add product
@@ -689,20 +687,155 @@ type ProductFilterTab =
   | 'archived';
 
 export function SellerProductsPage() {
-  const [searchParams] = useSearchParams();
-  const { khrRate, categories, showToast, refreshCatalog } = useStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, khrRate, categories, showToast, refreshCatalog } = useStore();
   const { confirmDelete } = useConfirmDelete();
 
   const [tab, setTab] = useState<ProductFilterTab>('all');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => {
+    try {
+      const saved = window.localStorage.getItem('kova_seller_products_view');
+      return saved === 'grid' ? 'grid' : 'table';
+    } catch {
+      return 'table';
+    }
+  });
 
   const [products, setProducts] = useState<SellerProductItem[]>([]);
+  const productsRef = useRef<SellerProductItem[]>([]);
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Full Product Detail Modal state
+  const [detailProduct, setDetailProduct] = useState<SellerProductItem | null>(
+    null,
+  );
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
+
+  // Add / Edit Product Modal state
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+
+  const openAddProductModal = useCallback(() => {
+    setEditingProductId(null);
+    setFormModalOpen(true);
+  }, []);
+
+  const openEditProductModal = useCallback((id: number) => {
+    setEditingProductId(id);
+    setFormModalOpen(true);
+  }, []);
+
+  const closeProductFormModal = useCallback(() => {
+    setFormModalOpen(false);
+    setEditingProductId(null);
+    if (searchParams.has('add') || searchParams.has('edit')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('add');
+      next.delete('edit');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const handleSetViewMode = (mode: 'table' | 'grid') => {
+    setViewMode(mode);
+    setPage(1);
+    try {
+      window.localStorage.setItem('kova_seller_products_view', mode);
+    } catch {
+      // ignore storage quota errors
+    }
+  };
+
+  const openProductDetail = useCallback(
+    async (productOrId: SellerProductItem | number) => {
+      const id = typeof productOrId === 'number' ? productOrId : productOrId.id;
+      const initial =
+        typeof productOrId === 'number'
+          ? productsRef.current.find((item) => item.id === productOrId) || null
+          : productOrId;
+
+      if (initial) {
+        setDetailProduct(initial);
+        setActiveImageUrl(
+          initial.primary_image?.image_url ||
+            initial.images?.[0]?.image_url ||
+            null,
+        );
+      } else {
+        setDetailProduct(null);
+        setActiveImageUrl(null);
+      }
+      setDetailLoading(true);
+
+      try {
+        const full = await storeOwnerApi.getProduct(id);
+        setDetailProduct(full);
+        const primaryImg =
+          full.images?.find((img) => img.is_primary)?.image_url ||
+          full.primary_image?.image_url ||
+          full.images?.[0]?.image_url ||
+          null;
+        setActiveImageUrl(primaryImg);
+      } catch (err) {
+        if (!initial) {
+          showToast(
+            err instanceof ApiError
+              ? err.message
+              : 'We could not load the product details right now.',
+          );
+          setDetailProduct(null);
+        }
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [showToast],
+  );
+
+  const closeProductDetail = useCallback(() => {
+    setDetailProduct(null);
+    setDetailLoading(false);
+    setActiveImageUrl(null);
+    if (searchParams.has('view')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('view');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Open product detail or form modal automatically when navigated via ?view=<id>, ?add=1, or ?edit=<id>
+  const viewParam = searchParams.get('view');
+  const addParam = searchParams.get('add');
+  const editParam = searchParams.get('edit');
+  const urlEditProductId =
+    editParam && Number.isFinite(Number(editParam)) && Number(editParam) > 0
+      ? Number(editParam)
+      : null;
+  const effectiveFormModalOpen =
+    formModalOpen ||
+    addParam === '1' ||
+    addParam === 'true' ||
+    Boolean(urlEditProductId);
+  const effectiveEditingProductId = formModalOpen
+    ? editingProductId
+    : urlEditProductId;
+
+  useEffect(() => {
+    if (!viewParam) return;
+    const id = Number(viewParam);
+    if (!Number.isFinite(id) || id <= 0) return;
+    void openProductDetail(id);
+  }, [viewParam, openProductDetail]);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -755,7 +888,7 @@ export function SellerProductsPage() {
     });
   }, [products, tab, categoryFilter, search]);
 
-  const perPage = 10;
+  const perPage = viewMode === 'grid' ? 12 : 10;
   const lastPage = Math.max(1, Math.ceil(filtered.length / perPage));
   const safePage = Math.min(page, lastPage);
   const paged = filtered.slice((safePage - 1) * perPage, safePage * perPage);
@@ -810,6 +943,9 @@ export function SellerProductsPage() {
       onOptimisticRemove: () => {
         setProducts((prev) => prev.filter((item) => item.id !== p.id));
         setSelectedIds((prev) => prev.filter((id) => id !== p.id));
+        if (detailProduct?.id === p.id) {
+          closeProductDetail();
+        }
       },
       onUndo: () => {
         void loadProducts();
@@ -867,12 +1003,13 @@ export function SellerProductsPage() {
             >
               Export CSV
             </button>
-            <Link
-              to="/seller/products/new"
-              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
+            <button
+              type="button"
+              onClick={openAddProductModal}
+              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors cursor-pointer"
             >
               Add product
-            </Link>
+            </button>
           </>
         }
       />
@@ -929,6 +1066,43 @@ export function SellerProductsPage() {
                 className="flex-1 bg-transparent text-[12px] text-black placeholder:text-[#979797] outline-none min-w-0"
               />
             </div>
+
+            <div
+              className="inline-flex items-center bg-[#f7f7f7] border border-[#ececec] rounded-full p-0.5 h-[36px]"
+              role="group"
+              aria-label="Product view layout"
+            >
+              <button
+                type="button"
+                onClick={() => handleSetViewMode('table')}
+                title="Table view"
+                aria-label="Table view"
+                aria-pressed={viewMode === 'table'}
+                className={`inline-flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-[#ff6e20] text-white'
+                    : 'text-[#767676] hover:text-black'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Table</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetViewMode('grid')}
+                title="Grid view"
+                aria-label="Grid view"
+                aria-pressed={viewMode === 'grid'}
+                className={`inline-flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+                  viewMode === 'grid'
+                    ? 'bg-[#ff6e20] text-white'
+                    : 'text-[#767676] hover:text-black'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Grid</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -976,19 +1150,208 @@ export function SellerProductsPage() {
             <p className="text-[14.5px] font-semibold text-black">
               No products found
             </p>
-            <Link
-              to="/seller/products/new"
-              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
+            <button
+              type="button"
+              onClick={openAddProductModal}
+              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-5 py-2 rounded-full cursor-pointer"
             >
               Add product
-            </Link>
+            </button>
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {paged.map((p) => {
+              const regular = Number(p.regular_price || 0);
+              const discount =
+                p.discount_price !== null &&
+                p.discount_price !== undefined &&
+                Number(p.discount_price) > 0 &&
+                Number(p.discount_price) < regular
+                  ? Number(p.discount_price)
+                  : null;
+              const price = discount ?? regular;
+              const discountPct =
+                discount && regular > 0
+                  ? Math.round(((regular - discount) / regular) * 100)
+                  : 0;
+              const low = p.stock_quantity <= (p.low_stock_threshold ?? 5);
+              const isChecked = selectedIds.includes(p.id);
+              const rating = p.reviews_avg_rating
+                ? Number(p.reviews_avg_rating)
+                : 0;
+              const reviewsCount = Number(p.reviews_count ?? 0);
+              const storeName = user?.store?.name || 'My Store';
+              const storeVerified = Boolean(user?.store?.is_verified);
+
+              return (
+                <div
+                  key={p.id}
+                  className={`group bg-white border transition-all rounded-[20px] flex flex-col gap-2 pb-3 overflow-hidden ${
+                    isChecked
+                      ? 'border-[#ff6e20] ring-2 ring-[#ff6e20]/15'
+                      : 'border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-md'
+                  }`}
+                >
+                  {/* Photo Box — matches client ProductCard */}
+                  <div className="relative aspect-[276/260] w-full overflow-hidden rounded-[20px] bg-[#f7f7f7]">
+                    <button
+                      type="button"
+                      onClick={() => void openProductDetail(p)}
+                      className="block w-full h-full cursor-pointer text-left"
+                    >
+                      {p.primary_image?.image_url ? (
+                        <img
+                          src={p.primary_image.image_url}
+                          alt={p.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[#979797]">
+                          <FigmaIcon name="package" className="w-10 h-10" />
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Top-left High-Contrast Status Badge */}
+                    {/* <div className="absolute top-2.5 left-2.5">
+                      <span
+                        className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm ${
+                          p.stock_quantity === 0
+                            ? 'bg-[#e5322d] text-white'
+                            : p.status === 'published'
+                              ? 'bg-[#029500] text-white'
+                              : p.status === 'draft'
+                                ? 'bg-[#ff6e20] text-white'
+                                : 'bg-[#333333] text-white'
+                        }`}
+                      >
+                        {p.stock_quantity === 0
+                          ? 'Out of stock'
+                          : p.status === 'published'
+                            ? 'Active'
+                            : p.status === 'draft'
+                              ? 'Draft'
+                              : 'Archived'}
+                      </span>
+                    </div> */}
+
+                    {/* Discount Badge */}
+                    {discountPct > 0 && (
+                      <div className="absolute top-2.5 right-2.5 bg-[#e5322d] text-white text-[11px] font-bold leading-[1.35] px-2 py-[3px] rounded-full">
+                        -{discountPct}%
+                      </div>
+                    )}
+
+                    {/* Free Delivery Badge (bottom-left corner — matches client ProductCard) */}
+                    {p.free_shipping && (
+                      <div className="absolute bottom-0 left-0 z-10 bg-green-600 rounded-tr-[14px] px-2.5 py-1 flex items-center gap-1 leading-none shadow-sm">
+                        <span className="text-[11.5px] text-[#ffe169]">
+                          Free
+                        </span>
+                        <span className="text-[11.5px] text-white">
+                          Delivery
+                        </span>
+                      </div>
+                    )}
+
+                    {p.stock_quantity === 0 && (
+                      <div className="absolute bottom-2 right-2 bg-black/75 text-white text-[10.5px] font-semibold px-2.5 py-0.5 rounded-full">
+                        Out of stock
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Info — matches client ProductCard */}
+                  <div className="px-3 flex flex-col gap-[5px] flex-1">
+                    <button
+                      type="button"
+                      onClick={() => void openProductDetail(p)}
+                      className="text-left text-[14px] font-medium leading-[1.35] text-black line-clamp-2 min-h-[38px] group-hover:text-[#ff6e20] transition-colors cursor-pointer"
+                    >
+                      {p.name}
+                    </button>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="bg-[#ffefe6] text-[#ff6e20] text-[10px] font-semibold leading-[1.35] px-1.5 py-[2px] rounded-[6px] inline-flex items-center gap-1 max-w-[140px]">
+                        <span className="truncate">{storeName}</span>
+                        {storeVerified && <VerifiedBadge size="xs" />}
+                      </span>
+                      {reviewsCount > 0 && (
+                        <span className="text-[11px] text-[#979797] leading-[1.35]">
+                          ★ {rating.toFixed(1)} ({reviewsCount})
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-baseline gap-1.5 mt-auto pt-0.5">
+                      <span className="text-[21px] font-bold leading-[1.2] text-[#ff6e20]">
+                        ${price.toFixed(2)}
+                      </span>
+                      <span className="text-[11px] font-semibold text-[#ff6e20]">
+                        USD
+                      </span>
+                      {regular > price && (
+                        <span className="text-[11px] text-[#979797] line-through">
+                          ${regular.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="text-[#767676]">
+                        {formatKhr(price, price >= 300, khrRate)}
+                      </span>
+                      <span
+                        className={`font-semibold ${
+                          p.stock_quantity === 0 || low
+                            ? 'text-[#e5322d]'
+                            : 'text-[#029500]'
+                        }`}
+                      >
+                        {p.stock_quantity} in stock
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 pt-2 mt-1 border-t border-[#f1f1f1]">
+                      <button
+                        type="button"
+                        onClick={() => void openProductDetail(p)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold py-1.5 px-3 rounded-full transition-colors cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View detail</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditProductModal(p.id)}
+                        title="Edit product"
+                        aria-label={`Edit ${p.name}`}
+                        className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ff6e20]/40 text-[#555555] hover:text-[#ff6e20] flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deletingId === p.id}
+                        onClick={() => void handleDelete(p)}
+                        title="Delete product"
+                        aria-label={`Delete ${p.name}`}
+                        className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#fff0f0] border border-[#ececec] hover:border-[#e5322d]/40 text-[#767676] hover:text-[#e5322d] flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#f7f7f7] text-[11.5px] font-semibold text-[#767676]">
-                  <th className="py-2.5 pl-3.5 pr-2 rounded-l-[10px] w-9">
+                  <th className="py-2.5 pl-3 pr-2 rounded-l-[10px] w-9">
                     <input
                       type="checkbox"
                       checked={allOnPageSelected}
@@ -997,14 +1360,14 @@ export function SellerProductsPage() {
                       className="accent-[#ff6e20]"
                     />
                   </th>
-                  <th className="py-2.5 px-3">Product</th>
-                  <th className="py-2.5 px-3">SKU</th>
-                  <th className="py-2.5 px-3">Category</th>
-                  <th className="py-2.5 px-3">Price</th>
-                  <th className="py-2.5 px-3">Stock</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Created</th>
-                  <th className="py-2.5 px-3.5 rounded-r-[10px] text-right">
+                  <th className="py-2.5 px-2.5">Product</th>
+                  <th className="py-2.5 px-2.5">SKU</th>
+                  <th className="py-2.5 px-2.5">Category</th>
+                  <th className="py-2.5 px-2.5">Price</th>
+                  <th className="py-2.5 px-2.5">Stock</th>
+                  <th className="py-2.5 px-2.5">Status</th>
+                  <th className="py-2.5 px-2.5">Created</th>
+                  <th className="py-2.5 px-3 rounded-r-[10px] text-right">
                     Actions
                   </th>
                 </tr>
@@ -1021,7 +1384,7 @@ export function SellerProductsPage() {
                         isChecked ? 'bg-[#fff9f5]' : 'hover:bg-[#fafafa]'
                       }`}
                     >
-                      <td className="py-3.5 pl-3.5 pr-2">
+                      <td className="py-3.5 pl-3 pr-2">
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -1030,8 +1393,12 @@ export function SellerProductsPage() {
                           className="accent-[#ff6e20]"
                         />
                       </td>
-                      <td className="py-3.5 px-3">
-                        <div className="flex items-center gap-3">
+                      <td className="py-3.5 px-2.5">
+                        <button
+                          type="button"
+                          onClick={() => void openProductDetail(p)}
+                          className="flex items-center gap-3 text-left group cursor-pointer"
+                        >
                           {p.primary_image?.image_url ? (
                             <img
                               src={p.primary_image.image_url}
@@ -1047,22 +1414,22 @@ export function SellerProductsPage() {
                             </span>
                           )}
                           <div className="min-w-0">
-                            <p className="font-semibold text-black truncate max-w-[210px]">
+                            <p className="font-semibold text-black group-hover:text-[#ff6e20] transition-colors truncate max-w-[190px]">
                               {p.name}
                             </p>
                             <p className="text-[11px] text-[#8a8a8a] truncate">
                               {p.category?.name || 'Standard'}
                             </p>
                           </div>
-                        </div>
+                        </button>
                       </td>
-                      <td className="py-3.5 px-3 font-mono text-[12px] text-[#555555] whitespace-nowrap">
+                      <td className="py-3.5 px-2.5 font-mono text-[12px] text-[#555555] whitespace-nowrap">
                         {p.sku}
                       </td>
-                      <td className="py-3.5 px-3 text-[#555555]">
+                      <td className="py-3.5 px-2.5 text-[#555555]">
                         {p.category?.name || '—'}
                       </td>
-                      <td className="py-3.5 px-3">
+                      <td className="py-3.5 px-2.5 whitespace-nowrap">
                         <p className="font-bold text-[#ff6e20]">
                           ${price.toFixed(2)}
                         </p>
@@ -1070,7 +1437,7 @@ export function SellerProductsPage() {
                           {formatRiel(price, khrRate)}
                         </p>
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap">
+                      <td className="py-3.5 px-2.5 whitespace-nowrap">
                         <span
                           className={`text-[12.5px] font-semibold ${
                             p.stock_quantity === 0 || low
@@ -1085,7 +1452,7 @@ export function SellerProductsPage() {
                               : `${p.stock_quantity} in stock`}
                         </span>
                       </td>
-                      <td className="py-3.5 px-3">
+                      <td className="py-3.5 px-2.5">
                         <StatusPill
                           label={
                             p.stock_quantity === 0
@@ -1096,28 +1463,30 @@ export function SellerProductsPage() {
                           }
                         />
                       </td>
-                      <td className="py-3.5 px-3 text-[#767676] whitespace-nowrap">
+                      <td className="py-3.5 px-2.5 text-[#767676] whitespace-nowrap">
                         {formatShortDate(p.created_at)}
                       </td>
-                      <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
+                      <td className="py-3.5 px-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-2.5">
-                          <Link
-                            to={`/seller/products/${p.id}/edit`}
-                            className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
+                          <button
+                            type="button"
+                            onClick={() => void openProductDetail(p)}
+                            className="text-[12.5px] font-semibold text-black hover:text-[#ff6e20] transition-colors cursor-pointer"
+                          >
+                            View detail
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEditProductModal(p.id)}
+                            className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline cursor-pointer"
                           >
                             Edit
-                          </Link>
-                          {/* <Link
-                            to={`/product/${p.slug}`}
-                            className="text-[12.5px] font-semibold text-[#555555] hover:text-black"
-                          >
-                            View
-                          </Link> */}
+                          </button>
                           <button
                             type="button"
                             disabled={deletingId === p.id}
                             onClick={() => void handleDelete(p)}
-                            className="text-[12.5px] font-semibold text-[#e5322d] hover:underline disabled:opacity-50"
+                            className="text-[12.5px] font-semibold text-[#e5322d] hover:underline disabled:opacity-50 cursor-pointer"
                           >
                             Delete
                           </button>
@@ -1140,20 +1509,439 @@ export function SellerProductsPage() {
           onPageChange={setPage}
         />
       </section>
+
+      {/* Full Product Detail Modal */}
+      <DashboardModal
+        open={Boolean(detailProduct) || detailLoading}
+        onClose={closeProductDetail}
+        title={detailProduct?.name || 'Product details'}
+        subtitle={
+          detailProduct
+            ? `SKU: ${detailProduct.sku} · ${detailProduct.category?.name || 'Uncategorized'}`
+            : 'Loading product information...'
+        }
+        widthClass="max-w-[860px]"
+        footer={
+          detailProduct ? (
+            <div className="w-full flex flex-wrap items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const targetId = detailProduct.id;
+                  closeProductDetail();
+                  openEditProductModal(targetId);
+                }}
+                className="inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13px] font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit product</span>
+              </button>
+              <button
+                type="button"
+                disabled={deletingId === detailProduct.id}
+                onClick={() => handleDelete(detailProduct)}
+                className="inline-flex items-center gap-1.5 bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[13px] font-semibold px-4.5 py-2 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            </div>
+          ) : undefined
+        }
+      >
+        {detailLoading && !detailProduct ? (
+          <div className="py-12 text-center text-[13.5px] text-[#767676]">
+            Loading product details...
+          </div>
+        ) : detailProduct ? (
+          (() => {
+            const p = detailProduct;
+            const regular = Number(p.regular_price || 0);
+            const discount =
+              p.discount_price !== null &&
+              p.discount_price !== undefined &&
+              Number(p.discount_price) > 0 &&
+              Number(p.discount_price) < regular
+                ? Number(p.discount_price)
+                : null;
+            const effective = discount ?? regular;
+            const discountPct =
+              discount && regular > 0
+                ? Math.round(((regular - discount) / regular) * 100)
+                : 0;
+            const low = p.stock_quantity <= (p.low_stock_threshold ?? 5);
+            const rating = p.reviews_avg_rating
+              ? Number(p.reviews_avg_rating)
+              : 0;
+            const reviewsCount = Number(p.reviews_count ?? 0);
+
+            const gallery: { url: string; isPrimary?: boolean }[] = [];
+            if (Array.isArray(p.images) && p.images.length > 0) {
+              p.images.forEach((img) => {
+                if (
+                  img.image_url &&
+                  !gallery.some((g) => g.url === img.image_url)
+                ) {
+                  gallery.push({
+                    url: img.image_url,
+                    isPrimary: Boolean(img.is_primary),
+                  });
+                }
+              });
+            }
+            if (
+              p.primary_image?.image_url &&
+              !gallery.some((g) => g.url === p.primary_image?.image_url)
+            ) {
+              gallery.unshift({
+                url: p.primary_image.image_url,
+                isPrimary: true,
+              });
+            }
+            const currentImg = activeImageUrl || gallery[0]?.url || null;
+
+            const specEntries =
+              p.specifications && typeof p.specifications === 'object'
+                ? Object.entries(p.specifications).filter(([, v]) => Boolean(v))
+                : [];
+
+            return (
+              <div className="flex flex-col gap-5">
+                {/* Top 2-Column Hero: Gallery + Core Details */}
+                <div className="grid grid-cols-1 md:grid-cols-[310px_minmax(0,1fr)] gap-5">
+                  {/* Image Gallery */}
+                  <div className="flex flex-col gap-2.5">
+                    <div className="relative aspect-square w-full rounded-[18px] overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center">
+                      {currentImg ? (
+                        <img
+                          src={currentImg}
+                          alt={p.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FigmaIcon
+                          name="package"
+                          className="w-12 h-12 text-[#979797]"
+                        />
+                      )}
+                      {discountPct > 0 && (
+                        <span className="absolute top-3 right-3 bg-[#e5322d] text-white text-[11.5px] font-bold px-2.5 py-0.5 rounded-full">
+                          -{discountPct}%
+                        </span>
+                      )}
+                      {p.free_shipping && (
+                        <div className="absolute bottom-0 left-0 bg-green-600 rounded-tr-[14px] px-3 py-1 flex items-center gap-1 leading-none">
+                          <span className="text-[11.5px] text-[#ffe169]">
+                            Free
+                          </span>
+                          <span className="text-[11.5px] text-white">
+                            Delivery
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {gallery.length > 1 && (
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                        {gallery.map((img, idx) => (
+                          <button
+                            key={`${img.url}-${idx}`}
+                            type="button"
+                            onClick={() => setActiveImageUrl(img.url)}
+                            className={`relative w-14 h-14 rounded-[10px] overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                              currentImg === img.url
+                                ? 'border-[#ff6e20]'
+                                : 'border-[#ececec] opacity-75 hover:opacity-100'
+                            }`}
+                          >
+                            <img
+                              src={img.url}
+                              alt={`${p.name} ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            {img.isPrimary && (
+                              <span className="absolute bottom-0 inset-x-0 bg-[#ff6e20]/90 text-white text-[9px] font-bold text-center leading-tight py-[1px]">
+                                Main
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary Info */}
+                  <div className="flex flex-col gap-3.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill
+                        label={
+                          p.stock_quantity === 0
+                            ? 'Out of stock'
+                            : p.status === 'published'
+                              ? 'Active'
+                              : p.status
+                        }
+                      />
+                      {p.is_featured && (
+                        <span className="bg-[#ffefe6] text-[#ff6e20] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">
+                          Featured
+                        </span>
+                      )}
+                      {p.free_shipping && (
+                        <span className="bg-[#e7f6e7] text-[#029500] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">
+                          Free shipping
+                        </span>
+                      )}
+                      {reviewsCount > 0 && (
+                        <span className="text-[12px] font-semibold text-[#767676]">
+                          ★ {rating.toFixed(1)} ({reviewsCount} review
+                          {reviewsCount === 1 ? '' : 's'})
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-[20px] font-bold text-black leading-snug">
+                        {p.name}
+                      </h3>
+                      {p.short_description && (
+                        <p className="text-[13px] text-[#666666] mt-1 leading-relaxed">
+                          {p.short_description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Price Card */}
+                    <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3.5 flex flex-wrap items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-[26px] font-bold text-[#ff6e20] leading-none">
+                          ${effective.toFixed(2)}
+                        </span>
+                        <span className="text-[12px] font-semibold text-[#ff6e20]">
+                          USD
+                        </span>
+                        {discount && (
+                          <span className="text-[13.5px] text-[#979797] line-through">
+                            ${regular.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[12.5px] font-semibold text-[#767676]">
+                        {formatRiel(effective, khrRate)}
+                      </span>
+                    </div>
+
+                    {/* Key Metadata Grid */}
+                    <div className="grid grid-cols-2 gap-2.5 text-[12.5px]">
+                      <div className="bg-[#fafafa] border border-[#ececec] rounded-[12px] px-3 py-2.5">
+                        <p className="text-[11px] text-[#8a8a8a]">SKU</p>
+                        <p className="font-mono font-semibold text-black mt-0.5 truncate">
+                          {p.sku}
+                        </p>
+                      </div>
+                      <div className="bg-[#fafafa] border border-[#ececec] rounded-[12px] px-3 py-2.5">
+                        <p className="text-[11px] text-[#8a8a8a]">Category</p>
+                        <p className="font-semibold text-black mt-0.5 truncate">
+                          {p.category?.name || 'Uncategorized'}
+                          {p.subcategory?.name
+                            ? ` / ${p.subcategory.name}`
+                            : ''}
+                        </p>
+                      </div>
+                      <div className="bg-[#fafafa] border border-[#ececec] rounded-[12px] px-3 py-2.5">
+                        <p className="text-[11px] text-[#8a8a8a]">Inventory</p>
+                        <p
+                          className={`font-semibold mt-0.5 ${
+                            p.stock_quantity === 0 || low
+                              ? 'text-[#e5322d]'
+                              : 'text-[#029500]'
+                          }`}
+                        >
+                          {p.stock_quantity} in stock
+                          {p.low_stock_threshold !== undefined && (
+                            <span className="text-[11px] font-normal text-[#8a8a8a]">
+                              {' '}
+                              (alert ≤ {p.low_stock_threshold})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="bg-[#fafafa] border border-[#ececec] rounded-[12px] px-3 py-2.5">
+                        <p className="text-[11px] text-[#8a8a8a]">
+                          Listed / Updated
+                        </p>
+                        <p className="font-semibold text-black mt-0.5 truncate">
+                          {formatShortDate(p.created_at)}
+                          {p.updated_at
+                            ? ` · ${formatShortDate(p.updated_at)}`
+                            : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Full Description */}
+                {p.description && (
+                  <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-1.5">
+                    <h4 className="text-[13px] font-bold text-black">
+                      Description
+                    </h4>
+                    <p className="text-[13px] text-[#555555] leading-relaxed whitespace-pre-line">
+                      {p.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Variants */}
+                {Array.isArray(p.variants) && p.variants.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <h4 className="text-[13px] font-bold text-black">
+                      Variants ({p.variants.length})
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {p.variants.map((v) => (
+                        <div
+                          key={v.id}
+                          className="bg-[#fafafa] border border-[#ececec] rounded-[12px] p-3 flex items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold text-black truncate">
+                              {v.name}
+                            </p>
+                            {v.sku && (
+                              <p className="text-[11px] font-mono text-[#8a8a8a]">
+                                SKU: {v.sku}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[13px] font-bold text-[#ff6e20]">
+                              ${Number(v.price).toFixed(2)}
+                            </p>
+                            <p className="text-[11px] text-[#767676]">
+                              {v.stock_quantity} in stock
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Specifications & Attributes */}
+                {(specEntries.length > 0 ||
+                  (Array.isArray(p.attributes) && p.attributes.length > 0)) && (
+                  <div className="flex flex-col gap-2">
+                    <h4 className="text-[13px] font-bold text-black">
+                      Specifications &amp; attributes
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {specEntries.map(([k, v]) => (
+                        <div
+                          key={k}
+                          className="bg-[#fafafa] border border-[#ececec] rounded-[10px] px-3 py-2"
+                        >
+                          <p className="text-[11px] text-[#8a8a8a]">{k}</p>
+                          <p className="text-[12.5px] font-semibold text-black truncate">
+                            {v}
+                          </p>
+                        </div>
+                      ))}
+                      {p.attributes?.map((attr, idx) => (
+                        <div
+                          key={`${attr.name}-${idx}`}
+                          className="bg-[#fafafa] border border-[#ececec] rounded-[10px] px-3 py-2"
+                        >
+                          <p className="text-[11px] text-[#8a8a8a]">
+                            {attr.name}
+                          </p>
+                          <p className="text-[12.5px] font-semibold text-black truncate">
+                            {Array.isArray(attr.values)
+                              ? attr.values.join(', ')
+                              : attr.values || attr.value || '—'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* SEO & Extra Metadata */}
+                <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-1.5 text-[12px]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-bold text-black">
+                      Listing &amp; SEO details
+                    </span>
+                    <span className="font-mono text-[11px] text-[#8a8a8a]">
+                      /product/{p.slug}
+                    </span>
+                  </div>
+                  {p.weight !== null && p.weight !== undefined && (
+                    <p className="text-[#666666]">
+                      <strong className="text-black">Weight:</strong> {p.weight}{' '}
+                      kg
+                    </p>
+                  )}
+                  {p.seo_title && (
+                    <p className="text-[#666666]">
+                      <strong className="text-black">SEO title:</strong>{' '}
+                      {p.seo_title}
+                    </p>
+                  )}
+                  {p.seo_description && (
+                    <p className="text-[#666666]">
+                      <strong className="text-black">SEO description:</strong>{' '}
+                      {p.seo_description}
+                    </p>
+                  )}
+                  {!p.seo_title && !p.seo_description && (
+                    <p className="text-[#8a8a8a]">
+                      Using default product title and description for storefront
+                      search previews.
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })()
+        ) : null}
+      </DashboardModal>
+
+      {/* Add / Edit Product Modal */}
+      {effectiveFormModalOpen && (
+        <SellerProductFormModal
+          key={effectiveEditingProductId ?? 'new'}
+          open
+          productId={effectiveEditingProductId}
+          onClose={closeProductFormModal}
+          onSaved={async () => {
+            await loadProducts();
+          }}
+        />
+      )}
     </div>
   );
 }
 
 // ==========================================
-// 3. Create / Edit Product — Exact Figma Seller · 03 2-Column Layout
+// 3. Create / Edit Product Modal (and route wrapper)
 // ==========================================
-export function SellerProductFormPage() {
-  const { productId } = useParams<{ productId: string }>();
+function SellerProductFormModal({
+  open,
+  productId,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  productId: number | null;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
   const isEdit = Boolean(productId);
-  const navigate = useNavigate();
   const { user, categories, khrRate, showToast, refreshCatalog } = useStore();
 
-  const [loading, setLoading] = useState(isEdit);
+  const [loading, setLoading] = useState(Boolean(productId));
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
@@ -1180,10 +1968,11 @@ export function SellerProductFormPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!isEdit || !productId) return;
+    if (!open || !productId) return;
+
     let active = true;
     storeOwnerApi
-      .getProduct(Number(productId))
+      .getProduct(productId)
       .then((p) => {
         if (!active) return;
         setName(p.name);
@@ -1213,6 +2002,7 @@ export function SellerProductFormPage() {
         showToast(
           err instanceof ApiError ? err.message : 'Unable to load product.',
         );
+        onClose();
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -1220,7 +2010,7 @@ export function SellerProductFormPage() {
     return () => {
       active = false;
     };
-  }, [isEdit, productId, showToast]);
+  }, [open, productId, showToast, onClose]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -1297,7 +2087,7 @@ export function SellerProductFormPage() {
       }));
 
       if (isEdit && productId) {
-        await storeOwnerApi.updateProduct(Number(productId), {
+        await storeOwnerApi.updateProduct(productId, {
           name: name.trim(),
           sku: sku.trim(),
           category_id: effectiveCategory,
@@ -1333,8 +2123,8 @@ export function SellerProductFormPage() {
           finalStatus === 'draft' ? 'Saved as draft.' : 'Product published.',
         );
       }
-      await refreshCatalog();
-      navigate('/seller/products');
+      await Promise.all([onSaved(), refreshCatalog()]);
+      onClose();
     } catch (err) {
       showToast(
         err instanceof ApiError ? err.message : 'Unable to save product.',
@@ -1343,10 +2133,6 @@ export function SellerProductFormPage() {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return <DashboardTableSkeleton rows={6} />;
-  }
 
   const parsedRegular = Number(regularPrice) || 0;
   const parsedDiscount = Number(discountPrice) || 0;
@@ -1364,382 +2150,414 @@ export function SellerProductFormPage() {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
+  const formId = 'seller-product-modal-form';
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        void submitProduct();
-      }}
-      className="flex flex-col gap-5"
+    <DashboardModal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? 'Edit product' : 'Add new product'}
+      subtitle="Create a product listing with pricing, product media, inventory, and SEO preview."
+      widthClass="max-w-[960px]"
+      footer={
+        <div className="w-full flex flex-wrap items-center justify-end gap-2.5">
+          <button
+            type="button"
+            disabled={saving || uploadingImg}
+            onClick={onClose}
+            className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4.5 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={saving || uploadingImg || loading}
+            onClick={() => void submitProduct('draft')}
+            className="bg-[#ffefe6] hover:bg-[#ffe1cf] disabled:opacity-60 text-[#ff6e20] text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors cursor-pointer"
+          >
+            Save as draft
+          </button>
+          <button
+            type="submit"
+            form={formId}
+            disabled={saving || uploadingImg || loading}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer"
+          >
+            {saving ? 'Saving...' : isEdit ? 'Save product' : 'Publish product'}
+          </button>
+        </div>
+      }
     >
-      <DashboardPageHeader
-        title={isEdit ? 'Edit product' : 'Add new product'}
-        subtitle="Create a product listing with pricing, product media, inventory, and SEO preview."
-        actions={
-          <>
-            <button
-              type="button"
-              disabled={saving || uploadingImg}
-              onClick={() => void submitProduct('draft')}
-              className="bg-[#ffefe6] hover:bg-[#ffe1cf] disabled:opacity-60 text-[#ff6e20] text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
-            >
-              Save as draft
-            </button>
-            <button
-              type="submit"
-              disabled={saving || uploadingImg}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
-            >
-              {saving
-                ? 'Saving...'
-                : isEdit
-                  ? 'Save product'
-                  : 'Publish product'}
-            </button>
-          </>
-        }
-      />
-
-      {/* Exact Figma Seller · 03 2:1 Structured Cards */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(290px,1fr)] gap-5 items-start">
-        <div className="flex flex-col gap-4">
-          {/* Card 1: Basic Information */}
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
-            <h2 className="text-[15.5px] font-bold text-black">
-              Basic information
-            </h2>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-black">
-                Product name
-              </span>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Studio Wireless Headphones — ANC Edition"
-                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-black">
-                Short summary
-              </span>
-              <input
-                type="text"
-                value={shortDescription}
-                onChange={(e) => setShortDescription(e.target.value)}
-                placeholder="One-line highlight displayed on product cards"
-                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-black">
-                Product description
-              </span>
-              <textarea
-                rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Detailed specifications, warranty coverage, what's in the box..."
-                className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] p-3.5 text-[13.5px] outline-none"
-              />
-            </label>
-          </section>
-
-          {/* Card 2: Product Media (Exact Figma orange dashed upload box) */}
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
-            <div className="flex items-center justify-between gap-2">
-              <div>
+      {loading ? (
+        <DashboardTableSkeleton rows={5} />
+      ) : (
+        <form
+          id={formId}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submitProduct();
+          }}
+          className="flex flex-col gap-4"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)] gap-4 items-start">
+            <div className="flex flex-col gap-4">
+              {/* Card 1: Basic Information */}
+              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
                 <h2 className="text-[15.5px] font-bold text-black">
-                  Product media
+                  Basic information
                 </h2>
-                <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                  Upload up to 8 images (PNG, JPG, WebP) and choose a primary
-                  cover image.
-                </p>
-              </div>
-              <span className="text-[11.5px] font-semibold text-[#8a8a8a] tabular-nums">
-                {images.length} / 8
-              </span>
-            </div>
-            <div className="flex flex-wrap items-stretch gap-3">
-              {images.map((img, idx) => (
-                <div
-                  key={`${img.id ?? 'new'}-${img.image_url}-${idx}`}
-                  className={`relative border rounded-[14px] p-1.5 w-[114px] flex flex-col gap-1.5 ${
-                    img.is_primary
-                      ? 'border-[#ff6e20] bg-[#fff8f4]'
-                      : 'border-[#ececec] bg-white'
-                  }`}
-                >
-                  {img.is_primary && (
-                    <span className="absolute top-2.5 left-2.5 bg-[#ff6e20] text-white text-[9.5px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                      Primary
-                    </span>
-                  )}
-                  <img
-                    src={img.image_url}
-                    alt=""
-                    className="w-full h-[88px] object-cover rounded-[10px]"
-                  />
-                  <div className="flex items-center justify-between text-[10.5px] px-0.5 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleSetPrimaryImage(idx)}
-                      className={`font-semibold transition-colors ${
-                        img.is_primary
-                          ? 'text-[#ff6e20]'
-                          : 'text-[#555555] hover:text-[#ff6e20]'
-                      }`}
-                    >
-                      {img.is_primary ? 'Main' : 'Set main'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(idx)}
-                      className="text-[#e5322d] hover:underline font-semibold"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {images.length < 8 && (
-                <label className="flex-1 min-w-[220px] min-h-[114px] border border-dashed border-[#ff6e20]/70 bg-[#fffaf7] hover:bg-[#ffefe6]/60 transition-colors rounded-[14px] px-4 py-5 flex flex-col items-center justify-center gap-1 cursor-pointer text-center">
-                  <FigmaIcon name="upload" className="w-5 h-5 text-[#ff6e20]" />
-                  <span className="text-[13px] font-semibold text-[#ff6e20]">
-                    {uploadingImg ? 'Uploading images...' : 'Upload images'}
-                  </span>
-                  <span className="text-[11px] text-[#8a8a8a]">
-                    Click to select PNG, JPG, or WebP
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[12px] font-semibold text-black">
+                    Product name
                   </span>
                   <input
-                    type="file"
-                    multiple
-                    disabled={uploadingImg}
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={handleImageUpload}
-                    className="hidden"
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Studio Wireless Headphones — ANC Edition"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                   />
                 </label>
-              )}
-            </div>
-          </section>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[12px] font-semibold text-black">
+                    Short summary
+                  </span>
+                  <input
+                    type="text"
+                    value={shortDescription}
+                    onChange={(e) => setShortDescription(e.target.value)}
+                    placeholder="One-line highlight displayed on product cards"
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[12px] font-semibold text-black">
+                    Product description
+                  </span>
+                  <textarea
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Detailed specifications, warranty coverage, what's in the box..."
+                    className="border border-[#ececec] focus:border-[#ff6e20] rounded-[12px] p-3.5 text-[13.5px] outline-none"
+                  />
+                </label>
+              </section>
 
-          {/* Card 3: Pricing & Margin */}
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
-            <div>
-              <h2 className="text-[15.5px] font-bold text-black">
-                Pricing &amp; KHR conversion
-              </h2>
-              <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                Prices auto-convert to KHR at {khrRate.toLocaleString('en-US')}{' '}
-                KHR / USD.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-black">
-                  Regular price (USD)
-                </span>
-                <input
-                  type="number"
-                  required
-                  step="0.01"
-                  min={0}
-                  value={regularPrice}
-                  onChange={(e) => setRegularPrice(e.target.value)}
-                  placeholder="0.00"
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-                />
-                <span className="text-[11px] text-[#8a8a8a]">
-                  {formatRiel(parsedRegular, khrRate)}
-                </span>
-              </label>
+              {/* Card 2: Product Media (Exact Figma orange dashed upload box) */}
+              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-[15.5px] font-bold text-black">
+                      Product media
+                    </h2>
+                    <p className="text-[12px] text-[#8a8a8a] mt-0.5">
+                      Upload up to 8 images (PNG, JPG, WebP) and choose a
+                      primary cover image.
+                    </p>
+                  </div>
+                  <span className="text-[11.5px] font-semibold text-[#8a8a8a] tabular-nums">
+                    {images.length} / 8
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-stretch gap-3">
+                  {images.map((img, idx) => (
+                    <div
+                      key={`${img.id ?? 'new'}-${img.image_url}-${idx}`}
+                      className={`relative border rounded-[14px] p-1.5 w-[114px] flex flex-col gap-1.5 ${
+                        img.is_primary
+                          ? 'border-[#ff6e20] bg-[#fff8f4]'
+                          : 'border-[#ececec] bg-white'
+                      }`}
+                    >
+                      {img.is_primary && (
+                        <span className="absolute top-2.5 left-2.5 bg-[#ff6e20] text-white text-[9.5px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                          Primary
+                        </span>
+                      )}
+                      <img
+                        src={img.image_url}
+                        alt=""
+                        className="w-full h-[88px] object-cover rounded-[10px]"
+                      />
+                      <div className="flex items-center justify-between text-[10.5px] px-0.5 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSetPrimaryImage(idx)}
+                          className={`font-semibold transition-colors ${
+                            img.is_primary
+                              ? 'text-[#ff6e20]'
+                              : 'text-[#555555] hover:text-[#ff6e20]'
+                          }`}
+                        >
+                          {img.is_primary ? 'Main' : 'Set main'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="text-[#e5322d] hover:underline font-semibold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
 
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-black">
-                  Sale / Discount price (USD, optional)
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  value={discountPrice}
-                  onChange={(e) => setDiscountPrice(e.target.value)}
-                  placeholder="Optional promo price"
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-                />
-                <span className="text-[11px] text-[#029500] font-medium">
-                  {discountPct > 0
-                    ? `Shows -${discountPct}% discount (${formatRiel(effectivePrice, khrRate)})`
-                    : 'Leave blank if not on sale'}
-                </span>
-              </label>
-            </div>
-          </section>
+                  {images.length < 8 && (
+                    <label className="flex-1 min-w-[220px] min-h-[114px] border border-dashed border-[#ff6e20]/70 bg-[#fffaf7] hover:bg-[#ffefe6]/60 transition-colors rounded-[14px] px-4 py-5 flex flex-col items-center justify-center gap-1 cursor-pointer text-center">
+                      <FigmaIcon
+                        name="upload"
+                        className="w-5 h-5 text-[#ff6e20]"
+                      />
+                      <span className="text-[13px] font-semibold text-[#ff6e20]">
+                        {uploadingImg ? 'Uploading images...' : 'Upload images'}
+                      </span>
+                      <span className="text-[11px] text-[#8a8a8a]">
+                        Click to select PNG, JPG, or WebP
+                      </span>
+                      <input
+                        type="file"
+                        multiple
+                        disabled={uploadingImg}
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </section>
 
-          {/* Card 4: Inventory & SKU */}
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
-            <h2 className="text-[15.5px] font-bold text-black">
-              Inventory &amp; SKU
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-black">
-                  SKU
-                </span>
-                <input
-                  type="text"
-                  required
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                  placeholder="e.g. KT-AUD-001"
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] font-mono outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-black">
-                  Stock quantity
-                </span>
-                <input
-                  type="number"
-                  required
-                  min={0}
-                  value={stockQuantity}
-                  onChange={(e) => setStockQuantity(e.target.value)}
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-black">
-                  Low stock threshold
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  value={lowStockThreshold}
-                  onChange={(e) => setLowStockThreshold(e.target.value)}
-                  className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
-                />
-              </label>
-            </div>
-          </section>
-        </div>
+              {/* Card 3: Pricing & Margin */}
+              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
+                <div>
+                  <h2 className="text-[15.5px] font-bold text-black">
+                    Pricing &amp; KHR conversion
+                  </h2>
+                  <p className="text-[12px] text-[#8a8a8a] mt-0.5">
+                    Prices auto-convert to KHR at{' '}
+                    {khrRate.toLocaleString('en-US')} KHR / USD.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-semibold text-black">
+                      Regular price (USD)
+                    </span>
+                    <input
+                      type="number"
+                      required
+                      step="0.01"
+                      min={0}
+                      value={regularPrice}
+                      onChange={(e) => setRegularPrice(e.target.value)}
+                      placeholder="0.00"
+                      className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
+                    />
+                    <span className="text-[11px] text-[#8a8a8a]">
+                      {formatRiel(parsedRegular, khrRate)}
+                    </span>
+                  </label>
 
-        {/* Right Sidebar Cards (Exact Figma Seller · 03) */}
-        <div className="flex flex-col gap-4">
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
-            <h2 className="text-[15.5px] font-bold text-black">
-              Product status
-            </h2>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-black">
-                Visibility
-              </span>
-              <select
-                value={status}
-                onChange={(e) =>
-                  setStatus(
-                    e.target.value as 'draft' | 'published' | 'archived',
-                  )
-                }
-                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
-              >
-                <option value="published">
-                  Active — Visible on Marketplace
-                </option>
-                <option value="draft">Draft — Hidden from buyers</option>
-                <option value="archived">Archived</option>
-              </select>
-            </label>
-            <div className="pt-0.5">
-              <StatusPill label="Track inventory enabled" tone="green" />
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-semibold text-black">
+                      Sale / Discount price (USD, optional)
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={discountPrice}
+                      onChange={(e) => setDiscountPrice(e.target.value)}
+                      placeholder="Optional promo price"
+                      className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
+                    />
+                    <span className="text-[11px] text-[#029500] font-medium">
+                      {discountPct > 0
+                        ? `Shows -${discountPct}% discount (${formatRiel(effectivePrice, khrRate)})`
+                        : 'Leave blank if not on sale'}
+                    </span>
+                  </label>
+                </div>
+              </section>
+
+              {/* Card 4: Inventory & SKU */}
+              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
+                <h2 className="text-[15.5px] font-bold text-black">
+                  Inventory &amp; SKU
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-semibold text-black">
+                      SKU
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={sku}
+                      onChange={(e) => setSku(e.target.value)}
+                      placeholder="e.g. KT-AUD-001"
+                      className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] font-mono outline-none"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-semibold text-black">
+                      Stock quantity
+                    </span>
+                    <input
+                      type="number"
+                      required
+                      min={0}
+                      value={stockQuantity}
+                      onChange={(e) => setStockQuantity(e.target.value)}
+                      className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-semibold text-black">
+                      Low stock threshold
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={lowStockThreshold}
+                      onChange={(e) => setLowStockThreshold(e.target.value)}
+                      className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
+                    />
+                  </label>
+                </div>
+              </section>
             </div>
-            <div className="pt-2.5 mt-1 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[12.5px] font-semibold text-black">
-                  Feature on my storefront
+
+            {/* Right Sidebar Cards (Exact Figma Seller · 03) */}
+            <div className="flex flex-col gap-4">
+              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+                <h2 className="text-[15.5px] font-bold text-black">
+                  Product status
+                </h2>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[12px] font-semibold text-black">
+                    Visibility
+                  </span>
+                  <select
+                    value={status}
+                    onChange={(e) =>
+                      setStatus(
+                        e.target.value as 'draft' | 'published' | 'archived',
+                      )
+                    }
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
+                  >
+                    <option value="published">
+                      Active — Visible on Marketplace
+                    </option>
+                    <option value="draft">Draft — Hidden from buyers</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </label>
+                <div className="pt-0.5">
+                  <StatusPill label="Track inventory enabled" tone="green" />
+                </div>
+                <div className="pt-2.5 mt-1 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[12.5px] font-semibold text-black">
+                      Feature on my storefront
+                    </p>
+                    <p className="text-[11px] text-[#8a8a8a] leading-snug mt-0.5">
+                      Highlight this product in your store&apos;s featured
+                      section.
+                    </p>
+                  </div>
+                  <ToggleSwitch
+                    checked={isFeatured}
+                    onChange={setIsFeatured}
+                    ariaLabel="Toggle feature on my storefront"
+                  />
+                </div>
+
+                <div className="pt-2.5 mt-1 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[12.5px] font-semibold text-black">
+                      Free shipping
+                    </p>
+                    <p className="text-[11px] text-[#8a8a8a] leading-snug mt-0.5">
+                      Offer free delivery for this product regardless of minimum
+                      order amount.
+                    </p>
+                  </div>
+                  <ToggleSwitch
+                    checked={freeShipping}
+                    onChange={setFreeShipping}
+                    ariaLabel="Toggle free shipping"
+                  />
+                </div>
+              </section>
+
+              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+                <div>
+                  <h2 className="text-[15.5px] font-bold text-black">
+                    Organization
+                  </h2>
+                  <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
+                    Optional — leave blank if not applicable.
+                  </p>
+                </div>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[12px] font-semibold text-black">
+                    Category (optional)
+                  </span>
+                  <select
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
+                  >
+                    <option value="">No category</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </section>
+
+              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-2">
+                <h2 className="text-[15.5px] font-bold text-black">
+                  Search engine preview
+                </h2>
+                <p className="text-[13.5px] font-semibold text-[#ff6e20] truncate">
+                  {name.trim() || 'Your product title'} |{' '}
+                  {user?.store?.name || 'Kova Store'}
                 </p>
-                <p className="text-[11px] text-[#8a8a8a] leading-snug mt-0.5">
-                  Highlight this product in your store&apos;s featured section.
+                <p className="text-[11.5px] text-[#029500] truncate">
+                  kova.com.kh/product/{previewSlug || 'product-slug'}
                 </p>
-              </div>
-              <ToggleSwitch
-                checked={isFeatured}
-                onChange={setIsFeatured}
-                ariaLabel="Toggle feature on my storefront"
-              />
-            </div>
-
-            <div className="pt-2.5 mt-1 border-t border-[#f1f1f1] flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[12.5px] font-semibold text-black">
-                  Free shipping
+                <p className="text-[12px] text-[#767676] line-clamp-2 leading-relaxed">
+                  {shortDescription.trim() ||
+                    description.trim() ||
+                    'Add a clear summary so Cambodia buyers find your listing faster.'}
                 </p>
-                <p className="text-[11px] text-[#8a8a8a] leading-snug mt-0.5">
-                  Offer free delivery for this product regardless of minimum
-                  order amount.
-                </p>
-              </div>
-              <ToggleSwitch
-                checked={freeShipping}
-                onChange={setFreeShipping}
-                ariaLabel="Toggle free shipping"
-              />
+              </section>
             </div>
-          </section>
+          </div>
+        </form>
+      )}
+    </DashboardModal>
+  );
+}
 
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
-            <div>
-              <h2 className="text-[15.5px] font-bold text-black">
-                Organization
-              </h2>
-              <p className="text-[11.5px] text-[#8a8a8a] mt-0.5">
-                Optional — leave blank if not applicable.
-              </p>
-            </div>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-black">
-                Category (optional)
-              </span>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] bg-white outline-none"
-              >
-                <option value="">No category</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={String(c.id)}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </section>
-
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-2">
-            <h2 className="text-[15.5px] font-bold text-black">
-              Search engine preview
-            </h2>
-            <p className="text-[13.5px] font-semibold text-[#ff6e20] truncate">
-              {name.trim() || 'Your product title'} |{' '}
-              {user?.store?.name || 'Kova Store'}
-            </p>
-            <p className="text-[11.5px] text-[#029500] truncate">
-              kova.com.kh/product/{previewSlug || 'product-slug'}
-            </p>
-            <p className="text-[12px] text-[#767676] line-clamp-2 leading-relaxed">
-              {shortDescription.trim() ||
-                description.trim() ||
-                'Add a clear summary so Cambodia buyers find your listing faster.'}
-            </p>
-          </section>
-        </div>
-      </div>
-    </form>
+export function SellerProductFormPage() {
+  const { productId } = useParams<{ productId: string }>();
+  return (
+    <Navigate
+      to={
+        productId
+          ? `/seller/products?edit=${encodeURIComponent(productId)}`
+          : '/seller/products?add=1'
+      }
+      replace
+    />
   );
 }
 

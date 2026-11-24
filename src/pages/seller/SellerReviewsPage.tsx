@@ -313,19 +313,13 @@ export function SellerReviewsPage() {
                             )}
                           </div>
                           <div className="min-w-0">
-                            {rev.product?.slug ? (
-                              <Link
-                                to={`/product/${rev.product.slug}`}
-                                className="text-[13px] font-medium text-black hover:text-[#ff6e20] line-clamp-1"
-                              >
-                                {rev.product.name}
-                              </Link>
-                            ) : (
-                              <p className="text-[13px] font-medium text-black line-clamp-1">
-                                {rev.product?.name ||
-                                  `Product #${rev.product_id}`}
-                              </p>
-                            )}
+                            <Link
+                              to={`/seller/products?view=${rev.product?.id ?? rev.product_id}`}
+                              className="text-[13px] font-medium text-black hover:text-[#ff6e20] line-clamp-1"
+                            >
+                              {rev.product?.name ||
+                                `Product #${rev.product_id}`}
+                            </Link>
                             {rev.product?.sku && (
                               <p className="text-[11px] text-[#8a8a8a] truncate">
                                 SKU: {rev.product.sku}
@@ -399,9 +393,10 @@ export function SellerReviewsPage() {
         footer={
           selectedReview && (
             <>
-              {selectedReview.product?.slug && (
+              {(selectedReview.product?.id || selectedReview.product_id) && (
                 <Link
-                  to={`/product/${selectedReview.product.slug}`}
+                  to={`/seller/products?view=${selectedReview.product?.id ?? selectedReview.product_id}`}
+                  onClick={() => setSelectedReview(null)}
                   className="bg-[#ffefe6] hover:bg-[#ffdfcd] text-[#ff6e20] text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
                 >
                   View product

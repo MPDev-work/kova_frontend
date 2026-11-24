@@ -751,19 +751,52 @@ export interface SellerProductItem {
   slug: string;
   sku: string;
   category_id?: number | null;
+  subcategory_id?: number | null;
   description?: string | null;
   short_description?: string | null;
   regular_price: number | string;
   discount_price?: number | string | null;
   stock_quantity: number;
   low_stock_threshold?: number;
+  weight?: number | string | null;
+  dimensions?: Record<string, string | number> | null;
+  video_url?: string | null;
+  specifications?: Record<string, string> | null;
+  seo_title?: string | null;
+  seo_description?: string | null;
+  seo_keywords?: string | null;
   status: 'draft' | 'published' | 'archived';
   is_featured?: boolean;
   free_shipping?: boolean;
+  reviews_avg_rating?: number | string | null;
+  reviews_count?: number;
   created_at: string;
+  updated_at?: string | null;
   primary_image?: { image_url: string } | null;
-  images?: { id?: number; media_id?: number | null; image_url: string; is_primary?: boolean; sort_order?: number }[];
+  images?: {
+    id?: number;
+    media_id?: number | null;
+    image_url: string;
+    is_primary?: boolean;
+    sort_order?: number;
+  }[];
   category?: { id: number; name: string } | null;
+  subcategory?: { id: number; name: string } | null;
+  attributes?: {
+    id?: number;
+    name: string;
+    values?: string[] | string;
+    value?: string;
+  }[];
+  variants?: {
+    id: number;
+    name: string;
+    sku?: string | null;
+    price: number | string;
+    stock_quantity: number;
+    image_url?: string | null;
+    attributes?: Record<string, string> | null;
+  }[];
 }
 
 export interface InventoryMovementItem {

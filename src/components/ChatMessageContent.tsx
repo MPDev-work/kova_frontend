@@ -42,7 +42,7 @@ function getCardDestination(
     if (viewerMode === 'seller') {
       return {
         to: card.product_id
-          ? `/seller/products/${card.product_id}/edit`
+          ? `/seller/products?view=${card.product_id}`
           : '/seller/products',
         label: 'View product',
       };

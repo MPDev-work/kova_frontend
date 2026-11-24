@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Link,
+  Navigate,
   useNavigate,
   useParams,
   useSearchParams,
@@ -208,15 +209,242 @@ export function MyProfilePage() {
   );
 }
 
+// Add / Edit Address Modal (used inside AddressBookPage)
+function AddressFormModal({
+  open,
+  editingAddress,
+  onClose,
+}: {
+  open: boolean;
+  editingAddress: Address | null;
+  onClose: () => void;
+}) {
+  const { addAddress, updateAddress, user, showToast } = useStore();
+  const isEdit = Boolean(editingAddress);
+
+  const [fullName, setFullName] = useState(
+    editingAddress?.full_name || user?.name || '',
+  );
+  const [phone, setPhone] = useState(
+    editingAddress?.phone || user?.phone || '',
+  );
+  const [province, setProvince] = useState(
+    editingAddress?.province || 'Phnom Penh',
+  );
+  const [district, setDistrict] = useState(
+    editingAddress ? editingAddress.district || '' : 'Chamkar Mon',
+  );
+  const [commune, setCommune] = useState(
+    editingAddress ? editingAddress.commune || '' : 'Tonle Basak',
+  );
+  const [street, setStreet] = useState(editingAddress?.address_line_1 || '');
+  const [isDefault, setIsDefault] = useState(
+    editingAddress ? Boolean(editingAddress.is_default) : true,
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (editingAddress) {
+        await updateAddress(editingAddress.id, {
+          type: editingAddress.type || 'shipping',
+          full_name: fullName,
+          phone,
+          province,
+          district: district || null,
+          commune: commune || null,
+          address_line_1: street,
+          address_line_2: editingAddress.address_line_2 ?? null,
+          postal_code: editingAddress.postal_code ?? null,
+          is_default: isDefault,
+        });
+      } else {
+        await addAddress({
+          type: 'shipping',
+          full_name: fullName,
+          phone,
+          province,
+          district: district || null,
+          commune: commune || null,
+          address_line_1: street,
+          is_default: isDefault,
+        });
+      }
+      onClose();
+    } catch (err) {
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : isEdit
+            ? 'We could not update this address right now.'
+            : 'We could not save this address right now.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formId = 'customer-address-modal-form';
+
+  return (
+    <DashboardModal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? 'Edit address' : 'Add a new address'}
+      subtitle={
+        isEdit
+          ? 'Update your saved delivery location.'
+          : 'Save a delivery location to your account.'
+      }
+      widthClass="max-w-[680px]"
+      footer={
+        <div className="w-full flex flex-wrap items-center justify-end gap-2.5">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onClose}
+            className="bg-white border border-[#ececec] hover:border-black text-[13px] font-semibold text-black px-5 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={formId}
+            disabled={saving}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[13px] font-semibold px-6 py-2 rounded-full transition-colors cursor-pointer"
+          >
+            {saving
+              ? isEdit
+                ? 'Updating...'
+                : 'Saving...'
+              : isEdit
+                ? 'Update address'
+                : 'Save address'}
+          </button>
+        </div>
+      }
+    >
+      <form
+        id={formId}
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+      >
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-semibold text-black">
+            Full name
+          </span>
+          <input
+            type="text"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-semibold text-black">
+            Phone number
+          </span>
+          <input
+            type="text"
+            required
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
+          />
+        </label>
+
+        <CambodiaLocationSelector
+          province={province}
+          district={district}
+          commune={commune}
+          onChange={(loc) => {
+            setProvince(loc.province);
+            setDistrict(loc.district);
+            setCommune(loc.commune);
+          }}
+        />
+
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-semibold text-black">
+            Street address
+          </span>
+          <input
+            type="text"
+            required
+            value={street}
+            onChange={(e) => setStreet(e.target.value)}
+            placeholder="House #, Street..."
+            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
+          />
+        </label>
+        <div className="sm:col-span-2 flex items-center justify-between gap-3 pt-2 border-t border-[#f1f1f1]">
+          <div>
+            <p className="text-[13px] font-semibold text-black">
+              Default delivery address
+            </p>
+            <p className="text-[12px] text-[#767676]">
+              Automatically pre-select this address at checkout.
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={isDefault}
+            onChange={setIsDefault}
+            ariaLabel="Set as my default delivery address"
+          />
+        </div>
+      </form>
+    </DashboardModal>
+  );
+}
+
 // Address Book
 export function AddressBookPage() {
   const { addresses, setDefaultAddress, deleteAddress } = useStore();
   const { confirmDelete } = useConfirmDelete();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [hiddenAddressIds, setHiddenAddressIds] = useState<number[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
 
   const visibleAddresses = addresses.filter(
     (addr) => !hiddenAddressIds.includes(addr.id),
   );
+
+  const openAddModal = () => {
+    setEditingAddress(null);
+    setModalOpen(true);
+  };
+
+  const openEditModal = (addr: Address) => {
+    setEditingAddress(addr);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingAddress(null);
+    if (searchParams.has('add') || searchParams.has('edit')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('add');
+      next.delete('edit');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  const addParam = searchParams.get('add');
+  const editParam = searchParams.get('edit');
+  const urlEditAddress = editParam
+    ? addresses.find((a) => a.id === Number(editParam)) || null
+    : null;
+  const effectiveModalOpen =
+    modalOpen ||
+    addParam === '1' ||
+    addParam === 'true' ||
+    Boolean(urlEditAddress);
+  const effectiveEditingAddress = modalOpen ? editingAddress : urlEditAddress;
 
   const handleDeleteAddress = (addr: Address) => {
     const label = addr.full_name || addr.address_line_1 || 'saved address';
@@ -246,12 +474,13 @@ export function AddressBookPage() {
             Manage your Phnom Penh and provincial delivery addresses.
           </p>
         </div>
-        <Link
-          to="/account/addresses/new"
-          className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
+        <button
+          type="button"
+          onClick={openAddModal}
+          className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors cursor-pointer"
         >
           Add address
-        </Link>
+        </button>
       </div>
 
       {visibleAddresses.length === 0 ? (
@@ -259,12 +488,13 @@ export function AddressBookPage() {
           <p className="text-[15px] font-semibold text-black">
             No saved addresses yet
           </p>
-          <Link
-            to="/account/addresses/new"
-            className="bg-[#ff6e20] text-white text-[13px] font-semibold px-5 py-2.5 rounded-full"
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13px] font-semibold px-5 py-2.5 rounded-full transition-colors cursor-pointer"
           >
             Add address
-          </Link>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -287,16 +517,17 @@ export function AddressBookPage() {
                   )}
                 </p>
                 <div className="flex items-center gap-3 shrink-0">
-                  <Link
-                    to={`/account/addresses/${addr.id}/edit`}
-                    className="text-[12px] font-semibold text-[#ff6e20] hover:underline"
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(addr)}
+                    className="text-[12px] font-semibold text-[#ff6e20] hover:underline cursor-pointer"
                   >
                     Edit
-                  </Link>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleDeleteAddress(addr)}
-                    className="text-[12px] font-semibold text-[#e5322d] hover:underline"
+                    className="text-[12px] font-semibold text-[#e5322d] hover:underline cursor-pointer"
                   >
                     Delete
                   </button>
@@ -317,7 +548,7 @@ export function AddressBookPage() {
                 <button
                   type="button"
                   onClick={() => void setDefaultAddress(addr.id)}
-                  className="mt-2 self-start bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-4 py-1.5 rounded-full"
+                  className="mt-2 self-start bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-4 py-1.5 rounded-full cursor-pointer"
                 >
                   Set as default
                 </button>
@@ -326,295 +557,35 @@ export function AddressBookPage() {
           ))}
         </div>
       )}
-    </div>
-  );
-}
 
-// Add Address
-export function AddAddressPage() {
-  const { addAddress, user, showToast } = useStore();
-  const navigate = useNavigate();
-
-  const [fullName, setFullName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [province, setProvince] = useState('Phnom Penh');
-  const [district, setDistrict] = useState('Chamkar Mon');
-  const [commune, setCommune] = useState('Tonle Basak');
-  const [street, setStreet] = useState('');
-  const [isDefault, setIsDefault] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await addAddress({
-        type: 'shipping',
-        full_name: fullName,
-        phone,
-        province,
-        district: district || null,
-        commune: commune || null,
-        address_line_1: street,
-        is_default: isDefault,
-      });
-      navigate('/account/addresses');
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to save address.',
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-[18px]">
-      <div>
-        <h1 className="text-[22px] font-bold text-black">Add a new address</h1>
-        <p className="text-[12.5px] text-[#767676] mt-0.5">
-          Save a delivery location to your account.
-        </p>
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white border border-[#ececec] rounded-[16px] p-6 max-w-[760px] grid grid-cols-1 sm:grid-cols-2 gap-4"
-      >
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-semibold">Full name</span>
-          <input
-            type="text"
-            required
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-semibold">Phone number</span>
-          <input
-            type="text"
-            required
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
-          />
-        </label>
-
-        <CambodiaLocationSelector
-          province={province}
-          district={district}
-          commune={commune}
-          onChange={(loc) => {
-            setProvince(loc.province);
-            setDistrict(loc.district);
-            setCommune(loc.commune);
-          }}
+      {effectiveModalOpen && (
+        <AddressFormModal
+          key={effectiveEditingAddress?.id ?? 'new'}
+          open
+          editingAddress={effectiveEditingAddress}
+          onClose={closeModal}
         />
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-semibold">Street address</span>
-          <input
-            type="text"
-            required
-            value={street}
-            onChange={(e) => setStreet(e.target.value)}
-            placeholder="House #, Street..."
-            className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
-          />
-        </label>
-        <div className="sm:col-span-2 flex items-center justify-between gap-3 pt-2 border-t border-[#f1f1f1]">
-          <div>
-            <p className="text-[13px] font-semibold text-black">
-              Default delivery address
-            </p>
-            <p className="text-[12px] text-[#767676]">
-              Automatically pre-select this address at checkout.
-            </p>
-          </div>
-          <ToggleSwitch
-            checked={isDefault}
-            onChange={setIsDefault}
-            ariaLabel="Set as my default delivery address"
-          />
-        </div>
-        <div className="sm:col-span-2 flex gap-2.5 pt-1">
-          <Link
-            to="/account/addresses"
-            className="bg-white border border-[#ececec] hover:border-black text-[13px] font-semibold text-black px-5 py-2.5 rounded-full"
-          >
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[13px] font-semibold px-6 py-2.5 rounded-full"
-          >
-            {saving ? 'Saving...' : 'Save address'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-function EditAddressForm({ address }: { address: Address }) {
-  const { updateAddress, showToast } = useStore();
-  const navigate = useNavigate();
-
-  const [fullName, setFullName] = useState(address.full_name || '');
-  const [phone, setPhone] = useState(address.phone || '');
-  const [province, setProvince] = useState(address.province || 'Phnom Penh');
-  const [district, setDistrict] = useState(address.district || '');
-  const [commune, setCommune] = useState(address.commune || '');
-  const [street, setStreet] = useState(address.address_line_1 || '');
-  const [isDefault, setIsDefault] = useState(Boolean(address.is_default));
-  const [saving, setSaving] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await updateAddress(address.id, {
-        type: address.type || 'shipping',
-        full_name: fullName,
-        phone,
-        province,
-        district: district || null,
-        commune: commune || null,
-        address_line_1: street,
-        address_line_2: address.address_line_2 ?? null,
-        postal_code: address.postal_code ?? null,
-        is_default: isDefault,
-      });
-      navigate('/account/addresses');
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to update address.',
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="bg-white border border-[#ececec] rounded-[16px] p-6 max-w-[760px] grid grid-cols-1 sm:grid-cols-2 gap-4"
-    >
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-semibold">Full name</span>
-        <input
-          type="text"
-          required
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
-        />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-semibold">Phone number</span>
-        <input
-          type="text"
-          required
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
-        />
-      </label>
-
-      <CambodiaLocationSelector
-        province={province}
-        district={district}
-        commune={commune}
-        onChange={(loc) => {
-          setProvince(loc.province);
-          setDistrict(loc.district);
-          setCommune(loc.commune);
-        }}
-      />
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-semibold">Street address</span>
-        <input
-          type="text"
-          required
-          value={street}
-          onChange={(e) => setStreet(e.target.value)}
-          placeholder="House #, Street..."
-          className="h-[42px] border border-[#ececec] rounded-full px-4 text-[13px] outline-none focus:border-[#ff6e20]"
-        />
-      </label>
-      <div className="sm:col-span-2 flex items-center justify-between gap-3 pt-2 border-t border-[#f1f1f1]">
-        <div>
-          <p className="text-[13px] font-semibold text-black">
-            Default delivery address
-          </p>
-          <p className="text-[12px] text-[#767676]">
-            Automatically pre-select this address at checkout.
-          </p>
-        </div>
-        <ToggleSwitch
-          checked={isDefault}
-          onChange={setIsDefault}
-          ariaLabel="Set as my default delivery address"
-        />
-      </div>
-      <div className="sm:col-span-2 flex gap-2.5 pt-1">
-        <Link
-          to="/account/addresses"
-          className="bg-white border border-[#ececec] hover:border-black text-[13px] font-semibold text-black px-5 py-2.5 rounded-full"
-        >
-          Cancel
-        </Link>
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[13px] font-semibold px-6 py-2.5 rounded-full"
-        >
-          {saving ? 'Updating...' : 'Update address'}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// Edit Address
-export function EditAddressPage() {
-  const { addressId } = useParams<{ addressId: string }>();
-  const { addresses } = useStore();
-  const address = addresses.find((a) => a.id === Number(addressId));
-
-  return (
-    <div className="flex flex-col gap-[18px]">
-      <div>
-        <h1 className="text-[22px] font-bold text-black">Edit address</h1>
-        <p className="text-[12.5px] text-[#767676] mt-0.5">
-          Update your saved delivery location.
-        </p>
-      </div>
-
-      {!address ? (
-        <div className="bg-white border border-[#ececec] rounded-[16px] p-8 flex flex-col gap-3 max-w-[540px]">
-          <p className="text-[14px] font-semibold text-black">
-            Address not found
-          </p>
-          <p className="text-[13px] text-[#767676]">
-            This address may have been removed or is not available on your
-            account.
-          </p>
-          <Link
-            to="/account/addresses"
-            className="self-start bg-[#ff6e20] text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-          >
-            Back to address book
-          </Link>
-        </div>
-      ) : (
-        <EditAddressForm key={address.id} address={address} />
       )}
     </div>
+  );
+}
+
+// Route redirects so /account/addresses/new and /account/addresses/:id/edit open the modal
+export function AddAddressPage() {
+  return <Navigate to="/account/addresses?add=1" replace />;
+}
+
+export function EditAddressPage() {
+  const { addressId } = useParams<{ addressId: string }>();
+  return (
+    <Navigate
+      to={
+        addressId
+          ? `/account/addresses?edit=${encodeURIComponent(addressId)}`
+          : '/account/addresses'
+      }
+      replace
+    />
   );
 }
 
