@@ -59,10 +59,12 @@ export function AdminUsersPage() {
       const res = await adminApi.getUsers({ page: 1 });
       setUsers(res.data);
       setSelectedUser((prev) =>
-        prev ? res.data.find((u) => u.id === prev.id) ?? null : null,
+        prev ? (res.data.find((u) => u.id === prev.id) ?? null) : null,
       );
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Unable to load users.');
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to load users.',
+      );
     } finally {
       setLoading(false);
     }
@@ -81,13 +83,13 @@ export function AdminUsersPage() {
   const counts = useMemo(
     () => ({
       all: users.length,
-      customer: users.filter((u) =>
-        u.roles.some((r) => r.slug === 'customer'),
-      ).length,
+      customer: users.filter((u) => u.roles.some((r) => r.slug === 'customer'))
+        .length,
       store_owner: users.filter((u) =>
         u.roles.some((r) => r.slug === 'store_owner'),
       ).length,
-      admin: users.filter((u) => u.roles.some((r) => r.slug === 'admin')).length,
+      admin: users.filter((u) => u.roles.some((r) => r.slug === 'admin'))
+        .length,
       suspended: users.filter((u) => u.status === 'suspended').length,
     }),
     [users],
@@ -134,7 +136,9 @@ export function AdminUsersPage() {
       showToast(res.message || 'User roles updated.');
       await loadUsers();
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Unable to save roles.');
+      showToast(
+        err instanceof ApiError ? err.message : 'Unable to save roles.',
+      );
     } finally {
       setBusyId(null);
     }
@@ -634,9 +638,7 @@ export function AdminCatalogPage() {
     if (statusFilter === 'active' && !c.is_active) return false;
     if (statusFilter === 'hidden' && c.is_active) return false;
     return (
-      !q ||
-      c.name.toLowerCase().includes(q) ||
-      c.slug.toLowerCase().includes(q)
+      !q || c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q)
     );
   });
 
@@ -830,7 +832,9 @@ export function AdminCatalogPage() {
         open={catDrawerOpen}
         onClose={() => setCatDrawerOpen(false)}
         title={
-          editingCat ? `Edit category · ${editingCat.name}` : 'Add global category'
+          editingCat
+            ? `Edit category · ${editingCat.name}`
+            : 'Add global category'
         }
         subtitle="Marketplace categories are available to all approved store owners."
         footer={
@@ -1051,7 +1055,8 @@ export function AdminBakongPage() {
           label: 'Expired / Failed',
           value: String(overview.transactions.failed_count),
           sub: `${overview.stores.disconnected_or_expired} expired merchant tokens`,
-          badge: overview.transactions.failed_count > 0 ? 'Investigate' : 'Clean',
+          badge:
+            overview.transactions.failed_count > 0 ? 'Investigate' : 'Clean',
           tone: overview.transactions.failed_count > 0 ? 'red' : 'green',
         },
       ]
@@ -1139,7 +1144,9 @@ export function AdminBakongPage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-[#f7f7f7] text-[11.5px] font-semibold text-[#767676]">
-                        <th className="py-2.5 px-3.5 rounded-l-[10px]">Store</th>
+                        <th className="py-2.5 px-3.5 rounded-l-[10px]">
+                          Store
+                        </th>
                         <th className="py-2.5 px-3.5">Bakong Account ID</th>
                         <th className="py-2.5 px-3.5">Merchant Name</th>
                         <th className="py-2.5 px-3.5">Status</th>
@@ -1494,7 +1501,8 @@ export function AdminDisputesPage() {
               </p>
               {activeDispute.refund?.amount && (
                 <p className="font-semibold text-[#ff6e20] pt-1">
-                  Disputed amount: ${Number(activeDispute.refund.amount).toFixed(2)}
+                  Disputed amount: $
+                  {Number(activeDispute.refund.amount).toFixed(2)}
                 </p>
               )}
             </div>
@@ -1554,11 +1562,31 @@ const CURRENCY_OPTIONS = [
 ] as const;
 
 const SOCIAL_LINK_FIELDS = [
-  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/kovaglobal' },
-  { key: 'telegram', label: 'Telegram', placeholder: 'https://t.me/kovaglobal' },
-  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/kovaglobal' },
-  { key: 'tiktok', label: 'TikTok', placeholder: 'https://tiktok.com/@kovaglobal' },
-  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@kovaglobal' },
+  {
+    key: 'facebook',
+    label: 'Facebook',
+    placeholder: 'https://facebook.com/kovaglobal',
+  },
+  {
+    key: 'telegram',
+    label: 'Telegram',
+    placeholder: 'https://t.me/kovaglobal',
+  },
+  {
+    key: 'instagram',
+    label: 'Instagram',
+    placeholder: 'https://instagram.com/kovaglobal',
+  },
+  {
+    key: 'tiktok',
+    label: 'TikTok',
+    placeholder: 'https://tiktok.com/@kovaglobal',
+  },
+  {
+    key: 'youtube',
+    label: 'YouTube',
+    placeholder: 'https://youtube.com/@kovaglobal',
+  },
 ] as const;
 
 const BOOLEAN_SETTING_KEYS = new Set([
@@ -1616,7 +1644,12 @@ function parseSocialLinks(raw: string | undefined): Record<string, string> {
 }
 
 export function AdminSettingsPage() {
-  const { showToast, refreshCatalog, khrRate, settings: publicSettings } = useStore();
+  const {
+    showToast,
+    refreshCatalog,
+    khrRate,
+    settings: publicSettings,
+  } = useStore();
   const [grouped, setGrouped] = useState<Record<string, PlatformSettingItem[]>>(
     {},
   );
@@ -1846,7 +1879,8 @@ export function AdminSettingsPage() {
                       token used to generate and verify KHQR payments for every
                       store on Kova. Bakong environment &amp; API URL are
                       configured in <code className="font-mono">.env</code>{' '}
-                      (default: <span className="font-semibold">production</span>).
+                      (default:{' '}
+                      <span className="font-semibold">production</span>).
                     </p>
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2001,7 +2035,7 @@ export function AdminSettingsPage() {
                             <span className="text-[12px] font-semibold text-black capitalize">
                               {labelText}
                             </span>
-                            <div className="h-[42px] bg-white border border-[#ececec] rounded-full px-4 flex items-center justify-between gap-3">
+                            <div className="h-[42px] bg-white border border-[#ececec] rounded-full pl-4 pr-2 flex items-center justify-between gap-3">
                               <span
                                 className={`text-[13px] font-medium ${
                                   isOn ? 'text-[#ff6e20]' : 'text-[#767676]'
@@ -2138,7 +2172,7 @@ export function AdminSettingsPage() {
                                     type="button"
                                     disabled={savingKey === item.key}
                                     onClick={() => toggleCurrency(curr.code)}
-                                    className={`flex items-center justify-between gap-3 px-4 py-3 rounded-[14px] border text-left transition-colors disabled:opacity-60 ${
+                                    className={`flex items-center justify-between gap-3 px-2.5 py-2.5 rounded-full border text-left transition-colors disabled:opacity-60 ${
                                       isSelected
                                         ? 'bg-[#ffefe6] border-[#ff6e20] text-black'
                                         : 'bg-[#fafafa] border-[#ececec] text-[#555555] hover:border-[#cccccc]'
@@ -2166,7 +2200,7 @@ export function AdminSettingsPage() {
                                     <span
                                       className={`text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 ${
                                         isSelected
-                                          ? 'bg-white text-[#ff6e20]'
+                                          ? 'bg-[#ff6e20] text-white'
                                           : 'bg-[#eeeeee] text-[#767676]'
                                       }`}
                                     >

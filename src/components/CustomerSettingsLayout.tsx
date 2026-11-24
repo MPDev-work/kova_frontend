@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Link,
   Navigate,
@@ -6,7 +6,7 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import { LogOut, MessageCircle } from 'lucide-react';
+import { LogOut, MessageCircle, X } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { getUserDashboardPath } from '../utils/authRedirect';
 import { FigmaIcon, type FigmaIconName } from './FigmaIcon';
@@ -70,8 +70,19 @@ export function CustomerSettingsLayout() {
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
   const [notifModalOpen, setNotifModalOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   if (bootstrapping) {
     return <CustomerSettingsSkeleton />;
@@ -220,116 +231,176 @@ export function CustomerSettingsLayout() {
 
   const currentSection = getBreadcrumbTitle(location.pathname);
 
-  return (
-    <div className="min-h-screen w-full bg-[#f7f7f7] text-black flex">
-      {/* Persistent Left Enterprise Sidebar */}
-      <aside
-        className={`${
-          sidebarOpen ? 'w-[260px] px-[14px]' : 'w-0 px-0 overflow-hidden'
-        } hidden lg:flex flex-col justify-between bg-white border-r border-[#ececec] py-[16px] sticky top-0 h-screen shrink-0 transition-all duration-200`}
-      >
-        <div className="flex flex-col gap-3.5 overflow-y-auto no-scrollbar">
-          <div className="flex items-center gap-2 px-1">
-            <KovaLogo size="sm" />
-          </div>
+  const renderSidebarBody = (isMobile: boolean) => (
+    <>
+      <div className="flex flex-col gap-3.5 overflow-y-auto no-scrollbar">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <KovaLogo size="sm" />
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(false)}
+              aria-label="Close sidebar"
+              className="w-8 h-8 rounded-[10px] bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-          <Link
-            to="/account/profile"
-            className="bg-[#f7f7f7] border border-[#ececec] hover:border-[#ff6e20]/50 transition-colors rounded-[14px] p-2.5 flex items-center gap-2.5"
-          >
-            {user.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#ececec]"
-              />
-            ) : (
-              <span className="w-9 h-9 rounded-full bg-[#ff6e20] text-white text-[12px] font-bold flex items-center justify-center shrink-0">
-                {initials}
-              </span>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1">
-                <p className="text-[13px] font-semibold text-black truncate">
-                  {user.name}
-                </p>
-                {user.email_verified_at && <VerifiedBadge size="xs" />}
-              </div>
-              <p className="text-[11px] text-[#767676] truncate">
-                {user.email}
+        <Link
+          to="/account/profile"
+          onClick={() => {
+            if (isMobile) setMobileSidebarOpen(false);
+          }}
+          className="bg-[#f7f7f7] border border-[#ececec] hover:border-[#ff6e20]/50 transition-colors rounded-[14px] p-2.5 flex items-center gap-2.5"
+        >
+          {user.avatar ? (
+            <img
+              src={user.avatar}
+              alt={user.name}
+              className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#ececec]"
+            />
+          ) : (
+            <span className="w-9 h-9 rounded-full bg-[#ff6e20] text-white text-[12px] font-bold flex items-center justify-center shrink-0">
+              {initials}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <p className="text-[13px] font-semibold text-black truncate">
+                {user.name}
               </p>
+              {user.email_verified_at && <VerifiedBadge size="xs" />}
             </div>
-          </Link>
+            <p className="text-[11px] text-[#767676] truncate">{user.email}</p>
+          </div>
+        </Link>
 
-          <nav className="flex flex-col gap-4">
-            {navGroups.map((group) => (
-              <div key={group.title} className="flex flex-col gap-0.5">
-                <p className="px-2.5 pb-1 text-[10px] font-bold text-[#979797] tracking-[0.04em]">
-                  {group.title}
-                </p>
-                {group.items.map((item) => {
-                  const active = (item.matchPrefixes || [item.to]).some((p) =>
-                    location.pathname.startsWith(p),
-                  );
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className={`flex items-center justify-between px-2.5 py-[8px] rounded-[10px] text-[12.5px] transition-colors ${
-                        active
-                          ? 'bg-[#ffefe6] text-[#ff6e20] font-semibold'
-                          : 'text-black font-medium hover:bg-[#f7f7f7]'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5 min-w-0">
-                        <FigmaIcon
-                          name={item.icon}
-                          className={`w-[15px] h-[15px] ${
-                            active ? 'text-[#ff6e20]' : 'text-[#767676]'
-                          }`}
-                        />
-                        <span className="truncate">{item.label}</span>
+        <nav className="flex flex-col gap-4">
+          {navGroups.map((group) => (
+            <div key={group.title} className="flex flex-col gap-0.5">
+              <p className="px-2.5 pb-1 text-[10px] font-bold text-[#979797] tracking-[0.04em]">
+                {group.title}
+              </p>
+              {group.items.map((item) => {
+                const active = (item.matchPrefixes || [item.to]).some((p) =>
+                  location.pathname.startsWith(p),
+                );
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => {
+                      if (isMobile) setMobileSidebarOpen(false);
+                    }}
+                    className={`flex items-center justify-between px-2.5 py-[8px] rounded-[10px] text-[12.5px] transition-colors ${
+                      active
+                        ? 'bg-[#ffefe6] text-[#ff6e20] font-semibold'
+                        : 'text-black font-medium hover:bg-[#f7f7f7]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      <FigmaIcon
+                        name={item.icon}
+                        className={`w-[15px] h-[15px] ${
+                          active ? 'text-[#ff6e20]' : 'text-[#767676]'
+                        }`}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </span>
+                    {item.badge !== undefined && (
+                      <span
+                        className={`text-[10px] font-semibold px-[7px] py-px rounded-full ${
+                          item.badgeTone === 'orange'
+                            ? 'bg-[#ffefe6] text-[#ff6e20]'
+                            : 'bg-[#f7f7f7] text-[#767676]'
+                        }`}
+                      >
+                        {item.badge}
                       </span>
-                      {item.badge !== undefined && (
-                        <span
-                          className={`text-[10px] font-semibold px-[7px] py-px rounded-full ${
-                            item.badgeTone === 'orange'
-                              ? 'bg-[#ffefe6] text-[#ff6e20]'
-                              : 'bg-[#f7f7f7] text-[#767676]'
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-        </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+      </div>
 
-        <div className="pt-3">
-          <button
-            type="button"
-            onClick={() => void signOut().then(() => navigate('/login'))}
-            className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            <span>Log out</span>
-          </button>
-        </div>
+      <div className="pt-3">
+        <button
+          type="button"
+          onClick={() => {
+            setMobileSidebarOpen(false);
+            void signOut().then(() => navigate('/login'));
+          }}
+          className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          <span>Log out</span>
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="relative min-h-screen w-full overflow-x-clip bg-[#f7f7f7] text-black flex">
+      {/* Mobile Push Sidebar (240px) */}
+      <aside
+        aria-hidden={!mobileSidebarOpen}
+        className={`lg:hidden fixed inset-y-0 left-0 z-40 w-[240px] px-[14px] py-[16px] flex flex-col justify-between bg-white border-r border-[#ececec] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          mobileSidebarOpen
+            ? 'translate-x-0'
+            : '-translate-x-full pointer-events-none'
+        }`}
+      >
+        {renderSidebarBody(true)}
       </aside>
 
-      {/* Persistent Right Workspace */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+      {/* Persistent Left Enterprise Sidebar (Desktop) */}
+      <aside
+        className={`${
+          sidebarOpen
+            ? 'w-[260px] px-[14px]'
+            : 'w-0 px-0 overflow-hidden border-r-0'
+        } hidden lg:flex flex-col justify-between bg-white border-r border-[#ececec] py-[16px] sticky top-0 h-screen shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]`}
+      >
+        {renderSidebarBody(false)}
+      </aside>
+
+      {/* Persistent Right Workspace (shifts +240px smoothly when mobile sidebar opens) */}
+      <div
+        className={`relative flex-1 min-w-0 flex flex-col min-h-screen transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          mobileSidebarOpen
+            ? 'translate-x-[240px] lg:translate-x-0'
+            : 'translate-x-0'
+        }`}
+      >
+        {mobileSidebarOpen && (
+          <div
+            role="presentation"
+            onClick={() => setMobileSidebarOpen(false)}
+            className="lg:hidden absolute inset-0 z-40 bg-black/20 cursor-pointer"
+          />
+        )}
+
         <header className="h-[68px] bg-white border-b border-[#ececec] px-4 lg:px-7 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
+              onClick={() => setMobileSidebarOpen((v) => !v)}
+              aria-label="Toggle navigation sidebar"
+              aria-expanded={mobileSidebarOpen}
+              className="lg:hidden inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-[10px] transition-colors shrink-0 cursor-pointer"
+            >
+              <FigmaIcon name="sidebar" className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
               onClick={() => setSidebarOpen((v) => !v)}
               aria-label="Toggle sidebar"
-              className="hidden lg:inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-[10px] transition-colors shrink-0"
+              className="hidden lg:inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-[10px] transition-colors shrink-0 cursor-pointer"
             >
               <FigmaIcon name="sidebar" className="w-4 h-4" />
             </button>
@@ -369,7 +440,7 @@ export function CustomerSettingsLayout() {
               to="/wishlist"
               title="Wishlist"
               aria-label="Wishlist"
-              className="relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+              className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
             >
               <FigmaIcon name="heart" className="w-4 h-4" />
               {wishlistIds.length > 0 && (
@@ -383,7 +454,7 @@ export function CustomerSettingsLayout() {
               to="/help/tickets"
               title="Messages"
               aria-label="Messages"
-              className="relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+              className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
               {unreadMessagesCount > 0 && (
@@ -398,7 +469,7 @@ export function CustomerSettingsLayout() {
               onClick={() => setNotifModalOpen(true)}
               title="Notifications"
               aria-label="Notifications"
-              className="relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+              className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
             >
               <FigmaIcon name="bell" className="w-4 h-4" />
               {unreadNotificationsCount > 0 && (
@@ -412,7 +483,7 @@ export function CustomerSettingsLayout() {
               to="/cart"
               title="Shopping Cart"
               aria-label="Shopping Cart"
-              className="relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+              className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
             >
               <FigmaIcon name="shopping-cart" className="w-4 h-4" />
               {cartCount > 0 && (
@@ -458,29 +529,6 @@ export function CustomerSettingsLayout() {
             </Link>
           </div>
         </header>
-
-        <div className="lg:hidden bg-white border-b border-[#ececec] px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {navGroups
-            .flatMap((g) => g.items)
-            .map((item) => {
-              const active = (item.matchPrefixes || [item.to]).some((p) =>
-                location.pathname.startsWith(p),
-              );
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`px-3 py-1.5 rounded-full text-[12px] whitespace-nowrap transition-colors ${
-                    active
-                      ? 'bg-[#ff6e20] text-white font-semibold'
-                      : 'bg-[#f7f7f7] text-[#767676] font-medium'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-        </div>
 
         {/* ONLY THIS INNER OUTLET SWAPS ON NAVIGATION */}
         <main className="flex-1 w-full max-w-[1220px] px-4 lg:px-[26px] pt-[22px] pb-[36px]">

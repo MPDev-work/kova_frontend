@@ -1484,10 +1484,11 @@ export function AccountSecurityPage() {
     setEmailError(null);
     try {
       const res = await customerApi.sendContactChangeCode('email', newEmail);
-      setEmailCodeSentTo(res.data.target);
+      const destination = res.data.sent_to || user.email;
+      setEmailCodeSentTo(destination);
       setEmailCode('');
       setEmailCooldown(60);
-      showToast(res.message || `Verification code sent to ${res.data.target}.`);
+      showToast(res.message || `Verification code sent to ${destination}.`);
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -1668,7 +1669,8 @@ export function AccountSecurityPage() {
             <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-3">
               <p className="text-[12.5px] text-[#555555]">
                 Enter your new email address. We&rsquo;ll send a 6-digit
-                verification code to confirm ownership before updating.
+                verification code to your current email ({user.email}) to
+                confirm before updating.
               </p>
               {emailError && (
                 <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[10px] px-3 py-2">

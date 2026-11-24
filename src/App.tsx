@@ -163,7 +163,7 @@ function GlobalToast() {
       key={toast}
       role="status"
       aria-live="polite"
-      className="kova-toast-in fixed bottom-6 right-6 z-50 max-w-[calc(100vw-3rem)] bg-[#ff6e20] text-white pl-2.5 pr-5 py-2.5 rounded-full shadow-[0_12px_32px_rgba(255,110,32,0.34)] border border-white/15 text-[13.5px] font-medium flex items-center gap-2.5"
+      className="kova-toast-in fixed bottom-[74px] md:bottom-6 right-4 md:right-6 z-50 max-w-[calc(100vw-2rem)] bg-[#ff6e20] text-white pl-2.5 pr-5 py-2.5 rounded-full shadow-[0_12px_32px_rgba(255,110,32,0.34)] border border-white/15 text-[13.5px] font-medium flex items-center gap-2.5"
     >
       <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
         <MessageCircle className="w-4 h-4 text-white" strokeWidth={2.2} />

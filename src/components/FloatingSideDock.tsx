@@ -5,8 +5,10 @@ import {
   Bell,
   Headset,
   Heart,
+  Home,
   MessagesSquare,
   ShoppingCart,
+  User,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { FigmaIcon } from './FigmaIcon';
@@ -35,6 +37,7 @@ export function FloatingSideDock() {
   const {
     bootstrapping,
     isSignedIn,
+    user,
     cartCount,
     wishlistIds,
     notifications,
@@ -54,11 +57,22 @@ export function FloatingSideDock() {
   const itemBase =
     'group relative w-10 h-10 rounded-[12px] flex items-center justify-center transition-colors';
 
+  const profileTarget = isSignedIn && user ? '/account/profile' : '/login';
+  const isHomeActive = pathname === '/';
+  const isMessengerActive = pathname.startsWith('/help/tickets');
+  const isCartActive = pathname === '/cart' || pathname === '/checkout';
+  const isWishlistActive = pathname === '/wishlist';
+  const isProfileActive =
+    pathname.startsWith('/account') ||
+    pathname === '/login' ||
+    pathname === '/register';
+
   return (
     <>
+      {/* Desktop Floating Right Side Dock */}
       <aside
         aria-label="Quick navigation"
-        className="fixed right-0 top-[calc(50%+50px)] -translate-y-1/2 z-40 flex flex-col gap-2.5 select-none"
+        className="hidden md:flex fixed right-0 top-[calc(50%+50px)] -translate-y-1/2 z-40 flex-col gap-2.5 select-none"
       >
         {/* Main Vertical Pill Card */}
         <div className="w-[48px] sm:w-[50px] bg-white border border-r-0 border-[#ececec] rounded-l-[17px] shadow-[0_8px_28px_rgba(0,0,0,0.08)] py-1.5 flex flex-col items-center gap-1.5">
@@ -162,6 +176,143 @@ export function FloatingSideDock() {
           <DockTooltip label="Back to top" />
         </button>
       </aside>
+
+      {/* Mobile App Bottom Tab Bar (Home, Messenger, Cart, Wishlist, Profile) */}
+      <nav
+        aria-label="Mobile navigation"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-[12px] border-t border-[#ececec] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom)] select-none"
+      >
+        <div className="grid grid-cols-5 h-[60px]">
+          <Link
+            to="/"
+            state={{ allowStorefront: true }}
+            className={`relative flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              isHomeActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
+            }`}
+          >
+            <Home
+              className="w-[21px] h-[21px]"
+              strokeWidth={isHomeActive ? 2.25 : 1.85}
+            />
+            <span
+              className={`text-[10.5px] leading-tight ${
+                isHomeActive ? 'font-bold' : 'font-medium'
+              }`}
+            >
+              Home
+            </span>
+          </Link>
+
+          <Link
+            to="/help/tickets"
+            className={`relative flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              isMessengerActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
+            }`}
+          >
+            <span className="relative inline-flex">
+              <MessagesSquare
+                className="w-[21px] h-[21px]"
+                strokeWidth={isMessengerActive ? 2.25 : 1.85}
+              />
+              {!bootstrapping && isSignedIn && unreadMessagesCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
+            </span>
+            <span
+              className={`text-[10.5px] leading-tight ${
+                isMessengerActive ? 'font-bold' : 'font-medium'
+              }`}
+            >
+              Messenger
+            </span>
+          </Link>
+
+          <Link
+            to="/cart"
+            className={`relative flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              isCartActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
+            }`}
+          >
+            <span className="relative inline-flex">
+              <ShoppingCart
+                className="w-[21px] h-[21px]"
+                strokeWidth={isCartActive ? 2.25 : 1.85}
+              />
+              {!bootstrapping && cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </span>
+            <span
+              className={`text-[10.5px] leading-tight ${
+                isCartActive ? 'font-bold' : 'font-medium'
+              }`}
+            >
+              Cart
+            </span>
+          </Link>
+
+          <Link
+            to="/wishlist"
+            className={`relative flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              isWishlistActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
+            }`}
+          >
+            <span className="relative inline-flex">
+              <Heart
+                className="w-[21px] h-[21px]"
+                strokeWidth={isWishlistActive ? 2.25 : 1.85}
+              />
+              {!bootstrapping && isSignedIn && wishlistIds.length > 0 && (
+                <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
+                  {wishlistIds.length > 99 ? '99+' : wishlistIds.length}
+                </span>
+              )}
+            </span>
+            <span
+              className={`text-[10.5px] leading-tight ${
+                isWishlistActive ? 'font-bold' : 'font-medium'
+              }`}
+            >
+              Wishlist
+            </span>
+          </Link>
+
+          <Link
+            to={profileTarget}
+            className={`relative flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              isProfileActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
+            }`}
+          >
+            {isSignedIn && user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className={`w-[22px] h-[22px] rounded-full object-cover ${
+                  isProfileActive
+                    ? 'ring-2 ring-[#ff6e20]'
+                    : 'border border-[#dcdcdc]'
+                }`}
+              />
+            ) : (
+              <User
+                className="w-[21px] h-[21px]"
+                strokeWidth={isProfileActive ? 2.25 : 1.85}
+              />
+            )}
+            <span
+              className={`text-[10.5px] leading-tight ${
+                isProfileActive ? 'font-bold' : 'font-medium'
+              }`}
+            >
+              Profile
+            </span>
+          </Link>
+        </div>
+      </nav>
 
       <NotificationModal
         open={notifModalOpen}

@@ -837,6 +837,7 @@ export interface SellerOrderItem {
   payment_method?: string;
   payment_status: string;
   status: string;
+  paid_at?: string | null;
   created_at: string;
   items?: {
     id: number;
@@ -850,6 +851,7 @@ export interface SellerOrderItem {
     bill_number: string;
     payment_status: string;
     amount: number | string;
+    verified_at?: string | null;
   } | null;
 }
 

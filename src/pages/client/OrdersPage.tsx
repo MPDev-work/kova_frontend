@@ -7,6 +7,7 @@ import { ApiError, orderApi } from '../../services/api';
 import { formatRiel, formatShortDate } from '../../utils/currency';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { KhqrModal } from '../../components/KhqrModal';
+import { OrderStatusStepper } from '../../components/OrderStatusStepper';
 import { savePendingChatCard } from '../../utils/chatContextCard';
 import type {
   ChatContextCard,
@@ -606,7 +607,13 @@ export function MyOrdersPage() {
         }
       >
         {selectedOrder && (
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_270px] gap-5 items-start">
+          <div className="flex flex-col gap-5">
+            <OrderStatusStepper
+              status={selectedOrder.status}
+              paymentStatus={selectedOrder.payment_status}
+              paymentMethod={selectedOrder.payment_method}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_270px] gap-5 items-start">
             <div className="flex flex-col gap-3.5">
               {selectedOrder.children.map((pkg, idx) => (
                 <div
@@ -796,6 +803,7 @@ export function MyOrdersPage() {
                 </div>
               </div>
             </aside>
+            </div>
           </div>
         )}
       </DashboardModal>
@@ -966,6 +974,12 @@ export function OrderDetailsPage() {
             )}
         </div>
       </div>
+
+      <OrderStatusStepper
+        status={order.status}
+        paymentStatus={order.payment_status}
+        paymentMethod={order.payment_method}
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
         <div className="flex flex-col gap-4">

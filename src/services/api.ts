@@ -966,6 +966,7 @@ export const customerApi = {
     return apiRequest<{
       channel: 'email' | 'phone';
       target: string;
+      sent_to?: string;
       expires_in_seconds: number;
     }>('/users/contact/change/send', {
       method: 'POST',

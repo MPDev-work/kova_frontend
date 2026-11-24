@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Check, MapPin } from 'lucide-react';
+import { Check, MapPin, Receipt } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError } from '../../services/api';
@@ -32,6 +32,8 @@ import {
 } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
+import { OrderStatusStepper } from '../../components/OrderStatusStepper';
+import { PosOrderReceiptModal } from '../../components/PosOrderReceiptModal';
 import { StorefrontPreviewModal } from './SellerStorePreviewPage';
 
 // ==========================================
@@ -48,12 +50,15 @@ type OrderStatusTab =
 
 export function SellerOrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { khrRate, showToast } = useStore();
+  const { khrRate, showToast, user } = useStore();
 
   const [statusFilter, setStatusFilter] = useState<OrderStatusTab>('');
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [page, setPage] = useState(1);
   const [orders, setOrders] = useState<SellerOrderItem[]>([]);
+  const [storeProfile, setStoreProfile] = useState<SellerStoreProfile | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const handledOrderParamRef = useRef<string | null>(null);
 
@@ -61,6 +66,7 @@ export function SellerOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<SellerOrderItem | null>(
     null,
   );
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [nextStatus, setNextStatus] = useState<
     'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled'
   >('processing');
@@ -90,6 +96,14 @@ export function SellerOrdersPage() {
     Promise.resolve().then(() => {
       if (active) void loadOrders();
     });
+    storeOwnerApi
+      .getProfile()
+      .then((profile) => {
+        if (active) setStoreProfile(profile);
+      })
+      .catch(() => {
+        // Optional store metadata for POS receipt header
+      });
     return () => {
       active = false;
     };
@@ -145,6 +159,7 @@ export function SellerOrdersPage() {
   }, []);
 
   const closeOrderDrawer = useCallback(() => {
+    setReceiptOpen(false);
     setSelectedOrder(null);
     if (searchParams.has('order')) {
       const next = new URLSearchParams(searchParams);
@@ -454,15 +469,23 @@ export function SellerOrdersPage() {
             <button
               type="button"
               onClick={closeOrderDrawer}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
+              className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer"
             >
               Close
+            </button>
+            <button
+              type="button"
+              onClick={() => setReceiptOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer"
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              Generate receipt
             </button>
             <button
               type="submit"
               form="seller-order-fulfillment-form"
               disabled={updating}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
+              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer"
             >
               {updating ? 'Updating...' : 'Update order status'}
             </button>
@@ -472,12 +495,21 @@ export function SellerOrdersPage() {
         {selectedOrder && (
           <div className="flex flex-col gap-5">
             {/* Workflow strip */}
-            <div className="bg-[#ffefe6] border border-[#ffd8c2] rounded-[14px] px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-[12px]">
+            {/* <div className="bg-[#ffefe6] border border-[#ffd8c2] rounded-[14px] px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-[12px]">
               <span className="font-semibold text-[#ff6e20]">
                 Order status: {selectedOrder.status.toUpperCase()}
               </span>
-              <StatusPill label={selectedOrder.payment_status} />
-            </div>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold capitalize bg-[#ff6e20]/15 text-[#ff6e20]">
+                {selectedOrder.payment_status}
+              </span>
+            </div> */}
+
+            <OrderStatusStepper
+              status={selectedOrder.status}
+              paymentStatus={selectedOrder.payment_status}
+              paymentMethod={selectedOrder.payment_method}
+              compact
+            />
 
             {/* Ordered products */}
             <div className="border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3">
@@ -655,6 +687,17 @@ export function SellerOrdersPage() {
           </div>
         )}
       </SlideOverDrawer>
+
+      <PosOrderReceiptModal
+        open={receiptOpen}
+        onClose={() => setReceiptOpen(false)}
+        order={selectedOrder}
+        store={storeProfile}
+        operatorName={user?.name}
+        khrRate={khrRate}
+        carrierOverride={carrier}
+        trackingOverride={tracking}
+      />
     </div>
   );
 }

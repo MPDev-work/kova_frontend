@@ -3,7 +3,7 @@ import { FigmaIcon } from './FigmaIcon';
 
 interface KovaLogoProps {
   className?: string;
-  size?: 'md' | 'sm';
+  size?: 'md' | 'sm' | 'responsive';
   to?: string;
   linkState?: Record<string, unknown>;
 }
@@ -14,8 +14,18 @@ export function KovaLogo({
   to = '/',
   linkState,
 }: KovaLogoProps) {
-  const textClass = size === 'sm' ? 'text-[30px]' : 'text-[40px]';
-  const flameClass = size === 'sm' ? 'w-[22px] h-[22px]' : 'w-[30px] h-[30px]';
+  const textClass =
+    size === 'sm'
+      ? 'text-[30px]'
+      : size === 'responsive'
+        ? 'text-[26px] md:text-[40px]'
+        : 'text-[40px]';
+  const flameClass =
+    size === 'sm'
+      ? 'w-[22px] h-[22px]'
+      : size === 'responsive'
+        ? 'w-[20px] h-[20px] md:w-[30px] md:h-[30px]'
+        : 'w-[30px] h-[30px]';
 
   return (
     <Link

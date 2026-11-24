@@ -165,7 +165,9 @@ export function DashboardAccountSettingsPage({
     try {
       const res = await customerApi.sendContactChangeCode('email', target);
       setEmailCodeSent(true);
-      showToast(res.message || 'Verification code sent to your new email.');
+      showToast(
+        res.message || `Verification code sent to ${res.data.sent_to || user.email}.`,
+      );
     } catch (err) {
       showToast(
         err instanceof ApiError
@@ -573,8 +575,9 @@ export function DashboardAccountSettingsPage({
                 Change email or phone number
               </h2>
               <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                Updating your login email or phone requires verifying a 6-digit
-                code sent to the new contact first.
+                Updating your login email sends a 6-digit code to your current
+                email ({user.email}); updating your phone verifies the new
+                number first.
               </p>
             </div>
 
@@ -641,8 +644,8 @@ export function DashboardAccountSettingsPage({
                         onChange={(e) =>
                           setEmailCode(e.target.value.replace(/\D/g, ''))
                         }
-                        placeholder="Enter 6-digit code"
-                        className="w-[180px] h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] tracking-[0.2em] font-semibold outline-none"
+                        placeholder={`6-digit code sent to ${user.email}`}
+                        className="flex-1 min-w-[210px] h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13px] font-mono tracking-widest outline-none"
                       />
                       <button
                         type="button"

@@ -49,9 +49,7 @@ export function StorefrontPreviewModal({
         const [storeRes, prodRes, vouchers] = await Promise.all([
           catalogApi.getStore(slug),
           catalogApi.getStoreProducts(slug, 40),
-          catalogApi
-            .getPromotions(profile.id)
-            .catch(() => [] as Promotion[]),
+          catalogApi.getPromotions(profile.id).catch(() => [] as Promotion[]),
         ]);
         if (active) {
           setStore(storeRes.data);
@@ -233,10 +231,7 @@ export function StorefrontPreviewModal({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <FigmaIcon
-                      name="home"
-                      className="w-6 h-6 text-[#ff6e20]"
-                    />
+                    <FigmaIcon name="home" className="w-6 h-6 text-[#ff6e20]" />
                   )}
                 </span>
                 <div className="flex flex-col gap-0.5 min-w-0">

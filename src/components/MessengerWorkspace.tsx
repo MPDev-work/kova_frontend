@@ -711,7 +711,7 @@ export function MessengerWorkspace({
     <div
       className={
         fullScreen
-          ? 'bg-white flex flex-1 min-h-0 w-full overflow-hidden'
+          ? 'bg-white flex flex-1 min-h-0 w-full h-full overflow-hidden'
           : 'bg-white border border-[#ececec] rounded-[22px] overflow-hidden shadow-[0_6px_24px_rgba(0,0,0,0.04)] flex h-[calc(100vh-124px)] min-h-[560px]'
       }
     >

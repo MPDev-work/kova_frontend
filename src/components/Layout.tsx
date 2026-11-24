@@ -21,7 +21,7 @@ export function Layout() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f5f5] text-black">
+    <div className="min-h-screen flex flex-col bg-[#f5f5f5] text-black pb-[60px] md:pb-0">
       <Header />
       <main className="flex-1 w-full">
         <Outlet />

@@ -183,7 +183,7 @@ export function SupportTicketsPage() {
     .toUpperCase();
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-[#f7f7f7] flex flex-col">
+    <div className="h-[100dvh] w-full overflow-hidden bg-[#f7f7f7] flex flex-col">
       {/* Dedicated Minimal Message Portal Navbar */}
       <header className="h-[62px] bg-white border-b border-[#ececec] px-4 lg:px-6 flex items-center justify-between gap-3 shrink-0 z-20">
         <div className="flex items-center gap-3 min-w-0">

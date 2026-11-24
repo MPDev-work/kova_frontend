@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, Moon, Sun } from 'lucide-react';
+import { LogOut, Moon, Sun, X } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useDashboardTheme } from '../../utils/useDashboardTheme';
 import {
@@ -83,6 +83,7 @@ export function SellerLayout() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const { isDark, toggleTheme } = useDashboardTheme('seller');
@@ -110,6 +111,8 @@ export function SellerLayout() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         searchInputRef.current?.focus();
+      } else if (e.key === 'Escape') {
+        setMobileSidebarOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -365,113 +368,183 @@ export function SellerLayout() {
   const crumbs = getSellerBreadcrumbs(storeName, location.pathname);
   const bellCount =
     unreadNotificationsCount > 0 ? unreadNotificationsCount : openMessagesCount;
+  const isFullBleedPage = location.pathname.startsWith('/seller/messages');
+
+  const renderSidebarBody = (isMobile: boolean) => (
+    <>
+      <div className="flex flex-col gap-3.5 overflow-y-auto no-scrollbar">
+        <div className="flex items-center justify-between gap-2 px-1.5 pt-0.5">
+          <KovaLogo
+            size="sm"
+            to="/seller"
+          />
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(false)}
+              aria-label="Close sidebar"
+              className="w-8 h-8 rounded-[10px] bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Store Identity Switcher Card */}
+        <Link
+          to="/seller/storefront"
+          onClick={() => {
+            if (isMobile) setMobileSidebarOpen(false);
+          }}
+          className="bg-[#f7f7f7] border border-[#ececec] hover:border-[#ff6e20]/50 transition-colors rounded-[14px] p-2.5 flex items-center gap-2.5"
+        >
+          {storeLogo ? (
+            <img
+              src={storeLogo}
+              alt={storeName}
+              className="w-9 h-9 rounded-[10px] object-cover shrink-0 border border-[#ececec] bg-white"
+            />
+          ) : (
+            <span className="w-9 h-9 rounded-[10px] bg-[#ff6e20] text-white text-[12px] font-bold flex items-center justify-center shrink-0">
+              {initials}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <p className="text-[13px] font-bold text-black truncate">
+                {storeName}
+              </p>
+              {storeVerified && <VerifiedBadge size="xs" />}
+            </div>
+            <p className="text-[11px] text-[#767676] truncate">
+              {storeVerified ? `Verified · ${storeCity}` : storeCity}
+            </p>
+          </div>
+        </Link>
+
+        <nav className="flex flex-col gap-0.5 pt-0.5">
+          {navItems.map((item) => {
+            const active = isNavActive(item);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => {
+                  if (isMobile) setMobileSidebarOpen(false);
+                }}
+                className={`flex items-center justify-between px-2.5 py-[8.5px] rounded-[11px] text-[13px] transition-colors ${
+                  active
+                    ? 'bg-[#ffefe6] text-[#ff6e20] font-semibold'
+                    : 'text-[#1c1c1c] font-medium hover:bg-[#f7f7f7]'
+                }`}
+              >
+                <span className="flex items-center gap-2.5 min-w-0">
+                  <FigmaIcon
+                    name={item.icon}
+                    className={`w-[15px] h-[15px] ${
+                      active ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
+                    }`}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </span>
+                {item.badge !== undefined && (
+                  <span
+                    className={`text-[10px] font-bold px-[7px] py-[1px] rounded-full ${
+                      item.badgeTone === 'red'
+                        ? 'bg-[#fdecec] text-[#e5322d]'
+                        : item.badgeTone === 'orange'
+                          ? 'bg-[#ffefe6] text-[#ff6e20]'
+                          : 'bg-[#f4f4f4] text-[#767676]'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className="pt-3">
+        <button
+          type="button"
+          onClick={() => {
+            setMobileSidebarOpen(false);
+            void signOut().then(() => navigate('/login'));
+          }}
+          className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          <span>Log out</span>
+        </button>
+      </div>
+    </>
+  );
 
   return (
-    <div className="min-h-screen w-full bg-[#f7f7f7] text-black flex">
-      {/* Persistent Left Seller Sidebar (exact Figma Seller · 01 rail) */}
+    <div
+      className={`relative w-full overflow-x-clip bg-[#f7f7f7] text-black flex ${
+        isFullBleedPage ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'
+      }`}
+    >
+      {/* Mobile Push Sidebar (240px) */}
+      <aside
+        aria-hidden={!mobileSidebarOpen}
+        className={`lg:hidden fixed inset-y-0 left-0 z-40 w-[240px] px-[14px] py-[16px] flex flex-col justify-between bg-white border-r border-[#ececec] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          mobileSidebarOpen
+            ? 'translate-x-0'
+            : '-translate-x-full pointer-events-none'
+        }`}
+      >
+        {renderSidebarBody(true)}
+      </aside>
+
+      {/* Persistent Left Seller Sidebar (Desktop) */}
       <aside
         className={`${
           sidebarOpen
             ? 'w-[252px] px-[14px]'
             : 'w-0 px-0 overflow-hidden border-r-0'
-        } hidden lg:flex flex-col justify-between bg-white border-r border-[#ececec] py-[16px] sticky top-0 h-screen shrink-0 transition-all duration-200`}
+        } hidden lg:flex flex-col justify-between bg-white border-r border-[#ececec] py-[16px] sticky top-0 h-screen shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]`}
       >
-        <div className="flex flex-col gap-3.5 overflow-y-auto no-scrollbar">
-          <div className="flex items-center gap-2 px-1.5 pt-0.5">
-            <KovaLogo size="sm" to="/seller" />
-          </div>
-
-          {/* Store Identity Switcher Card */}
-          <Link
-            to="/seller/storefront"
-            className="bg-[#f7f7f7] border border-[#ececec] hover:border-[#ff6e20]/50 transition-colors rounded-[14px] p-2.5 flex items-center gap-2.5"
-          >
-            {storeLogo ? (
-              <img
-                src={storeLogo}
-                alt={storeName}
-                className="w-9 h-9 rounded-[10px] object-cover shrink-0 border border-[#ececec] bg-white"
-              />
-            ) : (
-              <span className="w-9 h-9 rounded-[10px] bg-[#ff6e20] text-white text-[12px] font-bold flex items-center justify-center shrink-0">
-                {initials}
-              </span>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1">
-                <p className="text-[13px] font-bold text-black truncate">
-                  {storeName}
-                </p>
-                {storeVerified && <VerifiedBadge size="xs" />}
-              </div>
-              <p className="text-[11px] text-[#767676] truncate">
-                {storeVerified ? `Verified · ${storeCity}` : storeCity}
-              </p>
-            </div>
-          </Link>
-
-          <nav className="flex flex-col gap-0.5 pt-0.5">
-            {navItems.map((item) => {
-              const active = isNavActive(item);
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center justify-between px-2.5 py-[8.5px] rounded-[11px] text-[13px] transition-colors ${
-                    active
-                      ? 'bg-[#ffefe6] text-[#ff6e20] font-semibold'
-                      : 'text-[#1c1c1c] font-medium hover:bg-[#f7f7f7]'
-                  }`}
-                >
-                  <span className="flex items-center gap-2.5 min-w-0">
-                    <FigmaIcon
-                      name={item.icon}
-                      className={`w-[15px] h-[15px] ${
-                        active ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
-                      }`}
-                    />
-                    <span className="truncate">{item.label}</span>
-                  </span>
-                  {item.badge !== undefined && (
-                    <span
-                      className={`text-[10px] font-bold px-[7px] py-[1px] rounded-full ${
-                        item.badgeTone === 'red'
-                          ? 'bg-[#fdecec] text-[#e5322d]'
-                          : item.badgeTone === 'orange'
-                            ? 'bg-[#ffefe6] text-[#ff6e20]'
-                            : 'bg-[#f4f4f4] text-[#767676]'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="pt-3">
-          <button
-            type="button"
-            onClick={() => void signOut().then(() => navigate('/login'))}
-            className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            <span>Log out</span>
-          </button>
-        </div>
+        {renderSidebarBody(false)}
       </aside>
 
-      {/* Persistent Right Workspace */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+      {/* Persistent Right Workspace (shifts +240px smoothly when mobile sidebar opens) */}
+      <div
+        className={`relative flex-1 min-w-0 flex flex-col ${
+          isFullBleedPage ? 'h-full overflow-hidden' : 'min-h-screen'
+        } transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          mobileSidebarOpen
+            ? 'translate-x-[240px] lg:translate-x-0'
+            : 'translate-x-0'
+        }`}
+      >
+        {mobileSidebarOpen && (
+          <div
+            role="presentation"
+            onClick={() => setMobileSidebarOpen(false)}
+            className="lg:hidden absolute inset-0 z-40 bg-black/20 cursor-pointer"
+          />
+        )}
+
         <header className="h-[68px] bg-white border-b border-[#ececec] px-4 lg:px-7 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
+              onClick={() => setMobileSidebarOpen((v) => !v)}
+              aria-label="Toggle navigation sidebar"
+              aria-expanded={mobileSidebarOpen}
+              className="lg:hidden inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] w-9 h-9 rounded-[10px] transition-colors shrink-0 cursor-pointer"
+            >
+              <FigmaIcon name="sidebar" className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
               onClick={() => setSidebarOpen((v) => !v)}
               aria-label="Toggle sidebar"
-              className="hidden lg:inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] w-9 h-9 rounded-[10px] transition-colors shrink-0"
+              className="hidden lg:inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] w-9 h-9 rounded-[10px] transition-colors shrink-0 cursor-pointer"
             >
               <FigmaIcon name="sidebar" className="w-4 h-4" />
             </button>
@@ -578,28 +651,14 @@ export function SellerLayout() {
           </div>
         </header>
 
-        {/* Mobile Nav Bar */}
-        <div className="lg:hidden bg-white border-b border-[#ececec] px-4 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {navItems.map((item) => {
-            const active = isNavActive(item);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] whitespace-nowrap transition-colors ${
-                  active
-                    ? 'bg-[#ff6e20] text-white font-semibold'
-                    : 'bg-white border border-[#ececec] text-[#555555] font-medium'
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-
         {/* ONLY INNER OUTLET SWAPS ON NAVIGATION */}
-        <main className="flex-1 w-full max-w-[1320px] mx-auto px-4 lg:px-7 py-6">
+        <main
+          className={
+            isFullBleedPage
+              ? 'flex-1 min-h-0 w-full h-full p-0 overflow-hidden flex flex-col'
+              : 'flex-1 w-full max-w-[1320px] mx-auto px-4 lg:px-7 py-6'
+          }
+        >
           <Outlet />
         </main>
       </div>

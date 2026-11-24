@@ -64,19 +64,24 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-[12px] border-b border-[#dfdfe7]">
-      <div className="kova-container px-4 lg:px-5 py-2.5 flex flex-col gap-3">
+      <div className="kova-container px-3.5 md:px-4 lg:px-5 py-2.5 flex flex-col gap-2.5 md:gap-3">
         {/* Top Row */}
-        <div className="flex items-center justify-between gap-4">
-          <KovaLogo linkState={{ allowStorefront: true }} />
+        <div className="flex items-center justify-between gap-2.5 md:gap-4">
+          <div className="hidden md:block shrink-0">
+            <KovaLogo size="md" linkState={{ allowStorefront: true }} />
+          </div>
 
           {/* Search Bar */}
-          <div ref={searchRef} className="relative flex-1 max-w-[640px]">
+          <div
+            ref={searchRef}
+            className="relative flex-1 min-w-0 md:max-w-[640px]"
+          >
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSearch();
               }}
-              className="flex items-center h-[42px] rounded-full border border-[#ff6e20] bg-white pl-4 pr-[3px] focus-within:ring-2 focus-within:ring-[#ff6e20]/20"
+              className="flex items-center h-[42px] rounded-full border border-[#ff6e20] bg-white pl-3.5 md:pl-4 pr-[3px] focus-within:ring-2 focus-within:ring-[#ff6e20]/20"
             >
               <input
                 type="text"
@@ -86,8 +91,8 @@ export function Header() {
                   setQuery(e.target.value);
                   setShowSuggestions(true);
                 }}
-                placeholder="Search products, categories, or stores..."
-                className="flex-1 bg-transparent text-[14px] text-black placeholder:text-[#ababab] tracking-[-0.28px] outline-none min-w-0"
+                placeholder="Search products..."
+                className="flex-1 bg-transparent text-[13px] md:text-[14px] text-black placeholder:text-[#ababab] tracking-[-0.28px] outline-none min-w-0"
               />
               {query && (
                 <button
@@ -102,7 +107,7 @@ export function Header() {
               <button
                 type="submit"
                 aria-label="Search"
-                className="h-[36px] w-[76px] rounded-full bg-[#ff6e20] hover:bg-[#e85d12] transition-colors flex items-center justify-center shrink-0 text-white"
+                className="h-[34px] w-[68px] md:h-[36px] md:w-[76px] rounded-full bg-[#ff6e20] hover:bg-[#e85d12] transition-colors flex items-center justify-center shrink-0 text-white"
               >
                 <FigmaIcon name="search" className="w-4 h-4 text-white" />
               </button>
@@ -165,8 +170,8 @@ export function Header() {
             )}
           </div>
 
-          {/* Right Profile / Guest Auth */}
-          <div className="flex items-center shrink-0">
+          {/* Right Profile / Guest Auth (desktop only — mobile uses bottom tab bar) */}
+          <div className="hidden md:flex items-center shrink-0">
             {bootstrapping && (isSignedIn || Boolean(getAuthToken())) ? (
               <ProfilePillSkeleton />
             ) : isSignedIn && user ? (
@@ -283,9 +288,9 @@ export function Header() {
           </div>
         </div>
 
-        {/* Bottom Nav Row */}
-        <nav className="flex items-center justify-between gap-4 text-[14px] tracking-[-0.28px] overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-6 lg:gap-[30px] shrink-0">
+        {/* Bottom Nav Row — horizontally scrollable from All category to Become a Seller */}
+        <nav className="flex items-center md:justify-between gap-5 md:gap-4 text-[13px] md:text-[14px] tracking-[-0.28px] overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-5 md:gap-6 lg:gap-[30px] shrink-0">
             <Link
               to="/products"
               className="inline-flex items-center gap-1.5 text-black hover:text-[#ff6e20] transition-colors whitespace-nowrap"
@@ -316,7 +321,7 @@ export function Header() {
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center gap-6 lg:gap-[30px] shrink-0">
+          <div className="flex items-center gap-5 md:gap-6 lg:gap-[30px] shrink-0">
             <Link
               to="/about"
               className="text-black hover:text-[#ff6e20] transition-colors whitespace-nowrap"

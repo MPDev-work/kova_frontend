@@ -332,9 +332,11 @@ html.kova-dashboard-dark .bg-white\/95 {
 /* Nested cards, table headers, search pills, soft chips */
 html.kova-dashboard-dark .bg-\[\#fafafa\],
 html.kova-dashboard-dark .bg-\[\#f9f9f9\],
+html.kova-dashboard-dark .bg-\[\#f9f9fb\],
 html.kova-dashboard-dark .bg-\[\#f5f5f5\],
 html.kova-dashboard-dark .bg-\[\#f4f4f4\],
 html.kova-dashboard-dark .bg-\[\#f3f3f3\],
+html.kova-dashboard-dark .bg-\[\#f2f3f5\],
 html.kova-dashboard-dark .bg-\[\#f2f2f7\],
 html.kova-dashboard-dark .bg-\[\#f1f1f1\],
 html.kova-dashboard-dark .bg-\[\#f0f0f0\],
@@ -456,6 +458,7 @@ html.kova-dashboard-dark .border-\[\#cccccc\] {
 }
 
 html.kova-dashboard-dark .border-\[\#fde1d2\],
+html.kova-dashboard-dark .border-\[\#ffd8c2\],
 html.kova-dashboard-dark .border-\[\#ffdfcd\] {
   border-color: rgba(255, 110, 32, 0.35) !important;
 }
@@ -569,4 +572,36 @@ html.kova-dashboard-dark .kova-skeleton {
 /* Shadows soften cleanly on pure black dark mode */
 html.kova-dashboard-dark [class*='shadow-'] {
   --tw-shadow-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Order Status Stepper muted tones in dark mode */
+html.kova-dashboard-dark .kova-stepper-circle-muted {
+  background-color: #242428 !important;
+  color: #a1a1aa !important;
+}
+
+html.kova-dashboard-dark .kova-stepper-line-muted {
+  background-color: #2e2e34 !important;
+}
+
+/* Thermal 80mm POS Slip Paper (always crisp white paper + dark ink, even in dark mode) */
+.kova-pos-slip .kova-pos-paper {
+  background-color: #ffffff !important;
+  color: #141414 !important;
+}
+
+.kova-pos-slip .kova-pos-ink {
+  color: #141414 !important;
+}
+
+.kova-pos-slip .kova-pos-muted {
+  color: #707070 !important;
+}
+
+.kova-pos-slip .kova-pos-box-border {
+  border-color: #3a3a3a !important;
+}
+
+.kova-pos-slip .kova-pos-divider {
+  border-top: 1px dashed #b5b5b5 !important;
 }
