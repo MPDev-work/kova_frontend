@@ -6,11 +6,8 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import { ArrowLeft, MessageCircle } from 'lucide-react';
-import { KovaLogo } from '../../components/KovaLogo';
+import { ChevronLeft, MessageCircle } from 'lucide-react';
 import { MessengerWorkspace } from '../../components/MessengerWorkspace';
-import { NotificationModal } from '../../components/NotificationModal';
-import { FigmaIcon } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
 
 const FAQS = [
@@ -172,107 +169,58 @@ export function ContactSupportPage() {
 }
 
 export function SupportTicketsPage() {
-  const { isSignedIn, user, unreadNotificationsCount } = useStore();
-  const [notifOpen, setNotifOpen] = useState(false);
+  const { isSignedIn } = useStore();
+  const navigate = useNavigate();
 
-  const initials = (user?.name || 'U')
-    .split(' ')
-    .map((s) => s[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const handleBack = () => {
+    const historyIdx = (window.history.state as { idx?: number } | null)?.idx;
+    if (typeof historyIdx === 'number' && historyIdx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/', { state: { allowStorefront: true } });
+    }
+  };
 
   return (
-    <div className="h-[100dvh] w-full overflow-hidden bg-[#f7f7f7] flex flex-col">
-      {/* Dedicated Minimal Message Portal Navbar */}
-      <header className="h-[62px] bg-white border-b border-[#ececec] px-4 lg:px-6 flex items-center justify-between gap-3 shrink-0 z-20">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link
-            to="/"
-            state={{ allowStorefront: true }}
-            className="inline-flex items-center gap-1.5 bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-black text-[13px] font-semibold px-3.5 py-2 rounded-full transition-colors shrink-0"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to store</span>
-          </Link>
-
-          <div className="hidden sm:block h-5 w-[1px] bg-[#ececec]" />
-
-          <div className="hidden sm:flex items-center gap-2">
-            <KovaLogo size="sm" />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 shrink-0">
-          {isSignedIn && (
-            <>
-              <button
-                type="button"
-                onClick={() => setNotifOpen(true)}
-                aria-label="Notifications"
-                className="relative inline-flex items-center justify-center bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-black w-9 h-9 rounded-full transition-colors"
-              >
-                <FigmaIcon name="bell" className="w-4 h-4" />
-                {unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[10px] font-bold flex items-center justify-center">
-                    {unreadNotificationsCount}
-                  </span>
-                )}
-              </button>
-
-              <Link
-                to="/account/profile"
-                className="hidden sm:flex items-center gap-2 bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] rounded-full pl-1 pr-3 py-1 transition-colors"
-              >
-                {user?.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt={user.name}
-                    className="w-7 h-7 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="w-7 h-7 rounded-full bg-[#ff6e20] text-white text-[11px] font-bold flex items-center justify-center">
-                    {initials}
-                  </span>
-                )}
-                <span className="text-[12.5px] font-semibold text-black max-w-[120px] truncate">
-                  {user?.name}
-                </span>
-              </Link>
-            </>
-          )}
-        </div>
-      </header>
-
-      {/* Full-Screen Message Portal Body */}
+    <div className="h-[100dvh] w-full overflow-hidden bg-white flex flex-col">
       {!isSignedIn ? (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#ececec] rounded-[22px] p-10 max-w-[420px] w-full text-center flex flex-col items-center gap-3">
-            <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-              <MessageCircle className="w-6 h-6" />
-            </span>
-            <h1 className="text-[20px] font-bold text-black">
-              Sign in to view your messages
-            </h1>
-            <p className="text-[13.5px] text-[#767676]">
-              Chat directly with stores and Kova Support.
-            </p>
-            <Link
-              to="/login"
-              className="mt-1 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[14px] font-semibold px-6 py-2.5 rounded-full transition-colors"
+        <div className="flex-1 flex flex-col bg-[#f7f7f7]">
+          <div className="px-4 pt-4 pb-2 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Back to store"
+              className="-ml-1.5 w-9 h-9 rounded-full hover:bg-white text-black flex items-center justify-center transition-colors shrink-0"
             >
-              Sign in
-            </Link>
+              <ChevronLeft className="w-6 h-6" strokeWidth={2.25} />
+            </button>
+            <h1 className="text-[22px] font-bold text-black tracking-tight">
+              Chats
+            </h1>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="bg-white border border-[#ececec] rounded-[22px] p-10 max-w-[420px] w-full text-center flex flex-col items-center gap-3">
+              <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+                <MessageCircle className="w-6 h-6" />
+              </span>
+              <h2 className="text-[20px] font-bold text-black">
+                Sign in to view your messages
+              </h2>
+              <p className="text-[13.5px] text-[#767676]">
+                Chat directly with stores and Kova Support.
+              </p>
+              <Link
+                to="/login"
+                className="mt-1 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[14px] font-semibold px-6 py-2.5 rounded-full transition-colors"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
         </div>
       ) : (
         <MessengerWorkspace mode="customer" fullScreen />
       )}
-
-      <NotificationModal
-        open={notifOpen}
-        onClose={() => setNotifOpen(false)}
-      />
     </div>
   );
 }

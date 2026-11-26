@@ -42,7 +42,7 @@ export function HomePage() {
   );
 
   const verifiedStores = useMemo(
-    () => stores.filter((s) => s.is_verified).slice(0, 3),
+    () => stores.filter((s) => s.is_verified),
     [stores],
   );
 
@@ -193,11 +193,11 @@ export function HomePage() {
                       ? `Hi, ${user.name}`
                       : 'Welcome to Kova'}
                   </p>
-                  <p className="text-[12px] font-medium text-[#767676] truncate">
-                    {isSignedIn && user
-                      ? user.email
-                      : 'Sign in to manage orders'}
-                  </p>
+                  {!(isSignedIn && user) && (
+                    <p className="text-[12px] font-medium text-[#767676] truncate">
+                      Sign in to manage orders
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -358,12 +358,12 @@ export function HomePage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1 -mx-2.5 px-2.5 lg:mx-0 lg:px-0">
             {verifiedStores.map((store) => (
               <Link
                 key={store.id}
                 to={`/store/${store.slug}`}
-                className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 rounded-[24px] p-2.5 pb-3 flex flex-col gap-2 transition-all hover:shadow-md"
+                className="group w-[275px] sm:w-[320px] lg:w-[calc((100%-24px)/3)] shrink-0 snap-start bg-white border border-[#ececec] hover:border-[#ff6e20]/60 rounded-[24px] p-2.5 pb-3 flex flex-col gap-2 transition-all hover:shadow-md"
               >
                 <div className="h-[150px] w-full rounded-[14px] overflow-hidden bg-[#f7f7f7] flex items-center justify-center">
                   {store.banner || store.logo ? (

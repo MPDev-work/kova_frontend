@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowDown,
   ArrowLeft,
@@ -7,6 +7,7 @@ import {
   Check,
   CheckCheck,
   CheckSquare,
+  ChevronLeft,
   ImagePlus,
   MessageCircle,
   MessageCircleMore,
@@ -90,6 +91,7 @@ export function MessengerWorkspace({
   mode: WorkspaceMode;
   fullScreen?: boolean;
 }) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, refreshNotifications, showToast } = useStore();
   const { confirmDelete } = useConfirmDelete();
@@ -723,9 +725,28 @@ export function MessengerWorkspace({
       >
         {/* Top Row: Title + Action Circles */}
         <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-2 shrink-0">
-          <h1 className="text-[22px] font-bold text-black tracking-tight">
-            Chats
-          </h1>
+          <div className="flex items-center gap-1 min-w-0">
+            {mode === 'customer' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate('/', { state: { allowStorefront: true } });
+                  }
+                }}
+                title="Back"
+                aria-label="Back to store"
+                className="-ml-2 w-9 h-9 rounded-full hover:bg-[#f4f4f4] text-black flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+              >
+                <ChevronLeft className="w-6 h-6" strokeWidth={2.25} />
+              </button>
+            )}
+            <h1 className="text-[22px] font-bold text-black tracking-tight">
+              Chats
+            </h1>
+          </div>
           <div className="flex items-center gap-1.5">
             <button
               type="button"

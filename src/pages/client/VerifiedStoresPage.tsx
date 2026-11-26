@@ -31,15 +31,16 @@ export function VerifiedStoresPage() {
       <div className="kova-container px-2.5 lg:px-[10px] pt-[10px] pb-12 flex flex-col gap-[12px]">
         {/* Hero Banner */}
         {bootstrapping ? (
-          <Skeleton className="w-full aspect-[3616/1184] min-h-[180px] max-h-[465px] rounded-[24px]" />
+          <Skeleton className="w-full aspect-[16/7] sm:aspect-[3616/1184] max-h-[465px] rounded-[18px] sm:rounded-[24px]" />
         ) : (
           <Link
             to="/promotion"
-            className="block w-full aspect-[3616/1184] min-h-[180px] max-h-[465px] rounded-[24px] overflow-hidden relative group"
+            className="block w-full aspect-[16/7] sm:aspect-[3616/1184] max-h-[465px] rounded-[18px] sm:rounded-[24px] overflow-hidden relative group"
           >
             <SkeletonImage
               src="/assets/banners/hero-main.png"
               alt="Kova Verified Stores"
+              wrapperClassName="absolute inset-0"
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.015]"
             />
           </Link>
@@ -47,7 +48,7 @@ export function VerifiedStoresPage() {
 
         {/* Two-Row Opposite-Direction Animated Marquee (pauses on hover) */}
         {marqueeItems.length > 0 && (
-          <section className="flex flex-col gap-[10px] py-1">
+          <section className="flex flex-col gap-2 sm:gap-[10px] py-1">
             {[
               { items: marqueeItems, direction: 'left' as const },
               {
@@ -57,7 +58,7 @@ export function VerifiedStoresPage() {
             ].map((row, rowIdx) => (
               <div
                 key={rowIdx}
-                className="marquee-row overflow-hidden w-full [mask-image:linear-gradient(to_right,transparent,black_24px,black_calc(100%-24px),transparent)]"
+                className="marquee-row overflow-hidden w-full [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)] sm:[mask-image:linear-gradient(to_right,transparent,black_24px,black_calc(100%-24px),transparent)]"
               >
                 <div
                   className={
@@ -70,16 +71,16 @@ export function VerifiedStoresPage() {
                     <div
                       key={dupIdx}
                       aria-hidden={dupIdx === 1}
-                      className="flex items-center gap-[10px] pr-[10px] shrink-0"
+                      className="flex items-center gap-2 sm:gap-[10px] pr-2 sm:pr-[10px] shrink-0"
                     >
                       {row.items.map((pill, idx) => (
                         <Link
                           key={`${rowIdx}-${dupIdx}-${pill.name}-${idx}`}
                           to={pill.target}
                           tabIndex={dupIdx === 1 ? -1 : 0}
-                          className="h-[60px] rounded-full pl-[6px] pr-6 inline-flex items-center gap-[14px] shrink-0 bg-[#ffdfcd] hover:bg-[#ffcfa8] text-[#ff6800] transition-colors"
+                          className="h-[44px] sm:h-[60px] rounded-full pl-[5px] sm:pl-[6px] pr-4 sm:pr-6 inline-flex items-center gap-2.5 sm:gap-[14px] shrink-0 bg-[#ffdfcd] hover:bg-[#ffcfa8] text-[#ff6800] transition-colors"
                         >
-                          <span className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-white">
+                          <span className="w-[34px] h-[34px] sm:w-[48px] sm:h-[48px] rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-white">
                             {pill.logo ? (
                               <img
                                 src={pill.logo}
@@ -87,12 +88,12 @@ export function VerifiedStoresPage() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <span className="text-[16px] font-bold text-[#ff6e20]">
+                              <span className="text-[13px] sm:text-[16px] font-bold text-[#ff6e20]">
                                 {pill.name.charAt(0).toUpperCase()}
                               </span>
                             )}
                           </span>
-                          <span className="text-[20px] sm:text-[22px] font-medium leading-[20px] whitespace-nowrap">
+                          <span className="text-[15px] sm:text-[22px] font-medium leading-none whitespace-nowrap">
                             {pill.name}
                           </span>
                         </Link>
@@ -133,25 +134,27 @@ export function VerifiedStoresPage() {
                 .slice(0, 5);
               return (
                 <section key={store.id} className="flex flex-col gap-[11px]">
-                  {/* Brand Banner with Frosted Glass Card Overlay */}
-                  <div className="relative w-full h-[240px] sm:h-[320px] lg:h-[380px] rounded-[34px] overflow-hidden bg-[#1e1e1e]">
-                    {store.banner && (
-                      <Link
-                        to={`/store/${store.slug}`}
-                        className="block w-full h-full"
-                      >
+                  {/* Brand Banner with Clean Mobile Card & Desktop Frosted Glass Overlay */}
+                  <div className="relative w-full rounded-[22px] sm:rounded-[34px] overflow-hidden bg-white border border-[#ececec] sm:border-0 sm:bg-[#1e1e1e] sm:h-[320px] lg:h-[380px]">
+                    <Link
+                      to={`/store/${store.slug}`}
+                      className="block w-full h-[155px] sm:h-full bg-[#1e1e1e]"
+                    >
+                      {store.banner ? (
                         <img
                           src={store.banner}
                           alt={store.name}
                           className="w-full h-full object-cover"
                         />
-                      </Link>
-                    )}
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-[#2b2b2b] to-[#1a1a1a]" />
+                      )}
+                    </Link>
 
-                    <div className="absolute left-[10px] bottom-[10px] w-[calc(100%-20px)] max-w-[838px] h-auto sm:h-[176px] rounded-[24px] backdrop-blur-[18px] bg-white/75 shadow-[0_0_24px_rgba(0,0,0,0.22)] p-[12px] flex items-center gap-4 sm:gap-6">
+                    <div className="p-3 sm:p-[12px] flex items-center gap-3 sm:gap-6 bg-white sm:absolute sm:left-[10px] sm:bottom-[10px] sm:w-[calc(100%-20px)] sm:max-w-[838px] sm:h-[176px] sm:rounded-[24px] sm:backdrop-blur-[18px] sm:bg-white/75 sm:shadow-[0_0_24px_rgba(0,0,0,0.22)]">
                       <Link
                         to={`/store/${store.slug}`}
-                        className="w-[96px] h-[96px] sm:w-[152px] sm:h-[152px] rounded-[14px] bg-white overflow-hidden shrink-0 flex items-center justify-center border border-[#ececec]"
+                        className="w-[62px] h-[62px] sm:w-[152px] sm:h-[152px] rounded-[14px] bg-white overflow-hidden shrink-0 flex items-center justify-center border border-[#ececec]"
                       >
                         {store.logo ? (
                           <img
@@ -160,36 +163,44 @@ export function VerifiedStoresPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <FigmaIcon name="home" className="w-10 h-10 text-[#ff6e20]" />
+                          <FigmaIcon name="home" className="w-7 h-7 sm:w-10 sm:h-10 text-[#ff6e20]" />
                         )}
                       </Link>
 
-                      <div className="flex-1 min-w-0 pr-3 flex flex-col gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex-1 min-w-0 sm:pr-3 flex flex-col gap-1.5 sm:gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                           {store.is_verified && (
-                            <span className="bg-[#ff6e20] text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full">
+                            <span className="bg-[#ff6e20] text-white text-[10px] sm:text-[11px] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full">
                               VERIFIED STORE
                             </span>
                           )}
-                          <span className="bg-white/90 text-black text-[11px] font-semibold px-2.5 py-0.5 rounded-full">
+                          <span className="bg-[#f4f4f4] sm:bg-white/90 text-black text-[10px] sm:text-[11px] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full">
                             {store.products_count ?? storeItems.length} products
                           </span>
                         </div>
-                        <Link
-                          to={`/store/${store.slug}`}
-                          className="text-[20px] sm:text-[26px] font-bold text-black hover:text-[#ff6e20] transition-colors inline-flex items-center gap-2 min-w-0"
-                        >
-                          <span className="truncate">{store.name}</span>
-                          {store.is_verified && (
-                            <VerifiedBadge size="lg" label="Verified store" />
-                          )}
-                        </Link>
+                        <div className="flex items-center justify-between gap-2">
+                          <Link
+                            to={`/store/${store.slug}`}
+                            className="text-[17px] sm:text-[26px] font-bold text-black hover:text-[#ff6e20] transition-colors inline-flex items-center gap-1.5 sm:gap-2 min-w-0"
+                          >
+                            <span className="truncate">{store.name}</span>
+                            {store.is_verified && (
+                              <VerifiedBadge size="sm" label="Verified store" />
+                            )}
+                          </Link>
+                          <Link
+                            to={`/store/${store.slug}`}
+                            className="sm:hidden shrink-0 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-3.5 py-1.5 rounded-full transition-colors whitespace-nowrap"
+                          >
+                            Visit
+                          </Link>
+                        </div>
                         {store.description && (
                           <p className="hidden sm:block text-[13.5px] font-medium text-black/75 truncate">
                             {store.description}
                           </p>
                         )}
-                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        <div className="hidden sm:flex flex-wrap items-center gap-2 pt-0.5">
                           <Link
                             to={`/store/${store.slug}`}
                             className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"

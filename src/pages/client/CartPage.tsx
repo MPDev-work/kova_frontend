@@ -253,16 +253,16 @@ export function CartPage() {
           <p className="text-[15px] text-[#767676] max-w-[420px]">
             Add products from Kova stores to begin checkout.
           </p>
-          <div className="flex flex-wrap gap-3 mt-2">
+          <div className="flex flex-row items-center justify-center gap-2.5 sm:gap-3 mt-2 w-full">
             <Link
               to="/products"
-              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[14px] font-semibold px-6 py-3 rounded-full transition-colors"
+              className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] sm:text-[14px] font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-full whitespace-nowrap transition-colors"
             >
               Explore products
             </Link>
             <Link
               to="/wishlist"
-              className="bg-white border border-[#ececec] hover:bg-[#f7f7f7] text-black text-[14px] font-semibold px-6 py-3 rounded-full transition-colors"
+              className="bg-white border border-[#ececec] hover:bg-[#f7f7f7] text-black text-[13.5px] sm:text-[14px] font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-full whitespace-nowrap transition-colors"
             >
               View wishlist
             </Link>
