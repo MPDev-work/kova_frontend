@@ -115,7 +115,7 @@ export function Header() {
 
             {/* Live Search Suggestions Dropdown */}
             {showSuggestions && query.trim().length > 0 && (
-              <div className="absolute left-0 right-0 top-[48px] bg-white border border-[#ececec] rounded-[20px] shadow-xl p-4 z-50">
+              <div className="absolute left-0 right-0 top-[48px] bg-white border border-[#ececec] rounded-[24px] shadow-xl p-3.5 z-50">
                 {matchedProducts.length > 0 ? (
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between text-[12px] text-[#767676] px-2">
@@ -208,7 +208,7 @@ export function Header() {
                 </button>
 
                 {showProfileMenu && (
-                  <div className="absolute right-0 top-[54px] w-[290px] bg-white border border-[#ececec] rounded-[20px] shadow-xl p-5 z-50 flex flex-col gap-2">
+                  <div className="absolute right-0 top-[54px] w-[290px] bg-white border border-[#ececec] rounded-[24px] shadow-xl p-3.5 z-50 flex flex-col gap-2">
                     <div className="pb-1">
                       <p className="text-[17px] font-semibold text-black flex items-center gap-1.5">
                         <span className="truncate">{user.name}</span>

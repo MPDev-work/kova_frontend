@@ -22,7 +22,7 @@ export function ProductCard({
   return (
     <div
       onClick={previewOnly ? () => onPreviewClick?.(product) : undefined}
-      className={`group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-md transition-all rounded-[20px] flex flex-col gap-2 pb-3 overflow-hidden ${
+      className={`group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-md transition-all rounded-[24px] p-2.5 flex flex-col gap-2.5 overflow-hidden ${
         previewOnly ? 'cursor-pointer' : ''
       }`}
     >
@@ -104,7 +104,7 @@ export function ProductCard({
 
       {/* Info */}
       {previewOnly ? (
-        <div className="px-2.5 flex flex-col gap-[5px] flex-1">
+        <div className="px-0.5 flex flex-col gap-[5px] flex-1">
           <p className="text-[14px] font-medium leading-[1.35] text-black line-clamp-2 min-h-[38px] group-hover:text-[#ff6e20] transition-colors">
             {product.name}
           </p>
@@ -142,7 +142,7 @@ export function ProductCard({
       ) : (
         <Link
           to={`/product/${product.slug}`}
-          className="px-2.5 flex flex-col gap-[5px] flex-1"
+          className="px-0.5 flex flex-col gap-[5px] flex-1"
         >
           <p className="text-[14px] font-medium leading-[1.35] text-black line-clamp-2 min-h-[38px] group-hover:text-[#ff6e20] transition-colors">
             {product.name}

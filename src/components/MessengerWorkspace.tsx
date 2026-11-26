@@ -101,11 +101,21 @@ export function MessengerWorkspace({
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [search, setSearch] = useState('');
 
-  const [selectedId, setSelectedId] = useState<number | null>(
-    () => Number(searchParams.get('chat')) || null,
-  );
+  const selectedId = Number(searchParams.get('chat')) || null;
   const [activeTicket, setActiveTicket] = useState<UnifiedTicket | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
+
+  const selectedIdRef = useRef<number | null>(selectedId);
+  const activeTicketRef = useRef<UnifiedTicket | null>(activeTicket);
+  const activeThreadReqRef = useRef(0);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
+  useEffect(() => {
+    activeTicketRef.current = activeTicket;
+  }, [activeTicket]);
 
   const [replyText, setReplyText] = useState('');
   const [replyAttachments, setReplyAttachments] = useState<string[]>([]);
@@ -165,6 +175,9 @@ export function MessengerWorkspace({
 
   const fetchThread = useCallback(
     async (id: number, silent = false) => {
+      const reqSeq = silent
+        ? activeThreadReqRef.current
+        : ++activeThreadReqRef.current;
       if (!silent) setLoadingThread(true);
       try {
         const data =
@@ -173,6 +186,8 @@ export function MessengerWorkspace({
             : mode === 'seller'
               ? await storeOwnerApi.getTicket(id)
               : await customerApi.getTicket(id);
+        if (selectedIdRef.current !== id) return;
+        if (!silent && reqSeq !== activeThreadReqRef.current) return;
         setActiveTicket(data);
         setTickets((prev) =>
           prev.map((item) =>
@@ -192,7 +207,8 @@ export function MessengerWorkspace({
           void refreshNotifications(false);
         }
       } catch (err) {
-        if (!silent) {
+        if (selectedIdRef.current !== id) return;
+        if (!silent && reqSeq === activeThreadReqRef.current) {
           showToast(
             err instanceof ApiError
               ? err.message
@@ -201,7 +217,9 @@ export function MessengerWorkspace({
           setActiveTicket(null);
         }
       } finally {
-        if (!silent) setLoadingThread(false);
+        if (!silent && reqSeq === activeThreadReqRef.current) {
+          setLoadingThread(false);
+        }
       }
     },
     [mode, showToast, refreshNotifications],
@@ -241,30 +259,24 @@ export function MessengerWorkspace({
     return () => window.clearTimeout(t);
   }, [fetchList]);
 
-  // Sync ?chat=<id> query param (e.g. when clicking Reply from NotificationModal)
-  const chatParamId = Number(searchParams.get('chat')) || null;
-  useEffect(() => {
-    if (chatParamId && chatParamId !== selectedId) {
-      const t = window.setTimeout(() => setSelectedId(chatParamId), 0);
-      return () => window.clearTimeout(t);
-    }
-  }, [chatParamId, selectedId]);
-
   const startDirectConversation = useCallback(
     async (opts: { storeId?: number | null; orderId?: number | null }) => {
       if (mode !== 'customer') return;
+      const reqSeq = ++activeThreadReqRef.current;
       setLoadingThread(true);
       try {
         const started = await customerApi.startConversation({
           store_id: opts.storeId ?? null,
           order_id: opts.orderId ?? null,
         });
+        if (reqSeq !== activeThreadReqRef.current) return;
         setTickets((prev) => [
           started,
           ...prev.filter((item) => item.id !== started.id),
         ]);
         prevThreadMetaRef.current = { id: null, count: 0 };
-        setSelectedId(started.id);
+        selectedIdRef.current = started.id;
+        activeTicketRef.current = started;
         setActiveTicket(started);
         const queuedCard = consumePendingChatCard(
           started.store_id ?? opts.storeId ?? null,
@@ -285,7 +297,9 @@ export function MessengerWorkspace({
             : 'Unable to start conversation.',
         );
       } finally {
-        setLoadingThread(false);
+        if (reqSeq === activeThreadReqRef.current) {
+          setLoadingThread(false);
+        }
       }
     },
     [mode, setSearchParams, showToast, fetchList],
@@ -326,16 +340,20 @@ export function MessengerWorkspace({
 
   useEffect(() => {
     if (!selectedId) {
-      const t = window.setTimeout(() => setActiveTicket(null), 0);
+      const t = window.setTimeout(() => {
+        setActiveTicket(null);
+        setLoadingThread(false);
+      }, 0);
       return () => window.clearTimeout(t);
     }
+    const alreadyLoaded = activeTicketRef.current?.id === selectedId;
     const initTimer = window.setTimeout(() => {
       setReplyText('');
       setReplyAttachments([]);
       if (replyTextareaRef.current) {
         replyTextareaRef.current.style.height = 'auto';
       }
-      void fetchThread(selectedId, false);
+      void fetchThread(selectedId, alreadyLoaded);
     }, 0);
 
     const interval = window.setInterval(() => {
@@ -405,9 +423,27 @@ export function MessengerWorkspace({
       setShowScrollBottom(false);
       setChatMenuOpen(false);
       setPendingContextCard(null);
+      setReplyText('');
+      setReplyAttachments([]);
+      if (replyTextareaRef.current) {
+        replyTextareaRef.current.style.height = 'auto';
+      }
+      selectedIdRef.current = id;
+      if (id) {
+        setLoadingThread(true);
+        if (activeTicketRef.current?.id !== id) {
+          setActiveTicket(null);
+        }
+      } else {
+        setActiveTicket(null);
+        setLoadingThread(false);
+      }
     }
-    setSelectedId(id);
     const next = new URLSearchParams(searchParams);
+    next.delete('start');
+    next.delete('storeId');
+    next.delete('orderId');
+    next.delete('target');
     if (id) {
       next.set('chat', String(id));
     } else {
@@ -702,11 +738,18 @@ export function MessengerWorkspace({
     }
   };
 
-  const activePeer = activeTicket ? getPeerProfile(activeTicket) : null;
+  const matchedActiveTicket =
+    activeTicket && activeTicket.id === selectedId ? activeTicket : null;
+  const headerTicket =
+    matchedActiveTicket ??
+    (selectedId ? (tickets.find((t) => t.id === selectedId) ?? null) : null);
+  const activePeer = headerTicket ? getPeerProfile(headerTicket) : null;
   const activeViewingAsStaff = Boolean(
-    activeTicket &&
+    matchedActiveTicket &&
     (mode !== 'customer' ||
-      (user && activeTicket.user_id && activeTicket.user_id !== user.id)),
+      (user &&
+        matchedActiveTicket.user_id &&
+        matchedActiveTicket.user_id !== user.id)),
   );
 
   return (
@@ -714,7 +757,7 @@ export function MessengerWorkspace({
       className={
         fullScreen
           ? 'bg-white flex flex-1 min-h-0 w-full h-full overflow-hidden'
-          : 'bg-white border border-[#ececec] rounded-[22px] overflow-hidden shadow-[0_6px_24px_rgba(0,0,0,0.04)] flex h-[calc(100vh-124px)] min-h-[560px]'
+          : 'bg-white border border-[#ececec] rounded-[24px] overflow-hidden shadow-[0_6px_24px_rgba(0,0,0,0.04)] flex h-[calc(100vh-124px)] min-h-[560px]'
       }
     >
       {/* LEFT PANE: Messenger-style Chats Sidebar */}
@@ -1094,11 +1137,11 @@ export function MessengerWorkspace({
               and reply.
             </p>
           </div>
-        ) : loadingThread && !activeTicket ? (
+        ) : loadingThread && !headerTicket ? (
           <div className="flex-1 flex items-center justify-center text-[13.5px] text-[#767676]">
             Loading conversation...
           </div>
-        ) : !activeTicket || !activePeer ? (
+        ) : !headerTicket || !activePeer ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-2">
             <p className="text-[15px] font-semibold text-black">
               Conversation unavailable
@@ -1141,7 +1184,7 @@ export function MessengerWorkspace({
                       activePeer.name.charAt(0).toUpperCase()
                     )}
                   </span>
-                  {!activeTicket.is_blocked && activeTicket.peer_is_online && (
+                  {!headerTicket.is_blocked && headerTicket.peer_is_online && (
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#1e90ff] border-2 border-white" />
                   )}
                 </div>
@@ -1165,12 +1208,12 @@ export function MessengerWorkspace({
                   <div className="flex flex-wrap items-center gap-2 text-[12px]">
                     <span
                       className={`font-medium ${
-                        !activeTicket.is_blocked && activeTicket.peer_is_online
+                        !headerTicket.is_blocked && headerTicket.peer_is_online
                           ? 'text-[#1e90ff]'
                           : 'text-[#8a8a8a]'
                       }`}
                     >
-                      {!activeTicket.is_blocked && activeTicket.peer_is_online
+                      {!headerTicket.is_blocked && headerTicket.peer_is_online
                         ? 'Active'
                         : 'Offline'}
                     </span>
@@ -1200,8 +1243,8 @@ export function MessengerWorkspace({
                     role="menu"
                     className="absolute right-0 mt-2 w-[180px] bg-white border border-[#ececec] rounded-[14px] shadow-[0_12px_32px_rgba(0,0,0,0.12)] py-1.5 z-30"
                   >
-                    {(!activeTicket.is_blocked ||
-                      activeTicket.blocked_by_me ||
+                    {(!headerTicket.is_blocked ||
+                      headerTicket.blocked_by_me ||
                       mode === 'admin') && (
                       <button
                         type="button"
@@ -1210,15 +1253,15 @@ export function MessengerWorkspace({
                         onClick={() => {
                           setChatMenuOpen(false);
                           void runBulkAction(
-                            activeTicket.is_blocked ? 'unblock' : 'block',
-                            [activeTicket.id],
+                            headerTicket.is_blocked ? 'unblock' : 'block',
+                            [headerTicket.id],
                           );
                         }}
                         className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-black hover:bg-[#f7f7f7] flex items-center gap-2.5 transition-colors disabled:opacity-50"
                       >
                         <Ban className="w-4 h-4 text-[#767676] shrink-0" />
                         <span>
-                          {activeTicket.is_blocked ? 'Unblock' : 'Block'}
+                          {headerTicket.is_blocked ? 'Unblock' : 'Block'}
                         </span>
                       </button>
                     )}
@@ -1230,8 +1273,8 @@ export function MessengerWorkspace({
                       onClick={() => {
                         setChatMenuOpen(false);
                         requestDeleteConversations(
-                          [activeTicket.id],
-                          activePeer?.name || activeTicket.subject,
+                          [headerTicket.id],
+                          activePeer?.name || headerTicket.subject,
                         );
                       }}
                       className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-[#d93025] hover:bg-[#fff0f0] flex items-center gap-2.5 transition-colors disabled:opacity-50"
@@ -1245,119 +1288,132 @@ export function MessengerWorkspace({
             </div>
 
             {/* Scrollable Message Thread */}
-            <div className="relative flex-1 min-h-0 flex flex-col">
-              <div
-                ref={messagesContainerRef}
-                onScroll={handleMessagesScroll}
-                className="flex-1 overflow-y-auto px-5 py-5 flex flex-col"
-              >
-                {/* Empty new conversation welcome header */}
-                {!activeTicket.message?.trim() &&
-                  (!activeTicket.attachments ||
-                    activeTicket.attachments.length === 0) &&
-                  (!activeTicket.messages ||
-                    activeTicket.messages.length === 0) && (
-                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-center select-none">
-                      <span className="w-16 h-16 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden flex items-center justify-center text-[20px] font-bold mb-3">
-                        {activePeer.avatar ? (
-                          <img
-                            src={activePeer.avatar}
-                            alt={activePeer.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : activePeer.isStore ? (
-                          <FigmaIcon name="home" className="w-7 h-7" />
-                        ) : (
-                          <MessageCircle className="w-7 h-7" />
-                        )}
-                      </span>
-                      <p className="text-[16px] font-bold text-black flex items-center gap-1.5">
-                        <span>{activePeer.name}</span>
-                        {activePeer.verified && <VerifiedBadge size="xs" />}
-                      </p>
-                      <p className="text-[13px] text-[#767676] mt-1 max-w-[300px]">
-                        Start a conversation with {activePeer.name}. Send a
-                        message or photo below.
-                      </p>
-                    </div>
-                  )}
+            {!matchedActiveTicket ? (
+              <div className="flex-1 flex items-center justify-center text-[13.5px] text-[#767676]">
+                Loading messages...
+              </div>
+            ) : (
+              <div className="relative flex-1 min-h-0 flex flex-col">
+                <div
+                  ref={messagesContainerRef}
+                  onScroll={handleMessagesScroll}
+                  className="flex-1 overflow-y-auto px-5 py-5 flex flex-col"
+                >
+                  {/* Empty new conversation welcome header */}
+                  {!matchedActiveTicket.message?.trim() &&
+                    (!matchedActiveTicket.attachments ||
+                      matchedActiveTicket.attachments.length === 0) &&
+                    (!matchedActiveTicket.messages ||
+                      matchedActiveTicket.messages.length === 0) && (
+                      <div className="flex-1 flex flex-col items-center justify-center py-10 text-center select-none">
+                        <span className="w-16 h-16 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden flex items-center justify-center text-[20px] font-bold mb-3">
+                          {activePeer.avatar ? (
+                            <img
+                              src={activePeer.avatar}
+                              alt={activePeer.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : activePeer.isStore ? (
+                            <FigmaIcon name="home" className="w-7 h-7" />
+                          ) : (
+                            <MessageCircle className="w-7 h-7" />
+                          )}
+                        </span>
+                        <p className="text-[16px] font-bold text-black flex items-center gap-1.5">
+                          <span>{activePeer.name}</span>
+                          {activePeer.verified && <VerifiedBadge size="xs" />}
+                        </p>
+                        <p className="text-[13px] text-[#767676] mt-1 max-w-[300px]">
+                          Start a conversation with {activePeer.name}. Send a
+                          message or photo below.
+                        </p>
+                      </div>
+                    )}
 
-                {(() => {
-                  const threadItems: {
-                    key: string;
-                    isOwn: boolean;
-                    senderKey: string;
-                    senderName: string;
-                    senderAvatar: string | null;
-                    isSupportFallback: boolean;
-                    message?: string | null;
-                    attachments?: string[] | null;
-                    metadata?: ChatMessageMetadata | null;
-                    createdAt: string;
-                    minuteKey: string;
-                  }[] = [];
+                  {(() => {
+                    const threadItems: {
+                      key: string;
+                      isOwn: boolean;
+                      senderKey: string;
+                      senderName: string;
+                      senderAvatar: string | null;
+                      isSupportFallback: boolean;
+                      message?: string | null;
+                      attachments?: string[] | null;
+                      metadata?: ChatMessageMetadata | null;
+                      createdAt: string;
+                      minuteKey: string;
+                    }[] = [];
 
-                  const hasInitialContent =
-                    Boolean(activeTicket.message?.trim()) ||
-                    Boolean(
-                      activeTicket.attachments &&
-                      activeTicket.attachments.length > 0,
-                    );
+                    const hasInitialContent =
+                      Boolean(matchedActiveTicket.message?.trim()) ||
+                      Boolean(
+                        matchedActiveTicket.attachments &&
+                        matchedActiveTicket.attachments.length > 0,
+                      );
 
-                  if (hasInitialContent) {
-                    const isOwnInitial = !activeViewingAsStaff;
-                    const customerName = activeTicket.user?.name || 'Customer';
-                    const customerAvatar = activeTicket.user?.avatar || null;
-                    threadItems.push({
-                      key: `initial-${activeTicket.id}`,
-                      isOwn: isOwnInitial,
-                      senderKey: isOwnInitial
-                        ? 'self'
-                        : `customer-${activeTicket.user_id ?? '0'}`,
-                      senderName: isOwnInitial ? 'You' : customerName,
-                      senderAvatar: isOwnInitial ? null : customerAvatar,
-                      isSupportFallback: false,
-                      message: activeTicket.message,
-                      attachments: activeTicket.attachments,
-                      metadata: null,
-                      createdAt: activeTicket.created_at,
-                      minuteKey: getMessageMinuteKey(activeTicket.created_at),
-                    });
-                  }
+                    if (hasInitialContent) {
+                      const isOwnInitial = !activeViewingAsStaff;
+                      const customerName =
+                        matchedActiveTicket.user?.name || 'Customer';
+                      const customerAvatar =
+                        matchedActiveTicket.user?.avatar || null;
+                      threadItems.push({
+                        key: `initial-${matchedActiveTicket.id}`,
+                        isOwn: isOwnInitial,
+                        senderKey: isOwnInitial
+                          ? 'self'
+                          : `customer-${matchedActiveTicket.user_id ?? '0'}`,
+                        senderName: isOwnInitial ? 'You' : customerName,
+                        senderAvatar: isOwnInitial ? null : customerAvatar,
+                        isSupportFallback: false,
+                        message: matchedActiveTicket.message,
+                        attachments: matchedActiveTicket.attachments,
+                        metadata: null,
+                        createdAt: matchedActiveTicket.created_at,
+                        minuteKey: getMessageMinuteKey(
+                          matchedActiveTicket.created_at,
+                        ),
+                      });
+                    }
 
-                  (activeTicket.messages || []).forEach((msg) => {
-                    const isOwn = activeViewingAsStaff
-                      ? msg.is_admin_reply
-                      : !msg.is_admin_reply;
-                    const senderName = isOwn
-                      ? 'You'
-                      : msg.is_admin_reply
-                        ? activeTicket.store?.name || 'Kova Support'
-                        : msg.user?.name ||
-                          activeTicket.user?.name ||
-                          'Customer';
-                    const senderAvatar = isOwn
-                      ? null
-                      : msg.is_admin_reply
-                        ? activeTicket.store?.logo || msg.user?.avatar || null
-                        : msg.user?.avatar || activeTicket.user?.avatar || null;
-                    threadItems.push({
-                      key: String(msg.id),
-                      isOwn,
-                      senderKey: isOwn
-                        ? 'self'
+                    (matchedActiveTicket.messages || []).forEach((msg) => {
+                      const isOwn = activeViewingAsStaff
+                        ? msg.is_admin_reply
+                        : !msg.is_admin_reply;
+                      const senderName = isOwn
+                        ? 'You'
                         : msg.is_admin_reply
-                          ? `staff-${activeTicket.store?.id ?? 'support'}`
-                          : `customer-${msg.user?.id ?? activeTicket.user_id ?? '0'}`,
-                      senderName,
-                      senderAvatar,
-                      isSupportFallback: Boolean(
-                        msg.is_admin_reply && !activeTicket.store,
-                      ),
-                      message: msg.message,
-                      attachments: msg.attachments,
-                      metadata: msg.metadata ?? null,
-                      createdAt: msg.created_at,
+                          ? matchedActiveTicket.store?.name || 'Kova Support'
+                          : msg.user?.name ||
+                            matchedActiveTicket.user?.name ||
+                            'Customer';
+                      const senderAvatar = isOwn
+                        ? null
+                        : msg.is_admin_reply
+                          ? matchedActiveTicket.store?.logo ||
+                            msg.user?.avatar ||
+                            null
+                          : msg.user?.avatar ||
+                            matchedActiveTicket.user?.avatar ||
+                            null;
+                      threadItems.push({
+                        key: String(msg.id),
+                        isOwn,
+                        senderKey: isOwn
+                          ? 'self'
+                          : msg.is_admin_reply
+                            ? `staff-${matchedActiveTicket.store?.id ?? 'support'}`
+                            : `customer-${msg.user?.id ?? matchedActiveTicket.user_id ?? '0'}`,
+                        senderName,
+                        senderAvatar,
+                        isSupportFallback: Boolean(
+                          msg.is_admin_reply && !matchedActiveTicket.store,
+                        ),
+                        message: msg.message,
+                        attachments: msg.attachments,
+                        metadata: msg.metadata ?? null,
+                        createdAt: msg.created_at,
                       minuteKey: getMessageMinuteKey(msg.created_at),
                     });
                   });
@@ -1448,25 +1504,26 @@ export function MessengerWorkspace({
                   <ArrowDown className="w-4 h-4" />
                 </button>
               )}
-            </div>
+              </div>
+            )}
 
             {/* Bottom Composer Bar OR Blocked Banner */}
-            {activeTicket.is_blocked ? (
+            {headerTicket.is_blocked ? (
               <div className="bg-white border-t border-[#ececec] px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2 text-[13px] text-[#767676]">
                   <Ban className="w-4 h-4 text-[#d93025] shrink-0" />
                   <span>
-                    {activeTicket.blocked_by_me
+                    {headerTicket.blocked_by_me
                       ? 'You blocked this conversation.'
                       : 'This conversation is blocked. Replies are disabled.'}
                   </span>
                 </div>
-                {(activeTicket.blocked_by_me || mode === 'admin') && (
+                {(headerTicket.blocked_by_me || mode === 'admin') && (
                   <button
                     type="button"
                     disabled={bulkBusy}
                     onClick={() =>
-                      void runBulkAction('unblock', [activeTicket.id])
+                      void runBulkAction('unblock', [headerTicket.id])
                     }
                     className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[12.5px] font-semibold px-4 py-1.5 rounded-full transition-colors"
                   >
@@ -1540,6 +1597,7 @@ export function MessengerWorkspace({
                   <button
                     type="submit"
                     disabled={
+                      !matchedActiveTicket ||
                       sending ||
                       uploadingImage ||
                       (!replyText.trim() &&

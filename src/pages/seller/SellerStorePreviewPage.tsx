@@ -206,7 +206,7 @@ export function StorefrontPreviewModal({
           </Link>
         </div>
       ) : (
-        <div className="bg-[#f5f5f5] rounded-[22px] p-3 sm:p-4 flex flex-col gap-4">
+        <div className="bg-[#f5f5f5] rounded-[34px] p-2.5 flex flex-col gap-3">
           {/* Exact Client StorefrontPage Hero Card */}
           <section className="bg-white border border-[#ececec] px-2.5 pt-2.5 pb-4 flex flex-col gap-3 rounded-[24px]">
             <div className="h-[180px] sm:h-[240px] w-full overflow-hidden bg-[#f7f7f7] flex items-center justify-center rounded-[14px]">

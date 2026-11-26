@@ -188,7 +188,7 @@ export function ConfirmDeleteProvider({ children }: { children: ReactNode }) {
               className="fixed inset-0 bg-black/50 backdrop-blur-[2px]"
               onClick={() => setModalRequest(null)}
             />
-            <div className="relative z-10 w-full max-w-[420px] bg-white border border-[#ececec] rounded-[22px] shadow-2xl overflow-hidden flex flex-col">
+            <div className="relative z-10 w-full max-w-[420px] bg-white border border-[#ececec] rounded-[24px] shadow-2xl overflow-hidden flex flex-col">
               <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3.5 min-w-0">
                   <span className="w-10 h-10 rounded-full bg-[#fdecec] text-[#e5322d] flex items-center justify-center shrink-0 mt-0.5">

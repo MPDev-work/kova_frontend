@@ -239,9 +239,9 @@ function ProductDetailContent({
         </div>
       </div>
 
-      {/* Buy Box */}
+      {/* Buy Box (24px parent - 10px p-2.5 = 14px child) */}
       <section
-        className={`bg-white border border-[#ececec] rounded-[22px] p-5 grid grid-cols-1 gap-[22px] items-start ${
+        className={`bg-white border border-[#ececec] rounded-[24px] p-2.5 grid grid-cols-1 gap-4 lg:gap-[22px] items-start ${
           moreFromStore.length > 0
             ? 'lg:grid-cols-[400px_minmax(0,1fr)] xl:grid-cols-[410px_minmax(0,1fr)_306px]'
             : 'lg:grid-cols-[430px_minmax(0,1fr)]'
@@ -268,7 +268,7 @@ function ProductDetailContent({
                   key={`${img}-${idx}`}
                   type="button"
                   onClick={() => setActiveImg(idx)}
-                  className={`h-[72px] rounded-[12px] overflow-hidden border-2 transition-all ${
+                  className={`h-[72px] rounded-[14px] overflow-hidden border-2 transition-all ${
                     activeImg === idx
                       ? 'border-[#ff6e20]'
                       : 'border-transparent hover:border-[#ececec]'
@@ -284,7 +284,7 @@ function ProductDetailContent({
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-1 text-[12.5px]">
+          <div className="flex items-center justify-between pt-1 px-1 text-[12.5px]">
             <div className="flex items-center gap-4 text-[#767676] font-medium">
               <button
                 type="button"
@@ -357,7 +357,7 @@ function ProductDetailContent({
 
           {/* Product Description (below price card, above variants & quantity) */}
           {product.description?.trim() && (
-            <div className="bg-[#f9f9f9] border border-[#f0f0f0] rounded-[16px] px-4 py-3.5">
+            <div className="bg-[#f9f9f9] border border-[#f0f0f0] rounded-[14px] px-4 py-3.5">
               <p className="text-[13.5px] text-[#555555] leading-[1.65] whitespace-pre-line">
                 {product.description.trim()}
               </p>
@@ -381,7 +381,7 @@ function ProductDetailContent({
                       key={variant.id}
                       type="button"
                       onClick={() => setSelectedVariantId(variant.id)}
-                      className={`px-3.5 py-2 rounded-[12px] text-[12.5px] transition-all ${
+                      className={`px-3.5 py-2 rounded-full text-[12.5px] transition-all ${
                         selected
                           ? 'bg-[#ffefe6] border-2 border-[#ff6e20] text-[#ff6e20] font-semibold'
                           : 'bg-white border border-[#ececec] text-black font-medium hover:border-[#ff6e20]/60'
@@ -447,20 +447,20 @@ function ProductDetailContent({
           </div>
         </div>
 
-        {/* More from Store Sidebar Card (max 4 products) */}
+        {/* More from Store Sidebar Card (24px parent - 10px p-2.5 = 14px aside; 14px - 6px p-1.5 = 8px card) */}
         {moreFromStore.length > 0 && (
-          <aside className="bg-[#f2f2f7] rounded-[22px] p-2.5 flex flex-col gap-3 w-full lg:col-span-2 xl:col-span-1">
-            <h2 className="text-[16px] font-bold text-black px-0.5 leading-snug truncate">
+          <aside className="bg-[#f2f2f7] rounded-[14px] p-1.5 flex flex-col gap-2 w-full lg:col-span-2 xl:col-span-1">
+            <h2 className="text-[15px] font-bold text-black px-2 pt-1 leading-snug truncate">
               More from {product.store_name}
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-1.5">
               {moreFromStore.slice(0, 4).map((item) => (
                 <Link
                   key={item.id}
                   to={`/product/${item.slug}`}
-                  className="bg-white h-[86px] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] p-1 flex items-center gap-3.5 transition-all group rounded-[24px]"
+                  className="bg-white h-[82px] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] flex items-center gap-3 transition-all group rounded-[8px] overflow-hidden"
                 >
-                  <div className="w-[80px] h-[80px] overflow-hidden bg-[#f7f7f7] shrink-0 flex items-center justify-center rounded-[14px]">
+                  <div className="w-[82px] h-[82px] overflow-hidden bg-[#f7f7f7] shrink-0 flex items-center justify-center">
                     {item.image ? (
                       <img
                         src={item.image}
@@ -474,7 +474,7 @@ function ProductDetailContent({
                       />
                     )}
                   </div>
-                  <div className="min-w-0 flex-1 flex flex-col gap-1 p-3">
+                  <div className="min-w-0 flex-1 flex flex-col gap-1 pr-3 py-2">
                     <p className="text-[13.5px] font-medium text-black leading-[1.35] line-clamp-2 group-hover:text-[#ff6e20] transition-colors">
                       {item.name}
                     </p>
@@ -489,8 +489,8 @@ function ProductDetailContent({
         )}
       </section>
 
-      {/* Tabs: Specifications & Customer Reviews */}
-      <section className="bg-white border border-[#ececec] px-5 py-5 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
+      {/* Tabs: Specifications & Customer Reviews (24px parent - 14px p-3.5 = 10px child) */}
+      <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center gap-2">
           {[
             { id: 'specs' as const, label: 'Specifications' },
@@ -515,9 +515,9 @@ function ProductDetailContent({
         </div>
 
         {activeTab === 'specs' && (
-          <div className="flex flex-col gap-4 max-w-[860px]">
+          <div className="flex flex-col gap-3 max-w-[860px]">
             {product.short_description?.trim() && (
-              <div className="bg-[#fff9f5] border border-[#ffefe6] rounded-[14px] px-4 py-3.5 flex flex-col gap-1">
+              <div className="bg-[#fff9f5] border border-[#ffefe6] rounded-[10px] px-4 py-3.5 flex flex-col gap-1">
                 <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#ff6e20]">
                   Short summary
                 </span>
@@ -528,11 +528,11 @@ function ProductDetailContent({
             )}
 
             {Object.keys(product.specifications).length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 {Object.entries(product.specifications).map(([k, v]) => (
                   <div
                     key={k}
-                    className="bg-[#f7f7f7] px-4 py-3 flex items-center justify-between gap-4 rounded-[14px]"
+                    className="bg-[#f7f7f7] px-4 py-3 flex items-center justify-between gap-4 rounded-[10px]"
                   >
                     <span className="text-[13px] font-medium text-[#767676]">
                       {k}
@@ -554,9 +554,9 @@ function ProductDetailContent({
         )}
 
         {activeTab === 'reviews' && (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#f7f7f7] p-2.5 rounded-[14px]">
-              <p className="text-[14px] font-semibold text-black">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#f7f7f7] p-2.5 rounded-[10px]">
+              <p className="text-[14px] font-semibold text-black pl-1">
                 {reviews.length} customer review
                 {reviews.length === 1 ? '' : 's'}
               </p>
@@ -573,11 +573,11 @@ function ProductDetailContent({
                 No reviews yet for this product.
               </p>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 {reviews.map((rev) => (
                   <div
                     key={rev.id}
-                    className="border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-2"
+                    className="border border-[#ececec] rounded-[10px] p-3.5 flex flex-col gap-2"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">

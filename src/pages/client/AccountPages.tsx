@@ -863,7 +863,7 @@ export function MyReviewsPage() {
                 key={rev.id}
                 type="button"
                 onClick={() => setSelectedReview(rev)}
-                className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex items-center justify-between transition-all"
+                className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[24px] overflow-hidden text-left flex items-center justify-between transition-all"
               >
                 <div className="relative h-[120px] overflow-hidden flex items-center justify-center rounded-r-[18px]">
                   {rev.product_image ? (
@@ -929,7 +929,7 @@ export function MyReviewsPage() {
               key={item.key}
               type="button"
               onClick={() => openWriteModal(item)}
-              className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[18px] overflow-hidden text-left flex items-center justify-between transition-all"
+              className="group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] rounded-[24px] overflow-hidden text-left flex items-center justify-between transition-all"
             >
               <div className="relative h-[120px] w-[120px] shrink-0 bg-[#f7f7f7] overflow-hidden flex items-center justify-center rounded-r-[18px]">
                 {item.productImage ? (
