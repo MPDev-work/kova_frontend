@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Check, MapPin } from 'lucide-react';
+import { ArrowUpRight, Check } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { FigmaIcon } from './FigmaIcon';
 import { VerifiedBadge } from './VerifiedBadge';
