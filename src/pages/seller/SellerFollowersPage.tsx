@@ -7,6 +7,7 @@ import {
   type SellerFollowerStats,
 } from '../../services/dashboardApi';
 import { formatShortDate } from '../../utils/currency';
+import { Skeleton } from '../../components/Skeleton';
 
 const EMPTY_STATS: SellerFollowerStats = {
   total_followers: 0,
@@ -89,10 +90,10 @@ export function SellerFollowersPage() {
         </button>
       </div>
 
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        <div className="bg-white border border-[#ececec] rounded-[18px] p-4 flex items-center gap-3.5">
-          <span className="w-11 h-11 rounded-[14px] bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0">
+      {/* KPI Summary Cards (24px parent - 14px p-3.5 = 10px icon tile) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+        <div className="bg-white border border-[#ececec] p-3.5 flex items-center gap-3.5 rounded-[24px]">
+          <span className="w-11 h-11 bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0 rounded-[10px]">
             <Users className="w-5 h-5" />
           </span>
           <div className="min-w-0">
@@ -105,8 +106,8 @@ export function SellerFollowersPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-[#ececec] rounded-[18px] p-4 flex items-center gap-3.5">
-          <span className="w-11 h-11 rounded-[14px] bg-[#eaf7ee] text-[#189a45] flex items-center justify-center shrink-0">
+        <div className="bg-white border border-[#ececec] p-3.5 flex items-center gap-3.5 rounded-[24px]">
+          <span className="w-11 h-11 bg-[#eaf7ee] text-[#189a45] flex items-center justify-center shrink-0 rounded-[10px]">
             <UserPlus className="w-5 h-5" />
           </span>
           <div className="min-w-0">
@@ -119,8 +120,8 @@ export function SellerFollowersPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-[#ececec] rounded-[18px] p-4 flex items-center gap-3.5">
-          <span className="w-11 h-11 rounded-[14px] bg-[#eef4ff] text-[#2563eb] flex items-center justify-center shrink-0">
+        <div className="bg-white border border-[#ececec] p-3.5 flex items-center gap-3.5 rounded-[24px]">
+          <span className="w-11 h-11 bg-[#eef4ff] text-[#2563eb] flex items-center justify-center shrink-0 rounded-[10px]">
             <ShoppingBag className="w-5 h-5" />
           </span>
           <div className="min-w-0">
@@ -135,9 +136,9 @@ export function SellerFollowersPage() {
       </div>
 
       {/* Followers Directory Card */}
-      <div className="bg-white border border-[#ececec] rounded-[20px] overflow-hidden">
-        <div className="p-4 border-b border-[#ececec] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-[360px]">
+      <div className="bg-white border border-[#ececec] overflow-hidden rounded-[24px]">
+        <div className="p-3.5 border-b border-[#ececec] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="relative w-full sm:flex-1 sm:max-w-[360px]">
             <Search className="w-4 h-4 text-[#979797] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -154,8 +155,23 @@ export function SellerFollowersPage() {
         </div>
 
         {loading ? (
-          <div className="py-14 text-center text-[13.5px] text-[#767676]">
-            Loading followers...
+          <div aria-hidden="true" className="p-2.5 sm:p-3 flex flex-col gap-2.5">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between gap-3 p-2.5 bg-[#f7f7f7] rounded-[14px]"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                    <Skeleton className="h-3.5 w-36 max-w-full rounded-full" />
+                    <Skeleton className="h-2.5 w-48 max-w-full rounded-full" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-20 rounded-full hidden sm:block shrink-0" />
+                <Skeleton className="h-4 w-20 rounded-full shrink-0" />
+              </div>
+            ))}
           </div>
         ) : followers.data.length === 0 ? (
           <div className="py-14 px-6 text-center flex flex-col items-center gap-2.5">

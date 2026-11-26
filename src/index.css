@@ -275,6 +275,243 @@
 }
 
 /* =========================================================
+   Scoped Light Mode — Seller & Root Admin Dashboards Only
+   (Automatically removed when leaving /seller/* or /admin/*;
+    Kova brand primary orange #ff6e20 is preserved)
+   ========================================================= */
+html.kova-dashboard-light {
+  color-scheme: light;
+
+  --background: #FAFAFA;
+  --foreground: #171717;
+
+  --surface: #FFFFFF;
+  --surface-secondary: #EBEBEB;
+
+  /* Keep Kova primary color (#ff6e20) */
+  --primary: var(--brand-primary);
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #EBEBEB;
+  --secondary-foreground: #171717;
+
+  --muted: #F5F5F5;
+  --muted-foreground: #8F8F8F;
+
+  --border: #EAEAEA;
+  --input: #EAEAEA;
+  --ring: var(--brand-primary);
+
+  --accent: #0072F5;
+  --destructive: #E5484D;
+  --success: #45A557;
+  --warning: #FFB224;
+
+  /* Map shared dashboard tokens */
+  --surface-canvas: var(--background);
+  --surface-white: var(--surface);
+  --surface-subtle: var(--muted);
+  --border-default: var(--border);
+  --border-header: var(--border);
+  --text-primary: var(--foreground);
+  --text-secondary: #666666;
+  --text-muted: var(--muted-foreground);
+  --status-success: var(--success);
+  --status-error: var(--destructive);
+}
+
+html.kova-dashboard-light body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Dashboard canvas & elevated surfaces */
+html.kova-dashboard-light .bg-\[\#f7f7f7\],
+html.kova-dashboard-light .bg-\[\#f5f5f5\] {
+  background-color: var(--background) !important;
+}
+
+html.kova-dashboard-light aside.bg-white,
+html.kova-dashboard-light header.bg-white,
+html.kova-dashboard-light .bg-white,
+html.kova-dashboard-light .bg-white\/95 {
+  background-color: var(--surface) !important;
+}
+
+/* Nested muted containers, inputs, table headers & subtle chips */
+html.kova-dashboard-light .bg-white .bg-\[\#f7f7f7\],
+html.kova-dashboard-light header .bg-\[\#f7f7f7\],
+html.kova-dashboard-light aside .bg-\[\#f7f7f7\],
+html.kova-dashboard-light section .bg-\[\#f7f7f7\],
+html.kova-dashboard-light .bg-\[\#fafafa\],
+html.kova-dashboard-light .bg-\[\#f9f9f9\],
+html.kova-dashboard-light .bg-\[\#f9f9fb\],
+html.kova-dashboard-light .bg-\[\#f4f4f4\],
+html.kova-dashboard-light .bg-\[\#f3f3f3\],
+html.kova-dashboard-light .bg-\[\#f2f3f5\],
+html.kova-dashboard-light .bg-\[\#f2f2f7\],
+html.kova-dashboard-light .bg-\[\#f1f1f1\] {
+  background-color: var(--muted) !important;
+}
+
+/* Secondary surface chips & subtle hover states */
+html.kova-dashboard-light .bg-\[\#f0f0f0\],
+html.kova-dashboard-light .bg-\[\#EFEFEF\],
+html.kova-dashboard-light .bg-\[\#eeeeee\],
+html.kova-dashboard-light .bg-\[\#ececec\],
+html.kova-dashboard-light .bg-\[\#ebebeb\] {
+  background-color: var(--surface-secondary) !important;
+}
+
+html.kova-dashboard-light .hover\:bg-\[\#fafafa\]:hover,
+html.kova-dashboard-light .hover\:bg-\[\#f7f7f7\]:hover {
+  background-color: var(--muted) !important;
+}
+
+html.kova-dashboard-light .hover\:bg-\[\#f4f4f4\]:hover,
+html.kova-dashboard-light .hover\:bg-\[\#f0f0f0\]:hover {
+  background-color: var(--surface-secondary) !important;
+}
+
+html.kova-dashboard-light .focus-within\:bg-white:focus-within,
+html.kova-dashboard-light .focus\:bg-white:focus {
+  background-color: var(--surface) !important;
+}
+
+/* Borders & Dividers (--border: #EAEAEA) */
+html.kova-dashboard-light .border-\[\#ececec\],
+html.kova-dashboard-light .border-\[\#e5e5e5\],
+html.kova-dashboard-light .border-\[\#dfdfe7\],
+html.kova-dashboard-light .border-\[\#f1f1f1\],
+html.kova-dashboard-light .border-\[\#f0f0f0\] {
+  border-color: var(--border) !important;
+}
+
+html.kova-dashboard-light .divide-\[\#f1f1f1\] > :not(:last-child),
+html.kova-dashboard-light .divide-\[\#f2f2f2\] > :not(:last-child),
+html.kova-dashboard-light .divide-\[\#f0f0f0\] > :not(:last-child),
+html.kova-dashboard-light .divide-\[\#ececec\] > :not(:last-child) {
+  border-color: var(--border) !important;
+}
+
+/* Typography (--foreground: #171717, --muted-foreground: #8F8F8F) */
+html.kova-dashboard-light .text-black,
+html.kova-dashboard-light .text-\[\#1c1c1c\],
+html.kova-dashboard-light .text-\[\#111111\] {
+  color: var(--foreground) !important;
+}
+
+html.kova-dashboard-light .text-\[\#8a8a8a\],
+html.kova-dashboard-light .text-\[\#979797\] {
+  color: var(--muted-foreground) !important;
+}
+
+html.kova-dashboard-light .hover\:text-black:hover {
+  color: var(--foreground) !important;
+}
+
+/* Neutral dark buttons use --foreground (#171717) */
+html.kova-dashboard-light button.bg-black,
+html.kova-dashboard-light a.bg-black {
+  background-color: var(--foreground) !important;
+  color: var(--primary-foreground) !important;
+}
+
+/* Semantic Status Colors (--success, --accent, --destructive, --warning) */
+html.kova-dashboard-light .text-\[\#029500\],
+html.kova-dashboard-light .text-\[\#189a45\] {
+  color: var(--success) !important;
+}
+
+html.kova-dashboard-light .bg-\[\#029500\] {
+  background-color: var(--success) !important;
+}
+
+html.kova-dashboard-light .bg-\[\#e7f6e7\],
+html.kova-dashboard-light .bg-\[\#eaf7ee\],
+html.kova-dashboard-light .bg-\[\#ecfdf3\],
+html.kova-dashboard-light .bg-\[\#dcfce7\] {
+  background-color: rgba(69, 165, 87, 0.12) !important;
+}
+
+html.kova-dashboard-light .text-\[\#1877f2\],
+html.kova-dashboard-light .text-\[\#2563eb\] {
+  color: var(--accent) !important;
+}
+
+html.kova-dashboard-light .bg-\[\#eaf3ff\],
+html.kova-dashboard-light .bg-\[\#eef4ff\] {
+  background-color: rgba(0, 114, 245, 0.1) !important;
+}
+
+html.kova-dashboard-light .text-\[\#e5322d\],
+html.kova-dashboard-light .text-\[\#d93025\],
+html.kova-dashboard-light .hover\:text-\[\#e5322d\]:hover {
+  color: var(--destructive) !important;
+}
+
+html.kova-dashboard-light .bg-\[\#e5322d\],
+html.kova-dashboard-light .hover\:bg-\[\#e5322d\]:hover {
+  background-color: var(--destructive) !important;
+}
+
+html.kova-dashboard-light .bg-\[\#fdecec\],
+html.kova-dashboard-light .bg-\[\#fff0f0\],
+html.kova-dashboard-light .bg-\[\#fff8f8\] {
+  background-color: rgba(229, 72, 77, 0.1) !important;
+}
+
+html.kova-dashboard-light .border-\[\#fdecec\] {
+  border-color: rgba(229, 72, 77, 0.25) !important;
+}
+
+html.kova-dashboard-light .text-\[\#d97706\],
+html.kova-dashboard-light .text-\[\#b45309\] {
+  color: #b7791f !important;
+}
+
+html.kova-dashboard-light .bg-\[\#fef3c7\],
+html.kova-dashboard-light .bg-\[\#fffbeb\] {
+  background-color: rgba(255, 178, 36, 0.16) !important;
+}
+
+/* Charts & Inputs in Dashboard Light Mode */
+html.kova-dashboard-light svg path[stroke='#029500'] {
+  stroke: var(--success);
+}
+
+html.kova-dashboard-light svg circle[fill='#029500'] {
+  fill: var(--success);
+}
+
+html.kova-dashboard-light svg line[stroke='#f1f1f1'] {
+  stroke: var(--border);
+}
+
+html.kova-dashboard-light input:not([type='checkbox']):not([type='radio']):not(.bg-transparent),
+html.kova-dashboard-light select,
+html.kova-dashboard-light textarea {
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+html.kova-dashboard-light input::placeholder,
+html.kova-dashboard-light textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+html.kova-dashboard-light .kova-input-error,
+html.kova-dashboard-light input.kova-input-error,
+html.kova-dashboard-light input.kova-input-error:focus {
+  border-color: var(--destructive) !important;
+}
+
+html.kova-dashboard-light .kova-skeleton {
+  background: linear-gradient(90deg, #EAEAEA 25%, #F5F5F5 50%, #EAEAEA 75%);
+  background-size: 200% 100%;
+}
+
+/* =========================================================
    Scoped Dark Mode — Seller & Root Admin Dashboards Only
    (Automatically removed when leaving /seller/* or /admin/*)
    ========================================================= */
@@ -371,11 +608,16 @@ html.kova-dashboard-dark .bg-\[\#fffaf7\] {
 
 /* Success (--success: #0070F3) & Danger (--danger: #E5484D) tints */
 html.kova-dashboard-dark .bg-\[\#e7f6e7\],
+html.kova-dashboard-dark .bg-\[\#eaf7ee\],
 html.kova-dashboard-dark .bg-\[\#ecfdf3\],
 html.kova-dashboard-dark .bg-\[\#dcfce7\],
-html.kova-dashboard-dark .bg-\[\#d5efd5\],
-html.kova-dashboard-dark .bg-\[\#eaf3ff\] {
-  background-color: rgba(0, 112, 243, 0.15) !important;
+html.kova-dashboard-dark .bg-\[\#d5efd5\] {
+  background-color: rgba(24, 154, 69, 0.16) !important;
+}
+
+html.kova-dashboard-dark .bg-\[\#eaf3ff\],
+html.kova-dashboard-dark .bg-\[\#eef4ff\] {
+  background-color: rgba(37, 99, 235, 0.18) !important;
 }
 
 html.kova-dashboard-dark .bg-\[\#029500\] {
@@ -472,6 +714,8 @@ html.kova-dashboard-dark .border-white {
 }
 
 html.kova-dashboard-dark .divide-\[\#f1f1f1\] > :not(:last-child),
+html.kova-dashboard-dark .divide-\[\#f2f2f2\] > :not(:last-child),
+html.kova-dashboard-dark .divide-\[\#f0f0f0\] > :not(:last-child),
 html.kova-dashboard-dark .divide-\[\#ececec\] > :not(:last-child) {
   border-color: var(--border-muted) !important;
 }

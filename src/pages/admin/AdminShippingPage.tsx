@@ -289,8 +289,8 @@ export function AdminShippingPage() {
         ]}
       />
 
-      {/* Platform-wide Logistics Carriers */}
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      {/* Platform-wide Logistics Carriers (24px parent - 14px p-3.5 = 10px child) */}
+      <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3 rounded-[24px]">
         <div>
           <h2 className="text-[15.5px] font-bold text-black">
             Configured delivery methods
@@ -304,7 +304,7 @@ export function AdminShippingPage() {
         {loading ? (
           <DashboardKpiSkeleton count={4} />
         ) : methods.length === 0 ? (
-          <div className="py-10 text-center bg-[#f7f7f7] rounded-[14px] flex flex-col items-center gap-3">
+          <div className="py-10 text-center bg-[#f7f7f7] flex flex-col items-center gap-3 rounded-[10px]">
             <p className="text-[13.5px] text-[#767676]">
               No platform shipping methods configured yet.
             </p>
@@ -317,11 +317,11 @@ export function AdminShippingPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {methods.map((m) => (
               <div
                 key={m.id}
-                className="border border-[#ececec] rounded-[16px] p-4 flex flex-col justify-between gap-3"
+                className="border border-[#ececec] rounded-[10px] p-3.5 flex flex-col justify-between gap-3"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
@@ -379,7 +379,7 @@ export function AdminShippingPage() {
       </section>
 
       {/* Active Shipments across all stores */}
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-3.5 sm:p-4 flex flex-col gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-[15.5px] font-bold text-black">
@@ -419,7 +419,7 @@ export function AdminShippingPage() {
         </div>
 
         {shipments.length === 0 ? (
-          <p className="py-10 text-center bg-[#f7f7f7] rounded-[14px] text-[13px] text-[#767676]">
+          <p className="py-10 text-center bg-[#f7f7f7] text-[13px] text-[#767676] rounded-[14px]">
             No matching shipments found.
           </p>
         ) : (

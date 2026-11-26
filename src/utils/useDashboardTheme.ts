@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 export type DashboardTheme = 'light' | 'dark';
 
 const ROOT_DARK_CLASS = 'kova-dashboard-dark';
+const ROOT_LIGHT_CLASS = 'kova-dashboard-light';
 
 function readStoredTheme(scope: 'seller' | 'admin'): DashboardTheme {
   try {
@@ -17,9 +18,9 @@ function readStoredTheme(scope: 'seller' | 'admin'): DashboardTheme {
 }
 
 /**
- * Scoped dark-mode controller exclusively for Seller and Root Admin dashboards.
- * Attaches `.kova-dashboard-dark` to `<html>` while mounted and always removes it on unmount
- * so customer storefront and auth pages remain strictly light-themed.
+ * Scoped light/dark-mode controller exclusively for Seller and Root Admin dashboards.
+ * Attaches `.kova-dashboard-light` or `.kova-dashboard-dark` to `<html>` while mounted
+ * and always removes both on unmount so customer storefront and auth pages stay untouched.
  */
 export function useDashboardTheme(scope: 'seller' | 'admin') {
   const [theme, setTheme] = useState<DashboardTheme>(() =>
@@ -30,10 +31,12 @@ export function useDashboardTheme(scope: 'seller' | 'admin') {
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add(ROOT_DARK_CLASS);
+      root.classList.remove(ROOT_LIGHT_CLASS);
       root.style.colorScheme = 'dark';
     } else {
       root.classList.remove(ROOT_DARK_CLASS);
-      root.style.colorScheme = '';
+      root.classList.add(ROOT_LIGHT_CLASS);
+      root.style.colorScheme = 'light';
     }
     try {
       window.localStorage.setItem(`kova_dashboard_theme_${scope}`, theme);
@@ -46,6 +49,7 @@ export function useDashboardTheme(scope: 'seller' | 'admin') {
     return () => {
       const root = document.documentElement;
       root.classList.remove(ROOT_DARK_CLASS);
+      root.classList.remove(ROOT_LIGHT_CLASS);
       root.style.colorScheme = '';
     };
   }, []);

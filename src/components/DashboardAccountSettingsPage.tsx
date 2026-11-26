@@ -438,7 +438,7 @@ export function DashboardAccountSettingsPage({
           {/* 1. Profile & Avatar */}
           <form
             onSubmit={handleSaveProfile}
-            className="bg-white border border-[#ececec] rounded-[20px] p-5 sm:p-6 flex flex-col gap-5"
+            className="bg-white border border-[#ececec] p-4 sm:p-5 flex flex-col gap-3.5 rounded-[24px]"
           >
             <div className="flex flex-wrap items-center gap-4 pb-4 border-b border-[#f1f1f1]">
               <div className="relative">
@@ -568,8 +568,8 @@ export function DashboardAccountSettingsPage({
           {/* 2. Contact Verification */}
           <ContactVerificationCard phoneDraft={user.phone || ''} />
 
-          {/* 3. Verified Change Email & Change Phone */}
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 sm:p-6 flex flex-col gap-4">
+          {/* 3. Verified Change Email & Change Phone (24px parent - 14px p-3.5 = 10px child) */}
+          <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3 rounded-[24px]">
             <div>
               <h2 className="text-[15.5px] font-bold text-black">
                 Change email or phone number
@@ -582,7 +582,7 @@ export function DashboardAccountSettingsPage({
             </div>
 
             {/* Change Email */}
-            <div className="border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3">
+            <div className="border border-[#ececec] rounded-[10px] p-3.5 flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="w-8 h-8 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0">
@@ -662,7 +662,7 @@ export function DashboardAccountSettingsPage({
             </div>
 
             {/* Change Phone */}
-            <div className="border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3">
+            <div className="border border-[#ececec] rounded-[10px] p-3.5 flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="w-8 h-8 rounded-full bg-[#e7f6e7] text-[#029500] flex items-center justify-center shrink-0">
@@ -750,7 +750,7 @@ export function DashboardAccountSettingsPage({
           <form
             onSubmit={handleChangePassword}
             noValidate
-            className="bg-white border border-[#ececec] rounded-[20px] p-5 sm:p-6 flex flex-col gap-4"
+            className="bg-white border border-[#ececec] p-4 sm:p-5 flex flex-col gap-3.5 rounded-[24px]"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
@@ -872,7 +872,7 @@ export function DashboardAccountSettingsPage({
 
           {/* 5. Account Deactivation & 30-Day Deletion (Seller only) */}
           {!isAdminWorkspace && (
-            <section className="bg-white border border-[#ececec] rounded-[20px] p-5 sm:p-6 flex flex-col gap-4">
+            <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3 rounded-[24px]">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
                   Account deactivation &amp; deletion
@@ -885,7 +885,7 @@ export function DashboardAccountSettingsPage({
               </div>
 
               {/* Deactivate */}
-              <div className="border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3">
+              <div className="border border-[#ececec] rounded-[10px] p-3.5 flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className="w-8 h-8 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0">
@@ -987,7 +987,7 @@ export function DashboardAccountSettingsPage({
               </div>
 
               {/* 30-Day Scheduled Delete */}
-              <div className="border border-[#fdecec] rounded-[16px] p-4 flex flex-col gap-3">
+              <div className="border border-[#fdecec] rounded-[10px] p-3.5 flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className="w-8 h-8 rounded-full bg-[#fdecec] text-[#e5322d] flex items-center justify-center shrink-0">
@@ -1101,7 +1101,7 @@ export function DashboardAccountSettingsPage({
 
         {/* Right Side: Account Overview & Session */}
         <div className="flex flex-col gap-4">
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-3">
+          <section className="bg-white border border-[#ececec] p-4 sm:p-5 flex flex-col gap-3 rounded-[24px]">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-[#ff6e20]" />
               <h2 className="text-[15px] font-bold text-black">
@@ -1166,7 +1166,7 @@ export function DashboardAccountSettingsPage({
           </section>
 
           {isAdminWorkspace && (
-            <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex items-start gap-2.5">
+            <section className="bg-white border border-[#ececec] p-4 sm:p-5 flex items-start gap-2.5 rounded-[24px]">
               <AlertTriangle className="w-4 h-4 text-[#ff6e20] shrink-0 mt-0.5" />
               <p className="text-[12px] text-[#767676] leading-relaxed">
                 Root Administrator accounts are isolated from customer pages and
@@ -1175,7 +1175,7 @@ export function DashboardAccountSettingsPage({
             </section>
           )}
 
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-3">
+          <section className="bg-white border border-[#ececec] p-4 sm:p-5 flex flex-col gap-3 rounded-[24px]">
             <h2 className="text-[15px] font-bold text-black">Session</h2>
             <p className="text-[12.5px] text-[#767676] leading-relaxed">
               Sign out of your{' '}

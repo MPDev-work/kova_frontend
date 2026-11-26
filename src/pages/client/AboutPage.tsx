@@ -174,11 +174,11 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
         </div>
 
         {loadingApp ? (
-          <div className="bg-white border border-[#ececec] rounded-[20px] p-8 text-[14px] text-[#767676]">
+          <div className="bg-white border border-[#ececec] p-8 text-[14px] text-[#767676] rounded-[24px]">
             Checking your store application status...
           </div>
         ) : myApp && myApp.status !== 'rejected' ? (
-          <div className="bg-white border border-[#ececec] rounded-[20px] p-7 flex flex-col gap-3 max-w-[680px]">
+          <div className="bg-white border border-[#ececec] p-7 flex flex-col gap-3 max-w-[680px] rounded-[24px]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-[20px] font-semibold text-black">
                 {myApp.store_name}
@@ -227,7 +227,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
         ) : isSignedIn ? (
           <form
             onSubmit={handleSignedInApply}
-            className="bg-white border border-[#ececec] rounded-[20px] p-7 max-w-[760px] grid grid-cols-1 sm:grid-cols-2 gap-4"
+            className="bg-white border border-[#ececec] p-7 max-w-[760px] grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 rounded-[24px]"
           >
             <div className="sm:col-span-2">
               <h2 className="text-[20px] font-semibold text-black">
@@ -240,7 +240,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
             </div>
 
             {error && (
-              <div className="sm:col-span-2 bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] rounded-[12px] px-4 py-3 text-[13px] font-medium">
+              <div className="sm:col-span-2 bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] px-4 py-3 text-[13px] font-medium rounded-[14px]">
                 {error}
               </div>
             )}
@@ -307,7 +307,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
             </label>
 
             {composedAddress && (
-              <div className="sm:col-span-2 bg-[#f7f7f7] border border-[#ececec] rounded-[14px] px-4 py-2.5 flex items-center gap-2 text-[13px] text-[#555555]">
+              <div className="sm:col-span-2 bg-[#f7f7f7] border border-[#ececec] px-4 py-2.5 flex items-center gap-2 text-[13px] text-[#555555] rounded-[14px]">
                 <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
                 <span className="truncate">
                   <strong className="text-black">Location preview:</strong>{' '}
@@ -366,7 +366,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
         ) : (
           <form
             onSubmit={handleGuestSellerRegister}
-            className="bg-white border border-[#ececec] rounded-[20px] p-7 max-w-[760px] grid grid-cols-1 sm:grid-cols-2 gap-4"
+            className="bg-white border border-[#ececec] p-7 max-w-[760px] grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 rounded-[24px]"
           >
             <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -387,7 +387,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
             </div>
 
             {error && (
-              <div className="sm:col-span-2 bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] rounded-[12px] px-4 py-3 text-[13px] font-medium">
+              <div className="sm:col-span-2 bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] px-4 py-3 text-[13px] font-medium rounded-[14px]">
                 {error}
               </div>
             )}
@@ -508,7 +508,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
             </label>
 
             {composedAddress && (
-              <div className="sm:col-span-2 bg-[#f7f7f7] border border-[#ececec] rounded-[14px] px-4 py-2.5 flex items-center gap-2 text-[13px] text-[#555555]">
+              <div className="sm:col-span-2 bg-[#f7f7f7] border border-[#ececec] px-4 py-2.5 flex items-center gap-2 text-[13px] text-[#555555] rounded-[14px]">
                 <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
                 <span className="truncate">
                   <strong className="text-black">Location preview:</strong>{' '}
@@ -547,7 +547,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
 
   return (
     <div className="kova-container px-4 lg:px-6 pt-6 pb-12 flex flex-col gap-6">
-      <div className="bg-white border border-[#ececec] rounded-[24px] p-8 sm:p-10 flex flex-col gap-4">
+      <div className="bg-white border border-[#ececec] p-8 sm:p-10 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <span className="self-start bg-[#ffefe6] text-[#ff6e20] px-3.5 py-1 rounded-full text-[12px] font-bold">
           ABOUT KOVA
         </span>
@@ -565,7 +565,7 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
             { num: String(products.length), label: 'Published Products' },
             { num: String(provinces.length || 25), label: 'Cambodia Provinces' },
           ].map((s) => (
-            <div key={s.label} className="bg-[#f7f7f7] rounded-[16px] p-4">
+            <div key={s.label} className="bg-[#f7f7f7] p-2.5 rounded-[14px]">
               <p className="text-[24px] font-bold text-[#ff6e20]">{s.num}</p>
               <p className="text-[13px] text-[#767676]">{s.label}</p>
             </div>

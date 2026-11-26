@@ -243,7 +243,7 @@ export function CartPage() {
         <p className="text-[12px] text-[#767676]">
           Home &nbsp;/&nbsp; Shopping cart
         </p>
-        <div className="bg-white border border-[#ececec] rounded-[24px] py-16 px-6 flex flex-col items-center text-center gap-4">
+        <div className="bg-white border border-[#ececec] py-16 px-6 flex flex-col items-center text-center gap-2.5 sm:gap-3 rounded-[24px]">
           <div className="w-16 h-16 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <FigmaIcon name="shopping-bag" className="w-8 h-8" />
           </div>
@@ -284,8 +284,8 @@ export function CartPage() {
           </h1>
           <p className="text-[15px] text-[#767676]">
             {cart.total_items} item{cart.total_items > 1 ? 's' : ''} from{' '}
-            {cart.stores.length} store{cart.stores.length > 1 ? 's' : ''}. Select
-            by store or item to check out or remove.
+            {cart.stores.length} store{cart.stores.length > 1 ? 's' : ''}.
+            Select by store or item to check out or remove.
           </p>
         </div>
 
@@ -309,7 +309,6 @@ export function CartPage() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_440px] gap-8 items-start">
         {/* Left: Items Grouped by Store */}
         <div className="flex flex-col gap-5">
-
           {visibleCartStores.map((group) => {
             const storeMeta = stores.find((s) => s.id === group.store.id);
             const isVerified = Boolean(storeMeta?.is_verified);
@@ -334,7 +333,7 @@ export function CartPage() {
             return (
               <div
                 key={group.store.id}
-                className="bg-white border border-[#ececec] rounded-[20px] p-5 sm:p-6 flex flex-col gap-5"
+                className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 rounded-[24px]"
               >
                 {/* Store Header with Checkbox + Store Image + Blue Verified Badge + View store */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#ececec]">
@@ -401,7 +400,7 @@ export function CartPage() {
                           />
                           <Link
                             to={`/product/${item.product_slug}`}
-                            className="w-[100px] h-[100px] sm:w-[116px] sm:h-[116px] rounded-[16px] overflow-hidden shrink-0 border border-[#ececec] bg-[#f7f7f7] flex items-center justify-center"
+                            className="w-[100px] h-[100px] sm:w-[116px] sm:h-[116px] overflow-hidden shrink-0 border border-[#ececec] bg-[#f7f7f7] flex items-center justify-center rounded-[14px]"
                           >
                             {item.product_image ? (
                               <img
@@ -463,7 +462,7 @@ export function CartPage() {
                         </div>
 
                         <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4">
-                          <div className="bg-white border border-[#ececec] rounded-[25px] px-4 py-2 flex items-center gap-4 text-[14px] font-semibold text-black">
+                          <div className="bg-white border border-[#ececec] px-3.5 py-1.5 flex items-center gap-2.5 sm:gap-3 text-[14px] font-semibold text-black rounded-full">
                             <button
                               type="button"
                               onClick={() =>
@@ -510,7 +509,7 @@ export function CartPage() {
         </div>
 
         {/* Right: Order Summary */}
-        <aside className="bg-white border border-[#ececec] rounded-[20px] p-6 sm:p-7 flex flex-col gap-5 sticky top-[120px]">
+        <aside className="bg-white border border-[#ececec] p-2.5 sm:p-3 sm:p-7 flex flex-col gap-3 sticky top-[120px] rounded-[24px]">
           <h2 className="text-[24px] font-semibold text-black">
             Order summary
           </h2>

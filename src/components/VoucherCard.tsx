@@ -80,7 +80,7 @@ export function VoucherCard({
   })();
 
   return (
-    <div className="bg-white border-[1.5px] border-[#ffdfcd] rounded-[16px] px-4 py-3.5 flex flex-col gap-2.5">
+    <div className="bg-white border-[1.5px] border-[#ffdfcd] p-2.5 flex flex-col gap-2.5 rounded-[24px]">
       {showStoreHeader && (
         <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#f3f3f3]">
           {promo.store ? (

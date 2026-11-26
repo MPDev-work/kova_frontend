@@ -149,7 +149,7 @@ export function StorefrontPreviewModal({
         <StorefrontSkeleton />
       ) : previewProduct ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <div className="aspect-square w-full rounded-[20px] overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center">
+          <div className="aspect-square w-full overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center rounded-[14px]">
             {previewProduct.image ? (
               <img
                 src={previewProduct.image}
@@ -208,8 +208,8 @@ export function StorefrontPreviewModal({
       ) : (
         <div className="bg-[#f5f5f5] rounded-[22px] p-3 sm:p-4 flex flex-col gap-4">
           {/* Exact Client StorefrontPage Hero Card */}
-          <section className="bg-white border border-[#ececec] rounded-[24px] px-2.5 pt-2.5 pb-4 flex flex-col gap-3">
-            <div className="h-[180px] sm:h-[240px] w-full rounded-[16px] overflow-hidden bg-[#f7f7f7] flex items-center justify-center">
+          <section className="bg-white border border-[#ececec] px-2.5 pt-2.5 pb-4 flex flex-col gap-3 rounded-[24px]">
+            <div className="h-[180px] sm:h-[240px] w-full overflow-hidden bg-[#f7f7f7] flex items-center justify-center rounded-[14px]">
               {store.banner ? (
                 <img
                   src={store.banner}
@@ -337,7 +337,7 @@ export function StorefrontPreviewModal({
           )}
 
           {products.length === 0 ? (
-            <div className="bg-white border border-[#ececec] rounded-[18px] py-12 px-6 flex flex-col items-center text-center gap-3">
+            <div className="bg-white border border-[#ececec] py-12 px-6 flex flex-col items-center text-center gap-3 rounded-[24px]">
               <FigmaIcon name="package" className="w-9 h-9 text-[#979797]" />
               <p className="text-[15px] font-semibold text-black">
                 No products listed in this store yet

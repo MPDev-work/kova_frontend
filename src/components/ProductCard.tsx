@@ -27,7 +27,7 @@ export function ProductCard({
       }`}
     >
       {/* Photo Box */}
-      <div className="relative aspect-[276/260] w-full overflow-hidden rounded-[20px] bg-[#f7f7f7]">
+      <div className="relative aspect-[276/260] w-full overflow-hidden bg-[#f7f7f7] rounded-[14px]">
         {previewOnly ? (
           <div className="block w-full h-full">
             {product.image ? (
@@ -125,7 +125,9 @@ export function ProductCard({
             <span className="text-[21px] font-bold leading-[1.2] text-[#ff6e20]">
               ${product.price.toFixed(2)}
             </span>
-            <span className="text-[11px] font-semibold text-[#ff6e20]">USD</span>
+            <span className="text-[11px] font-semibold text-[#ff6e20]">
+              USD
+            </span>
             {product.regular_price > product.price && (
               <span className="text-[11px] text-[#979797] line-through">
                 ${product.regular_price.toFixed(2)}
@@ -162,7 +164,9 @@ export function ProductCard({
             <span className="text-[21px] font-bold leading-[1.2] text-[#ff6e20]">
               ${product.price.toFixed(2)}
             </span>
-            <span className="text-[11px] font-semibold text-[#ff6e20]">USD</span>
+            <span className="text-[11px] font-semibold text-[#ff6e20]">
+              USD
+            </span>
             {product.regular_price > product.price && (
               <span className="text-[11px] text-[#979797] line-through">
                 ${product.regular_price.toFixed(2)}

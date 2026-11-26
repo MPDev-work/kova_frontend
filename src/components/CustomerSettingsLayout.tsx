@@ -93,7 +93,7 @@ export function CustomerSettingsLayout() {
   if (!isSignedIn || !user) {
     return (
       <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center p-4">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[440px] w-full text-center flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-8 max-w-[440px] w-full text-center flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <KovaLogo size="sm" />
           <h1 className="text-[22px] font-bold text-black">
             Sign in to access account settings
@@ -543,7 +543,7 @@ export function CustomerSettingsLayout() {
         </header>
 
         {/* ONLY THIS INNER OUTLET SWAPS ON NAVIGATION */}
-        <main className="flex-1 w-full max-w-[1220px] px-4 lg:px-[26px] pt-[22px] pb-[36px]">
+        <main className="flex-1 w-full max-w-[1220px] px-2.5 lg:px-[26px] pt-4 lg:pt-[22px] pb-[36px]">
           <Outlet />
         </main>
       </div>

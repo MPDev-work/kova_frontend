@@ -89,7 +89,7 @@ export function MyProfilePage() {
 
       <form
         onSubmit={handleSave}
-        className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]"
+        className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 max-w-[820px] rounded-[24px]"
       >
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#ececec]">
           <div className="flex items-center gap-3.5">
@@ -484,7 +484,7 @@ export function AddressBookPage() {
       </div>
 
       {visibleAddresses.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[16px] p-10 text-center flex flex-col items-center gap-3">
+        <div className="bg-white border border-[#ececec] p-10 text-center flex flex-col items-center gap-3 rounded-[24px]">
           <p className="text-[15px] font-semibold text-black">
             No saved addresses yet
           </p>
@@ -605,7 +605,7 @@ export function RecentlyViewedPage() {
         </p>
       </div>
       {items.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[16px] p-10 text-center text-[14px] text-[#767676]">
+        <div className="bg-white border border-[#ececec] p-10 text-center text-[14px] text-[#767676] rounded-[24px]">
           You have not viewed any products yet.
         </div>
       ) : (
@@ -844,7 +844,7 @@ export function MyReviewsPage() {
       {/* Tab Content */}
       {activeTab === 'reviewed' ? (
         visibleReviews.length === 0 ? (
-          <div className="bg-white border border-[#ececec] rounded-[18px] p-12 text-center flex flex-col items-center gap-2">
+          <div className="bg-white border border-[#ececec] p-12 text-center flex flex-col items-center gap-2 rounded-[24px]">
             <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
               <Star className="w-5 h-5" />
             </span>
@@ -912,7 +912,7 @@ export function MyReviewsPage() {
           </div>
         )
       ) : toReviewItems.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[18px] p-12 text-center flex flex-col items-center gap-2">
+        <div className="bg-white border border-[#ececec] p-12 text-center flex flex-col items-center gap-2 rounded-[24px]">
           <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <Package className="w-5 h-5" />
           </span>
@@ -1012,7 +1012,7 @@ export function MyReviewsPage() {
       >
         {selectedReview && (
           <div className="flex flex-col gap-4">
-            <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3.5 flex items-center gap-3.5">
+            <div className="bg-[#f7f7f7] border border-[#ececec] p-3.5 flex items-center gap-3.5 rounded-[14px]">
               <div className="w-16 h-16 rounded-[12px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
                 {selectedReview.product_image ? (
                   <img
@@ -1094,7 +1094,7 @@ export function MyReviewsPage() {
             onSubmit={handleSubmitReview}
             className="flex flex-col gap-4"
           >
-            <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3 flex items-center gap-3">
+            <div className="bg-[#f7f7f7] border border-[#ececec] p-3 flex items-center gap-3 rounded-[14px]">
               <div className="w-12 h-12 rounded-[10px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
                 {reviewTarget.productImage ? (
                   <img
@@ -1226,13 +1226,13 @@ export function WriteReviewPage() {
       </div>
 
       {products.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[16px] p-8 text-[14px] text-[#767676]">
+        <div className="bg-white border border-[#ececec] p-8 text-[14px] text-[#767676] rounded-[24px]">
           No products are available to review yet.
         </div>
       ) : (
         <form
           onSubmit={handleSubmit}
-          className="bg-white border border-[#ececec] rounded-[16px] p-6 max-w-[700px] flex flex-col gap-4"
+          className="bg-white border border-[#ececec] p-2.5 sm:p-3 max-w-[700px] flex flex-col gap-2.5 sm:gap-3 rounded-[24px]"
         >
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-semibold text-black">
@@ -1349,7 +1349,7 @@ export function NotificationPrefsPage() {
         </p>
       </div>
 
-      <div className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]">
+      <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 max-w-[820px] rounded-[24px]">
         {items.map((item) => (
           <div
             key={item.key}
@@ -1385,7 +1385,7 @@ export function PrivacySettingsPage() {
         </p>
       </div>
 
-      <div className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]">
+      <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 max-w-[820px] rounded-[24px]">
         {[
           {
             key: 'personalizedRecs' as const,
@@ -1639,7 +1639,7 @@ export function AccountSecurityPage() {
       </div>
 
       {/* Sign-in & Contact Credentials */}
-      <div className="bg-white border border-[#ececec] rounded-[16px] px-5 py-[18px] flex flex-col gap-4 max-w-[820px]">
+      <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 max-w-[820px] rounded-[24px]">
         {/* Email Row */}
         <div className="flex flex-col gap-3 pb-4 border-b border-[#ececec]">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1666,14 +1666,14 @@ export function AccountSecurityPage() {
           </div>
 
           {editingEmail && (
-            <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-3">
+            <div className="bg-[#fafafa] border border-[#ececec] p-2.5 flex flex-col gap-3 rounded-[14px]">
               <p className="text-[12.5px] text-[#555555]">
                 Enter your new email address. We&rsquo;ll send a 6-digit
                 verification code to your current email ({user.email}) to
                 confirm before updating.
               </p>
               {emailError && (
-                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[10px] px-3 py-2">
+                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 px-3 py-2 rounded-[14px]">
                   {emailError}
                 </p>
               )}
@@ -1755,14 +1755,14 @@ export function AccountSecurityPage() {
           </div>
 
           {editingPhone && (
-            <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-3">
+            <div className="bg-[#fafafa] border border-[#ececec] p-2.5 flex flex-col gap-3 rounded-[14px]">
               <p className="text-[12.5px] text-[#555555]">
                 Enter your new phone number (must not be used by another
                 account). We&rsquo;ll send a 6-digit SMS code to verify before
                 saving.
               </p>
               {phoneError && (
-                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[10px] px-3 py-2">
+                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 px-3 py-2 rounded-[14px]">
                   {phoneError}
                 </p>
               )}
@@ -1861,14 +1861,14 @@ export function AccountSecurityPage() {
           </div>
 
           {deactivateOpen && (
-            <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-3">
+            <div className="bg-[#fafafa] border border-[#ececec] p-2.5 flex flex-col gap-3 rounded-[14px]">
               <p className="text-[12.5px] text-[#555555]">
                 Verify your identity before deactivating your account. Your
                 profile and data will be preserved until you sign back in.
               </p>
 
               {deactivateError && (
-                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[10px] px-3 py-2">
+                <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 px-3 py-2 rounded-[14px]">
                   {deactivateError}
                 </p>
               )}
@@ -2094,7 +2094,7 @@ export function ChangePasswordPage() {
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="bg-white border border-[#ececec] rounded-[16px] p-6 max-w-[540px] flex flex-col gap-4"
+        className="bg-white border border-[#ececec] p-2.5 sm:p-3 max-w-[540px] flex flex-col gap-2.5 sm:gap-3 rounded-[24px]"
       >
         <div className="flex flex-col gap-1.5">
           <PasswordInput
@@ -2279,7 +2279,7 @@ export function DeleteAccountPage() {
         </h1>
       </div>
 
-      <div className="bg-white border border-[#e5322d]/30 rounded-[16px] p-6 max-w-[640px] flex flex-col gap-4">
+      <div className="bg-white border border-[#e5322d]/30 p-2.5 sm:p-3 max-w-[640px] flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="bg-[#fff7ed] border border-[#ff6e20]/25 rounded-[14px] p-4 flex flex-col gap-1">
           <p className="text-[13.5px] font-semibold text-black">
             30-day recovery grace period
@@ -2295,7 +2295,7 @@ export function DeleteAccountPage() {
         </div>
 
         {error && (
-          <p className="text-[12.5px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 rounded-[12px] px-4 py-2.5">
+          <p className="text-[12.5px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/25 px-4 py-2.5 rounded-[14px]">
             {error}
           </p>
         )}

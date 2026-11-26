@@ -206,7 +206,7 @@ export function AdminUsersPage() {
         }
       />
 
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FilterPillTabs<UserFilterTab>
             value={tab}
@@ -249,7 +249,7 @@ export function AdminUsersPage() {
         {loading ? (
           <DashboardTableSkeleton rows={6} />
         ) : paged.length === 0 ? (
-          <div className="py-14 text-center bg-[#f7f7f7] rounded-[14px] text-[13.5px] text-[#767676]">
+          <div className="py-14 text-center bg-[#f7f7f7] text-[13.5px] text-[#767676] rounded-[14px]">
             No matching user accounts found.
           </div>
         ) : (
@@ -290,7 +290,7 @@ export function AdminUsersPage() {
                               className="w-9 h-9 rounded-[10px] object-cover border border-[#ececec] shrink-0"
                             />
                           ) : (
-                            <span className="w-9 h-9 rounded-[10px] bg-[#f4f4f4] text-black text-[12px] font-bold flex items-center justify-center shrink-0">
+                            <span className="w-9 h-9 bg-[#f4f4f4] text-black text-[12px] font-bold flex items-center justify-center shrink-0 rounded-[14px]">
                               {initials}
                             </span>
                           )}
@@ -399,7 +399,7 @@ export function AdminUsersPage() {
       >
         {selectedUser && (
           <div className="flex flex-col gap-5">
-            <div className="bg-[#f7f7f7] rounded-[14px] p-4 flex items-center justify-between">
+            <div className="bg-[#f7f7f7] p-2.5 flex items-center justify-between rounded-[14px]">
               <div>
                 <p className="text-[12px] text-[#767676]">Account status</p>
                 <p className="text-[14px] font-bold text-black mt-0.5">
@@ -661,7 +661,7 @@ export function AdminCatalogPage() {
       {/* Quick Category Input Bar */}
       <form
         onSubmit={handleQuickAddCategory}
-        className="bg-white border border-[#ececec] rounded-[20px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end gap-3"
+        className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col sm:flex-row sm:items-end gap-3 rounded-[24px]"
       >
         <label className="flex-1 flex flex-col gap-1.5 min-w-0">
           <span className="text-[12px] font-semibold text-black">
@@ -700,7 +700,7 @@ export function AdminCatalogPage() {
         </button>
       </form>
 
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FilterPillTabs<'all' | 'active' | 'hidden'>
             value={statusFilter}
@@ -735,7 +735,7 @@ export function AdminCatalogPage() {
         {loading ? (
           <DashboardTableSkeleton rows={6} />
         ) : filteredCats.length === 0 ? (
-          <div className="py-14 text-center bg-[#f7f7f7] rounded-[14px] flex flex-col items-center gap-3">
+          <div className="py-14 text-center bg-[#f7f7f7] flex flex-col items-center gap-3 rounded-[14px]">
             <p className="text-[14px] font-semibold text-black">
               No categories found
             </p>
@@ -770,7 +770,7 @@ export function AdminCatalogPage() {
                   >
                     <td className="py-3.5 px-3.5">
                       <div className="flex items-center gap-3">
-                        <span className="w-9 h-9 rounded-[10px] bg-[#f7f7f7] border border-[#ececec] text-[#ff6e20] flex items-center justify-center shrink-0">
+                        <span className="w-9 h-9 bg-[#f7f7f7] border border-[#ececec] text-[#ff6e20] flex items-center justify-center shrink-0 rounded-[14px]">
                           <FigmaIcon name="tag" className="w-4 h-4" />
                         </span>
                         <div className="min-w-0">
@@ -1078,7 +1078,7 @@ export function AdminBakongPage() {
         <>
           <KpiGrid items={kpis} />
 
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+          <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <FilterPillTabs<BakongTab>
                 value={tab}
@@ -1108,9 +1108,9 @@ export function AdminBakongPage() {
                 ]}
               />
 
-              <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto sm:ml-auto">
                 {tab !== 'merchants' && (
-                  <div className="flex items-center gap-2 bg-[#f7f7f7] border border-[#ececec] focus-within:border-[#ff6e20] focus-within:bg-white rounded-full px-3.5 h-[36px] w-full sm:w-[240px]">
+                  <div className="flex items-center gap-2 bg-[#f7f7f7] border border-[#ececec] focus-within:border-[#ff6e20] focus-within:bg-white rounded-full px-3.5 h-[36px] flex-1 sm:flex-none sm:w-[240px] min-w-0">
                     <FigmaIcon
                       name="search"
                       className="w-3.5 h-3.5 text-[#979797]"
@@ -1136,7 +1136,7 @@ export function AdminBakongPage() {
 
             {tab === 'merchants' ? (
               accounts.length === 0 ? (
-                <p className="py-12 text-center bg-[#f7f7f7] rounded-[14px] text-[13.5px] text-[#767676]">
+                <p className="py-12 text-center bg-[#f7f7f7] text-[13.5px] text-[#767676] rounded-[14px]">
                   No stores have connected a Bakong account yet.
                 </p>
               ) : (
@@ -1185,7 +1185,7 @@ export function AdminBakongPage() {
                 </div>
               )
             ) : filteredTxs.length === 0 ? (
-              <p className="py-12 text-center bg-[#f7f7f7] rounded-[14px] text-[13.5px] text-[#767676]">
+              <p className="py-12 text-center bg-[#f7f7f7] text-[13.5px] text-[#767676] rounded-[14px]">
                 No Bakong transactions match this filter.
               </p>
             ) : (
@@ -1369,7 +1369,7 @@ export function AdminDisputesPage() {
         ]}
       />
 
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <FilterPillTabs<'all' | 'open' | 'resolved'>
           value={filter}
           onChange={setFilter}
@@ -1489,7 +1489,7 @@ export function AdminDisputesPage() {
             onSubmit={handleResolve}
             className="flex flex-col gap-4"
           >
-            <div className="bg-[#f7f7f7] rounded-[14px] p-4 flex flex-col gap-1.5 text-[12.5px]">
+            <div className="bg-[#f7f7f7] p-2.5 flex flex-col gap-1.5 text-[12.5px] rounded-[14px]">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-black">
                   {activeDispute.reason || 'Refund Dispute'}
@@ -1866,7 +1866,7 @@ export function AdminSettingsPage() {
               return (
                 <section
                   key={groupName}
-                  className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4"
+                  className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]"
                 >
                   <h2 className="text-[15.5px] font-bold text-black capitalize">
                     {groupName === 'bakong'
@@ -1942,7 +1942,7 @@ export function AdminSettingsPage() {
                         return (
                           <div
                             key={item.key}
-                            className="flex flex-col gap-2 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-3.5"
+                            className="flex flex-col gap-2 bg-[#fafafa] border border-[#ececec] p-3.5 rounded-[14px]"
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-[12.5px] font-semibold text-black capitalize">
@@ -2240,7 +2240,7 @@ export function AdminSettingsPage() {
                         return (
                           <div
                             key={item.key}
-                            className="flex flex-col gap-2.5 sm:col-span-2 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4"
+                            className="flex flex-col gap-2.5 sm:col-span-2 bg-[#fafafa] border border-[#ececec] p-2.5 rounded-[14px]"
                           >
                             <div>
                               <span className="text-[12.5px] font-semibold text-black">
@@ -2339,7 +2339,7 @@ export function AdminSettingsPage() {
           </div>
 
           {/* Right Summary Card (Exact Figma Admin · 26) */}
-          <aside className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+          <aside className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3.5 rounded-[24px]">
             <h2 className="text-[15.5px] font-bold text-black">
               Live platform controls
             </h2>
@@ -2506,7 +2506,7 @@ export function AdminAuditLogsPage() {
         </span>
       </div>
 
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <h2 className="text-[15.5px] font-bold text-black">
           Recent administrative events
         </h2>
@@ -2514,7 +2514,7 @@ export function AdminAuditLogsPage() {
         {loading ? (
           <DashboardTableSkeleton rows={6} />
         ) : logs.length === 0 ? (
-          <p className="py-12 text-center bg-[#f7f7f7] rounded-[14px] text-[13.5px] text-[#767676]">
+          <p className="py-12 text-center bg-[#f7f7f7] text-[13.5px] text-[#767676] rounded-[14px]">
             No audit log entries recorded yet.
           </p>
         ) : (

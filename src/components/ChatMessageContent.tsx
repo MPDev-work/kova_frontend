@@ -87,7 +87,7 @@ function ChatContextCardView({
         : null;
 
   return (
-    <div className="w-[272px] sm:w-[308px] max-w-full bg-white border border-[#ececec] rounded-[16px] overflow-hidden shadow-[0_3px_12px_rgba(0,0,0,0.06)] text-left">
+    <div className="w-[272px] sm:w-[308px] max-w-full bg-white border border-[#ececec] overflow-hidden shadow-[0_3px_12px_rgba(0,0,0,0.06)] text-left rounded-[24px]">
       <div className="bg-[#fafafa] border-b border-[#f0f0f0] px-3 py-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {isOrder ? (
@@ -113,7 +113,7 @@ function ChatContextCardView({
       </div>
 
       <div className="p-3 flex items-center gap-3">
-        <div className="w-[56px] h-[56px] rounded-[10px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center">
+        <div className="w-[56px] h-[56px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center rounded-[14px]">
           {card.product_image ? (
             <img
               src={card.product_image}
@@ -355,7 +355,7 @@ export function PendingContextCardBar({
         : null;
 
   return (
-    <div className="flex items-center gap-3 bg-[#fafafa] border border-[#ececec] rounded-[14px] p-2.5 pr-3">
+    <div className="flex items-center gap-3 bg-[#fafafa] border border-[#ececec] p-2.5 pr-3 rounded-[14px]">
       <div className="w-[48px] h-[48px] rounded-[10px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
         {card.product_image ? (
           <img
@@ -422,7 +422,7 @@ export function PendingAttachmentsBar({
       {attachments.map((url, idx) => (
         <div
           key={`${url}-${idx}`}
-          className="relative w-16 h-16 rounded-[12px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0"
+          className="relative w-16 h-16 overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 rounded-[14px]"
         >
           <img
             src={url}

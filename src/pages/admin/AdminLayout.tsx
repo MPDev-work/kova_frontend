@@ -125,7 +125,7 @@ export function AdminLayout() {
   if (!isSignedIn || !user) {
     return (
       <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center p-4">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[440px] w-full text-center flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-8 max-w-[440px] w-full text-center flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <KovaLogo size="sm" />
           <h1 className="text-[22px] font-bold text-black">
             Sign in as Root Administrator
@@ -156,7 +156,7 @@ export function AdminLayout() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center p-4">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[460px] w-full text-center flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-8 max-w-[460px] w-full text-center flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <KovaLogo size="sm" />
           <h1 className="text-[22px] font-bold text-black">
             Root Admin access required
@@ -547,7 +547,7 @@ export function AdminLayout() {
           className={
             isFullBleedPage
               ? 'flex-1 min-h-0 w-full h-full p-0 overflow-hidden flex flex-col'
-              : 'flex-1 w-full max-w-[1320px] mx-auto px-4 lg:px-7 py-6'
+              : 'flex-1 w-full max-w-[1320px] mx-auto px-2.5 lg:px-7 py-4 lg:py-6'
           }
         >
           <Outlet />

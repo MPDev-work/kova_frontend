@@ -116,8 +116,8 @@ export function StoreTagCard({
 
   const containerClasses =
     variant === 'overlay'
-      ? 'relative sm:absolute sm:left-[12px] sm:right-[12px] sm:bottom-[12px] w-full sm:w-auto sm:max-w-[920px] sm:rounded-[24px] bg-white sm:backdrop-blur-[18px] sm:bg-white/88 sm:shadow-[0_6px_28px_rgba(0,0,0,0.18)] p-2.5'
-      : 'w-full rounded-[22px] sm:rounded-[24px] bg-white border border-[#ececec] shadow-[0_2px_14px_rgba(0,0,0,0.03)] p-3.5 sm:p-5';
+      ? 'relative sm:absolute sm:left-[10px] sm:right-[10px] sm:bottom-[10px] w-full sm:w-auto sm:max-w-[920px] sm:rounded-[24px] bg-white sm:backdrop-blur-[18px] sm:bg-white/88 sm:shadow-[0_6px_28px_rgba(0,0,0,0.18)] p-2.5'
+      : 'w-full rounded-[24px] bg-white border border-[#ececec] shadow-[0_2px_14px_rgba(0,0,0,0.03)] p-2.5';
 
   return (
     <div className={containerClasses}>
@@ -127,7 +127,7 @@ export function StoreTagCard({
           {/* Square Store Logo */}
           <Link
             to={`/store/${store.slug}`}
-            className="w-[74px] h-[74px] sm:w-[132px] sm:h-[132px] rounded-[12px] sm:rounded-[20px] bg-[#fafafa] border border-[#ececec] overflow-hidden shrink-0 flex items-center justify-center hover:border-[#ff6e20]/60 transition-colors"
+            className="w-[74px] h-[74px] sm:w-[132px] sm:h-[132px] bg-[#fafafa] border border-[#ececec] overflow-hidden shrink-0 flex items-center justify-center hover:border-[#ff6e20]/60 transition-colors rounded-[14px]"
           >
             {store.logo ? (
               <img

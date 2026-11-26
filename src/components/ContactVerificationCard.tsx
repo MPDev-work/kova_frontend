@@ -162,7 +162,7 @@ export function ContactVerificationCard({
   };
 
   return (
-    <section className="bg-white border border-[#ececec] rounded-[20px] p-5 sm:p-6 flex flex-col gap-4">
+    <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3 rounded-[24px]">
       <div className="flex items-center gap-2.5">
         <span className="w-9 h-9 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0">
           <ShieldCheck className="w-4 h-4" />
@@ -178,8 +178,8 @@ export function ContactVerificationCard({
         </div>
       </div>
 
-      {/* Email Verification Row */}
-      <div className="bg-[#fafafa] border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3">
+      {/* Email Verification Row (24px parent - 14px p-3.5 = 10px child) */}
+      <div className="bg-[#fafafa] border border-[#ececec] p-3 flex flex-col gap-3 rounded-[10px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-9 h-9 rounded-full bg-white border border-[#ececec] text-[#555555] flex items-center justify-center shrink-0">
@@ -219,7 +219,7 @@ export function ContactVerificationCard({
         </div>
 
         {emailError && (
-          <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/20 rounded-[12px] px-3.5 py-2">
+          <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/20 px-3.5 py-2 rounded-[14px]">
             {emailError}
           </p>
         )}
@@ -267,8 +267,8 @@ export function ContactVerificationCard({
         )}
       </div>
 
-      {/* Phone Verification Row */}
-      <div className="bg-[#fafafa] border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3">
+      {/* Phone Verification Row (24px parent - 14px p-3.5 = 10px child) */}
+      <div className="bg-[#fafafa] border border-[#ececec] p-3 flex flex-col gap-3 rounded-[10px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-9 h-9 rounded-full bg-white border border-[#ececec] text-[#555555] flex items-center justify-center shrink-0">
@@ -308,7 +308,7 @@ export function ContactVerificationCard({
         </div>
 
         {phoneError && (
-          <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/20 rounded-[12px] px-3.5 py-2">
+          <p className="text-[12px] font-medium text-[#e5322d] bg-[#fdecec] border border-[#e5322d]/20 px-3.5 py-2 rounded-[14px]">
             {phoneError}
           </p>
         )}

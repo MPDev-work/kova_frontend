@@ -44,7 +44,7 @@ export function HelpCenterPage() {
         How can we help?
       </h1>
 
-      <div className="bg-[#ffefe6] border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-4">
+      <div className="bg-[#ffefe6] border border-[#ececec] p-6 flex flex-col gap-4 rounded-[14px]">
         <p className="text-[24px] font-semibold text-black">
           Search answers or start a conversation.
         </p>
@@ -57,7 +57,7 @@ export function HelpCenterPage() {
         />
       </div>
 
-      <div className="bg-white border border-[#ececec] rounded-[20px] p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 rounded-[24px]">
         {[
           {
             title: 'Orders & delivery',
@@ -77,7 +77,7 @@ export function HelpCenterPage() {
         ].map((card) => (
           <div
             key={card.title}
-            className="bg-[#f7f7f7] border border-[#ececec] rounded-[20px] p-6 flex flex-col justify-between gap-5"
+            className="bg-[#f7f7f7] border border-[#ececec] p-6 flex flex-col justify-between gap-5 rounded-[14px]"
           >
             <div>
               <h2 className="text-[20px] font-semibold text-black">
@@ -87,7 +87,7 @@ export function HelpCenterPage() {
             </div>
             <Link
               to={card.to}
-              className="self-start bg-white border border-[#ececec] hover:border-[#ff6e20] text-[14px] font-semibold text-black px-5 py-2.5 rounded-[25px] transition-colors"
+              className="self-start bg-white border border-[#ececec] hover:border-[#ff6e20] text-[14px] font-semibold text-black px-5 py-2.5 transition-colors rounded-[24px]"
             >
               Get help
             </Link>
@@ -104,7 +104,7 @@ export function HelpCenterPage() {
           return (
             <div
               key={faq.q}
-              className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-3"
+              className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 rounded-[24px]"
             >
               <button
                 type="button"
@@ -199,7 +199,7 @@ export function SupportTicketsPage() {
             </h1>
           </div>
           <div className="flex-1 flex items-center justify-center p-4">
-            <div className="bg-white border border-[#ececec] rounded-[22px] p-10 max-w-[420px] w-full text-center flex flex-col items-center gap-3">
+            <div className="bg-white border border-[#ececec] p-10 max-w-[420px] w-full text-center flex flex-col items-center gap-3 rounded-[24px]">
               <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
                 <MessageCircle className="w-6 h-6" />
               </span>

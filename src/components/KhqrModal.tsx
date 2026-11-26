@@ -535,7 +535,7 @@ function KhqrModalContent({
                   - QR Left-Right Margin: 10% of card height (= 14.5% of card width)
                   - QR Top-Bottom Margin: 8% of card height (= 11.6% of card width)
                 */}
-                <div className="w-[260px] h-[377px] sm:w-[290px] sm:h-[420.5px] bg-white rounded-[20px] shadow-[0_0_16px_rgba(0,0,0,0.10)] overflow-hidden flex flex-col">
+                <div className="w-[260px] h-[377px] sm:w-[290px] sm:h-[420.5px] bg-white shadow-[0_0_16px_rgba(0,0,0,0.10)] overflow-hidden flex flex-col rounded-[24px]">
                   {/* Header: exact 12% of card height */}
                   <div className="relative bg-[#E1232E] h-[12%] shrink-0 flex items-center justify-center select-none">
                     <img

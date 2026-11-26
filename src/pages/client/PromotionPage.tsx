@@ -30,11 +30,11 @@ export function PromotionPage() {
       <div className="kova-container px-2.5 lg:px-[10px] pt-[12px] pb-12 flex flex-col gap-[14px]">
         {/* Hero Banner */}
         {bootstrapping ? (
-          <Skeleton className="w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[18px] sm:rounded-[24px]" />
+          <Skeleton className="w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[24px]" />
         ) : (
           <Link
             to="/products"
-            className="relative block w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[18px] sm:rounded-[24px] overflow-hidden group bg-[#ff6e20]"
+            className="relative block w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[24px] overflow-hidden group bg-[#ff6e20]"
           >
             <SkeletonImage
               src="/assets/banners/hero-main.png"
@@ -48,21 +48,21 @@ export function PromotionPage() {
         {/* 5-Tile Promotional Bento Grid */}
         {bootstrapping ? (
           <section className="grid grid-cols-2 lg:grid-cols-[276px_minmax(0,1fr)_560px] gap-2.5 sm:gap-3">
-            <Skeleton className="aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[16px] sm:rounded-[18px]" />
+            <Skeleton className="aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[24px]" />
             <div className="col-span-2 lg:col-span-1 order-first lg:order-none flex flex-col gap-2.5 sm:gap-3">
-              <Skeleton className="aspect-[16/6] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px]" />
+              <Skeleton className="aspect-[16/6] lg:aspect-auto lg:h-[128px] rounded-[24px]" />
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                <Skeleton className="aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px]" />
-                <Skeleton className="aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px]" />
+                <Skeleton className="aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[24px]" />
+                <Skeleton className="aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[24px]" />
               </div>
             </div>
-            <Skeleton className="aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[16px] sm:rounded-[18px]" />
+            <Skeleton className="aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[24px]" />
           </section>
         ) : (
           <section className="grid grid-cols-2 lg:grid-cols-[276px_minmax(0,1fr)_560px] gap-2.5 sm:gap-3">
             <Link
               to="/products"
-              className="relative block aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
+              className="relative block aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[24px] overflow-hidden group bg-white"
             >
               <SkeletonImage
                 src="/assets/banners/promo-12pct.png"
@@ -75,7 +75,7 @@ export function PromotionPage() {
             <div className="col-span-2 lg:col-span-1 order-first lg:order-none flex flex-col gap-2.5 sm:gap-3">
               <Link
                 to="/products"
-                className="relative block aspect-[16/6] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
+                className="relative block aspect-[16/6] lg:aspect-auto lg:h-[128px] rounded-[24px] overflow-hidden group bg-white"
               >
                 <SkeletonImage
                   src="/assets/banners/promo-flash.png"
@@ -87,7 +87,7 @@ export function PromotionPage() {
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 <Link
                   to="/products"
-                  className="relative block aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
+                  className="relative block aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[24px] overflow-hidden group bg-white"
                 >
                   <SkeletonImage
                     src="/assets/banners/promo-treat-yourself.png"
@@ -98,7 +98,7 @@ export function PromotionPage() {
                 </Link>
                 <Link
                   to="/products"
-                  className="relative block aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
+                  className="relative block aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[24px] overflow-hidden group bg-white"
                 >
                   <SkeletonImage
                     src="/assets/banners/promo-90pct.png"
@@ -112,7 +112,7 @@ export function PromotionPage() {
 
             <Link
               to="/products"
-              className="relative block aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
+              className="relative block aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[24px] overflow-hidden group bg-white"
             >
               <SkeletonImage
                 src="/assets/banners/promo-1111.png"
@@ -128,7 +128,7 @@ export function PromotionPage() {
         <section className="flex flex-col gap-3">
           <h2 className="text-[18px] font-bold text-black">Active Vouchers</h2>
           {promotions.length === 0 ? (
-            <div className="bg-white border border-[#ececec] rounded-[16px] p-6 text-center text-[13.5px] text-[#767676]">
+            <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 text-center text-[13.5px] text-[#767676] rounded-[24px]">
               No active promotion codes right now. Vouchers published by stores
               or admins will appear here.
             </div>
@@ -156,7 +156,7 @@ export function PromotionPage() {
           {bootstrapping && promoProducts.length === 0 ? (
             <ProductGridSkeleton count={10} />
           ) : promoProducts.length === 0 ? (
-            <div className="bg-white border border-[#ececec] rounded-[20px] py-14 px-6 flex flex-col items-center text-center gap-3">
+            <div className="bg-white border border-[#ececec] py-14 px-6 flex flex-col items-center text-center gap-3 rounded-[24px]">
               <FigmaIcon name="tag" className="w-8 h-8 text-[#979797]" />
               <p className="text-[16px] font-semibold text-black">
                 No discounted products yet

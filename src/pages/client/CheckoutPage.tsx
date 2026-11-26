@@ -409,7 +409,7 @@ export function CheckoutPage() {
   if (!isSignedIn) {
     return (
       <div className="kova-container px-4 py-16 text-center">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-10 max-w-[520px] mx-auto flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-10 max-w-[520px] mx-auto flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <h1 className="text-[24px] font-semibold text-black">
             Sign in to continue checkout
           </h1>
@@ -438,7 +438,7 @@ export function CheckoutPage() {
   if (checkoutStores.length === 0 && !khqrOpen) {
     return (
       <div className="kova-container px-4 py-16 text-center">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-10 max-w-[520px] mx-auto flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-10 max-w-[520px] mx-auto flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <h1 className="text-[24px] font-semibold">
             {storedSelection?.mode === 'cart_items'
               ? 'No items selected for checkout'
@@ -525,7 +525,7 @@ export function CheckoutPage() {
       </div>
 
       {checkoutError && (
-        <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] rounded-[16px] px-5 py-3.5 text-[13.5px] font-medium">
+        <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] px-5 py-3.5 text-[13.5px] font-medium rounded-[14px]">
           {checkoutError}
         </div>
       )}
@@ -534,7 +534,7 @@ export function CheckoutPage() {
         {/* Left: Shipping Address + Delivery Selection on the SAME page */}
         <div className="flex flex-col gap-6">
           {/* 1. Shipping Address */}
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-4">
+          <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-[20px] font-semibold text-black">
@@ -554,7 +554,7 @@ export function CheckoutPage() {
             </div>
 
             {addresses.length === 0 ? (
-              <p className="text-[13.5px] text-[#767676] bg-[#f7f7f7] rounded-[14px] p-4">
+              <p className="text-[13.5px] text-[#767676] bg-[#f7f7f7] p-2.5 rounded-[14px]">
                 No saved addresses yet. Click &ldquo;Add new address&rdquo; to
                 enter your delivery details.
               </p>
@@ -715,7 +715,7 @@ export function CheckoutPage() {
               return (
                 <div
                   key={group.store.id}
-                  className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-5"
+                  className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 rounded-[24px]"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#ececec]">
                     <div className="flex items-center gap-3 min-w-0">
@@ -761,7 +761,7 @@ export function CheckoutPage() {
                   <div className="flex flex-col gap-3">
                     {group.items.map((item) => (
                       <div key={item.id} className="flex items-center gap-3.5">
-                        <div className="w-14 h-14 rounded-[12px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center">
+                        <div className="w-14 h-14 overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center rounded-[14px]">
                           {item.product_image ? (
                             <img
                               src={item.product_image}
@@ -889,7 +889,7 @@ export function CheckoutPage() {
                       })}
                     </div>
                   ) : (
-                    <p className="text-[12.5px] text-[#767676] bg-[#f7f7f7] rounded-[12px] px-4 py-3">
+                    <p className="text-[12.5px] text-[#767676] bg-[#f7f7f7] px-4 py-3 rounded-[14px]">
                       Standard store delivery will be applied automatically.
                     </p>
                   )}
@@ -901,7 +901,7 @@ export function CheckoutPage() {
 
         {/* Right: Order Summary + Fixed-Bottom Action Component (sticky bottom-5) */}
         <aside className="flex flex-col justify-between gap-4">
-          <div className="bg-white border border-[#ececec] rounded-[20px] p-6 flex flex-col gap-5 top-[116px]">
+          <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 top-[116px] rounded-[24px]">
             <div className="flex items-center justify-between">
               <h2 className="text-[20px] font-semibold text-black">
                 Order summary
@@ -1083,7 +1083,7 @@ export function CheckoutPage() {
               </div>
             </div>
 
-            {/* <div className="bg-[#f7f7f7] rounded-[14px] px-4 py-3 flex items-center justify-between gap-3">
+            {/* <div className="bg-[#f7f7f7] px-4 py-3 flex items-center justify-between gap-3 rounded-[14px]">
               <div>
                 <p className="text-[12.5px] font-semibold text-black">
                   Bakong KHQR Payment
@@ -1098,7 +1098,7 @@ export function CheckoutPage() {
             </div> */}
           </div>
 
-          <div className="sticky bottom-5 z-20 bg-white/95 backdrop-blur-md border border-[#ececec] rounded-[20px] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)] flex flex-col gap-2.5">
+          <div className="sticky bottom-5 z-20 bg-white/95 backdrop-blur-md border border-[#ececec] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.08)] flex flex-col gap-2.5 rounded-[24px]">
             <button
               type="button"
               disabled={submitting}

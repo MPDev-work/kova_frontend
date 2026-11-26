@@ -261,7 +261,7 @@ export function LoginPage() {
               </div>
 
               {error && (
-                <div className="w-full bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] rounded-[14px] px-4 py-3 text-[13px] font-medium">
+                <div className="w-full bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] px-4 py-3 text-[13px] font-medium rounded-[14px]">
                   {error}
                 </div>
               )}
@@ -378,7 +378,7 @@ export function LoginPage() {
               </div>
 
               {error && (
-                <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] rounded-[14px] px-4 py-3 text-[13px] font-medium">
+                <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] px-4 py-3 text-[13px] font-medium rounded-[14px]">
                   {error}
                 </div>
               )}
@@ -590,7 +590,7 @@ export function RegisterPage() {
             </div>
 
             {error && (
-              <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] rounded-[14px] px-4 py-3 text-[13px] font-medium">
+              <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] px-4 py-3 text-[13px] font-medium rounded-[14px]">
                 {error}
               </div>
             )}
@@ -858,7 +858,7 @@ export function VerificationFlowPage({ mode }: { mode: 'forgot' | 'reset' }) {
 
   return (
     <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center px-4 py-12">
-      <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[520px] w-full flex flex-col gap-5">
+      <div className="bg-white border border-[#ececec] p-8 max-w-[520px] w-full flex flex-col gap-3 rounded-[24px]">
         <div className="self-start">
           <KovaLogo size="sm" />
         </div>
@@ -874,7 +874,7 @@ export function VerificationFlowPage({ mode }: { mode: 'forgot' | 'reset' }) {
         </p>
 
         {formError && (
-          <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] rounded-[14px] px-4 py-3 text-[13px] font-medium">
+          <div className="bg-[#fdecec] border border-[#e5322d]/30 text-[#e5322d] px-4 py-3 text-[13px] font-medium rounded-[14px]">
             {formError}
           </div>
         )}

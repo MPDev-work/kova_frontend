@@ -40,11 +40,11 @@ export function FreeDeliveryPage() {
       <div className="kova-container px-2.5 lg:px-[10px] pt-[12px] pb-12 flex flex-col gap-[14px]">
         {/* Hero Banner */}
         {bootstrapping ? (
-          <Skeleton className="w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[18px] sm:rounded-[24px]" />
+          <Skeleton className="w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[24px]" />
         ) : (
           <Link
             to="/products"
-            className="relative block w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[18px] sm:rounded-[24px] overflow-hidden group bg-[#ff6e20]"
+            className="relative block w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[24px] overflow-hidden group bg-[#ff6e20]"
           >
             <SkeletonImage
               src="/assets/banners/hero-main.png"
@@ -56,7 +56,7 @@ export function FreeDeliveryPage() {
         )}
 
         {/* Delivery Zone Callout */}
-        <section className="bg-[#ff6d11] rounded-[16px] sm:rounded-[18px] px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <section className="bg-[#ff6d11] rounded-[24px] px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex flex-col gap-1">
             <h1 className="text-[16px] sm:text-[22px] font-bold text-white leading-[1.3]">
               DELIVERY ACROSS ALL 25 PROVINCES OF CAMBODIA
@@ -104,7 +104,7 @@ export function FreeDeliveryPage() {
         {bootstrapping && filteredProducts.length === 0 ? (
           <ProductGridSkeleton count={10} />
         ) : filteredProducts.length === 0 ? (
-          <div className="bg-white border border-[#ececec] rounded-[20px] py-14 px-6 flex flex-col items-center text-center gap-3">
+          <div className="bg-white border border-[#ececec] py-14 px-6 flex flex-col items-center text-center gap-3 rounded-[24px]">
             <FigmaIcon name="truck" className="w-8 h-8 text-[#979797]" />
             <p className="text-[16px] font-semibold text-black">
               No free delivery products available yet

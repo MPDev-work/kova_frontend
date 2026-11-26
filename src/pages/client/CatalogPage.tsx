@@ -114,7 +114,7 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
   return (
     <div className="kova-container px-2.5 lg:px-[10px] pt-[14px] pb-7 flex flex-col gap-4">
       {/* Filter Matrix */}
-      <section className="bg-white border border-[#ececec] rounded-[20px] px-[18px] py-3.5 flex flex-col gap-2.5">
+      <section className="bg-white border border-[#ececec] px-[18px] py-3.5 flex flex-col gap-2.5 rounded-[24px]">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
           <div>
             <h1 className="text-[20px] font-bold text-black leading-[1.35]">
@@ -222,8 +222,8 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
       </section>
 
       {/* Sort Bar */}
-      <section className="bg-white border border-[#ececec] rounded-[14px] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <section className="bg-white border border-[#ececec] p-2 sm:px-2.5 flex items-center justify-between gap-2.5 rounded-full overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {SORT_OPTIONS.map((opt) => {
             const active = sortBy === opt.id;
             return (
@@ -234,7 +234,7 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
                   setSortBy(opt.id);
                   setPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-full text-[12px] transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-[12px] whitespace-nowrap transition-colors cursor-pointer ${
                   active
                     ? 'bg-[#ff6e20] text-white font-semibold'
                     : 'bg-[#f7f7f7] text-black font-medium hover:bg-[#ffefe6] hover:text-[#ff6e20]'
@@ -250,7 +250,7 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
               setOnlyInStock((v) => !v);
               setPage(1);
             }}
-            className={`px-3 py-1.5 rounded-full text-[12px] transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-[12px] whitespace-nowrap transition-colors cursor-pointer ${
               onlyInStock
                 ? 'bg-[#e7f6e7] text-[#029500] font-semibold'
                 : 'bg-[#f7f7f7] text-black font-medium hover:bg-[#ffefe6]'
@@ -260,7 +260,7 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-[12.5px] font-semibold text-[#ff6e20]">
+        <div className="flex items-center gap-2.5 pr-2 text-[12.5px] font-semibold text-[#ff6e20] shrink-0 whitespace-nowrap">
           <span>
             Page {page} / {Math.max(1, lastPage)}
           </span>
@@ -295,7 +295,7 @@ export function CatalogPage({ mode = 'all' }: CatalogPageProps) {
           ))}
         </div>
       ) : (
-        <div className="bg-white border border-[#ececec] rounded-[24px] py-16 px-6 flex flex-col items-center text-center gap-4">
+        <div className="bg-white border border-[#ececec] py-16 px-6 flex flex-col items-center text-center gap-2.5 sm:gap-3 rounded-[24px]">
           <div className="w-16 h-16 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <FigmaIcon name="search" className="w-8 h-8" />
           </div>

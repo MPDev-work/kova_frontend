@@ -154,7 +154,7 @@ export function SellerLayout() {
   if (!isSignedIn || !user) {
     return (
       <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center p-4">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[440px] w-full text-center flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-8 max-w-[440px] w-full text-center flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <KovaLogo size="sm" />
           <h1 className="text-[22px] font-bold text-black">
             Sign in to your Seller Center
@@ -185,7 +185,7 @@ export function SellerLayout() {
   if (!isStoreOwner) {
     return (
       <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center p-4">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[460px] w-full text-center flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-8 max-w-[460px] w-full text-center flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <KovaLogo size="sm" />
           <h1 className="text-[22px] font-bold text-black">
             Open your store on Kova
@@ -217,7 +217,7 @@ export function SellerLayout() {
     const storeStatus = user.store?.status || 'pending';
     return (
       <div className="min-h-screen w-full bg-[#f7f7f7] flex items-center justify-center p-4">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-8 max-w-[500px] w-full text-center flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-8 max-w-[500px] w-full text-center flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <KovaLogo size="sm" />
           <span
             className={`text-[11px] font-bold px-3.5 py-1 rounded-full capitalize ${
@@ -668,7 +668,7 @@ export function SellerLayout() {
           className={
             isFullBleedPage
               ? 'flex-1 min-h-0 w-full h-full p-0 overflow-hidden flex flex-col'
-              : 'flex-1 w-full max-w-[1320px] mx-auto px-4 lg:px-7 py-6'
+              : 'flex-1 w-full max-w-[1320px] mx-auto px-2.5 lg:px-7 py-4 lg:py-6'
           }
         >
           <Outlet />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Store as StoreIcon } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { StoreTagCard } from '../../components/StoreTagCard';
+import { StoreTagCardSkeleton } from '../../components/Skeleton';
 
 export function FollowingStoresPage() {
   const { followedStores, refreshFollowing } = useStore();
@@ -67,7 +68,7 @@ export function FollowingStoresPage() {
       </div>
 
       {followedStores.length > 0 && (
-        <div className="relative max-w-[380px]">
+        <div className="relative w-full sm:max-w-[380px]">
           <Search className="w-4 h-4 text-[#979797] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
@@ -80,11 +81,13 @@ export function FollowingStoresPage() {
       )}
 
       {refreshing && followedStores.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[22px] p-12 text-center text-[13.5px] text-[#767676]">
-          Loading followed stores...
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <StoreTagCardSkeleton key={idx} variant="card" />
+          ))}
         </div>
       ) : followedStores.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[22px] py-14 px-6 text-center flex flex-col items-center gap-3">
+        <div className="bg-white border border-[#ececec] py-14 px-6 text-center flex flex-col items-center gap-3 rounded-[24px]">
           <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <StoreIcon className="w-6 h-6" />
           </span>
@@ -103,7 +106,7 @@ export function FollowingStoresPage() {
           </Link>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[22px] py-12 px-6 text-center flex flex-col items-center gap-2">
+        <div className="bg-white border border-[#ececec] py-12 px-6 text-center flex flex-col items-center gap-2 rounded-[24px]">
           <p className="text-[15px] font-semibold text-black">
             No matching stores
           </p>

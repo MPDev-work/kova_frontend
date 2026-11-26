@@ -175,7 +175,7 @@ export function SellerReviewsPage() {
         />
       )}
 
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FilterPillTabs<RatingTab>
             value={ratingFilter}
@@ -231,7 +231,7 @@ export function SellerReviewsPage() {
         {loading ? (
           <DashboardTableSkeleton rows={5} />
         ) : reviews.length === 0 ? (
-          <div className="py-14 px-6 bg-[#f7f7f7] rounded-[16px] flex flex-col items-center text-center gap-2">
+          <div className="py-14 px-6 bg-[#f7f7f7] flex flex-col items-center text-center gap-2 rounded-[14px]">
             <FigmaIcon name="star" className="w-8 h-8 text-[#979797]" />
             <p className="text-[14.5px] font-semibold text-black">
               No customer reviews found
@@ -298,7 +298,7 @@ export function SellerReviewsPage() {
                       </td>
                       <td className="py-3.5 px-3.5">
                         <div className="flex items-center gap-2.5 max-w-[240px]">
-                          <div className="w-10 h-10 rounded-[10px] border border-[#ececec] bg-[#f7f7f7] overflow-hidden shrink-0 flex items-center justify-center">
+                          <div className="w-10 h-10 border border-[#ececec] bg-[#f7f7f7] overflow-hidden shrink-0 flex items-center justify-center rounded-[14px]">
                             {rev.product?.primary_image?.image_url ? (
                               <img
                                 src={rev.product.primary_image.image_url}
@@ -416,7 +416,7 @@ export function SellerReviewsPage() {
         {selectedReview && (
           <div className="flex flex-col gap-4">
             {/* Buyer Card */}
-            <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3.5 flex items-center justify-between gap-3">
+            <div className="bg-[#f7f7f7] border border-[#ececec] p-3.5 flex items-center justify-between gap-3 rounded-[14px]">
               <div className="flex items-center gap-3 min-w-0">
                 <span className="w-10 h-10 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden shrink-0 flex items-center justify-center text-[14px] font-bold">
                   {selectedReview.user?.avatar ? (
@@ -459,8 +459,8 @@ export function SellerReviewsPage() {
             </div>
 
             {/* Product Card */}
-            <div className="bg-white border border-[#ececec] rounded-[14px] p-3 flex items-center gap-3">
-              <div className="w-12 h-12 rounded-[10px] border border-[#ececec] bg-[#f7f7f7] overflow-hidden shrink-0 flex items-center justify-center">
+            <div className="bg-white border border-[#ececec] p-3 flex items-center gap-3 rounded-[24px]">
+              <div className="w-12 h-12 border border-[#ececec] bg-[#f7f7f7] overflow-hidden shrink-0 flex items-center justify-center rounded-[14px]">
                 {selectedReview.product?.primary_image?.image_url ? (
                   <img
                     src={selectedReview.product.primary_image.image_url}

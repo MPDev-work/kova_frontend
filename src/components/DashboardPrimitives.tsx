@@ -147,14 +147,14 @@ export function KpiCard({
   tone = 'neutral',
 }: KpiCardItem) {
   return (
-    <div className="bg-white border border-[#ececec] rounded-[18px] px-[20px] py-[18px] flex flex-col justify-between gap-2.5 min-w-0">
+    <div className="bg-white border border-[#ececec] p-4 sm:p-5 flex flex-col justify-between gap-2.5 min-w-0 rounded-[24px]">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[12.5px] font-medium text-[#767676] truncate">
           {label}
         </p>
         {badge && <StatusPill label={badge} tone={tone} />}
       </div>
-      <p className="text-[27px] font-bold text-black tracking-[-0.025em] leading-[1.1] truncate">
+      <p className="text-[24px] sm:text-[26px] font-bold text-black tracking-[-0.025em] leading-[1.1] truncate">
         {value}
       </p>
       <p className="text-[11.5px] text-[#8a8a8a] truncate">{sub}</p>
@@ -164,7 +164,7 @@ export function KpiCard({
 
 export function KpiGrid({ items }: { items: KpiCardItem[] }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3">
       {items.map((item) => (
         <KpiCard key={item.label} {...item} />
       ))}
@@ -313,7 +313,7 @@ export function TrendAreaChart({
   const hovered = hoveredIdx !== null ? safePoints[hoveredIdx] : null;
 
   return (
-    <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3 min-w-0">
+    <section className="bg-white border border-[#ececec] p-4 sm:p-5 flex flex-col gap-3 min-w-0 rounded-[24px]">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-[15.5px] font-bold text-black leading-snug">
@@ -485,7 +485,7 @@ export function ProgressBreakdownCard({
   footerPills?: { label: string; tone: BadgeTone }[];
 }) {
   return (
-    <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col justify-between gap-4 min-w-0">
+    <section className="bg-white border border-[#ececec] p-4 sm:p-5 flex flex-col justify-between gap-3.5 min-w-0 rounded-[24px]">
       <div className="flex flex-col gap-4">
         <div>
           <h2 className="text-[15.5px] font-bold text-black leading-snug">
@@ -642,16 +642,16 @@ export function SlideOverDrawer({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-[3px] overflow-y-auto"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-2.5 sm:p-5 bg-black/50 backdrop-blur-[3px] overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className={`relative w-full ${widthClass} bg-white rounded-[22px] max-h-[88vh] shadow-[0_24px_64px_rgba(0,0,0,0.22)] flex flex-col overflow-hidden my-auto`}
+        className={`relative w-full ${widthClass} bg-white rounded-[24px] max-h-[88vh] shadow-[0_24px_64px_rgba(0,0,0,0.22)] flex flex-col overflow-hidden my-auto`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 py-4.5 border-b border-[#ececec] flex items-start justify-between gap-4 shrink-0">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-[#ececec] flex items-start justify-between gap-3 shrink-0">
           <div className="min-w-0">
-            <h2 className="text-[18px] font-bold text-black leading-snug truncate">
+            <h2 className="text-[17px] sm:text-[18px] font-bold text-black leading-snug truncate">
               {title}
             </h2>
             {subtitle && (
@@ -670,10 +670,10 @@ export function SlideOverDrawer({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-5">{children}</div>
 
         {footer && (
-          <div className="px-6 py-4 border-t border-[#ececec] bg-[#fafafa] flex flex-wrap items-center justify-end gap-2.5 shrink-0">
+          <div className="px-4 sm:px-5 py-3 border-t border-[#ececec] bg-[#fafafa] flex flex-wrap items-center justify-end gap-2 shrink-0">
             {footer}
           </div>
         )}

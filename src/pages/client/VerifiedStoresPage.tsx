@@ -31,11 +31,11 @@ export function VerifiedStoresPage() {
       <div className="kova-container px-2.5 lg:px-[10px] pt-[10px] pb-12 flex flex-col gap-[12px]">
         {/* Hero Banner */}
         {bootstrapping ? (
-          <Skeleton className="w-full aspect-[16/7] sm:aspect-[3616/1184] max-h-[465px] rounded-[18px] sm:rounded-[24px]" />
+          <Skeleton className="w-full aspect-[16/7] sm:aspect-[3616/1184] max-h-[465px] rounded-[24px]" />
         ) : (
           <Link
             to="/promotion"
-            className="block w-full aspect-[16/7] sm:aspect-[3616/1184] max-h-[465px] rounded-[18px] sm:rounded-[24px] overflow-hidden relative group"
+            className="block w-full aspect-[16/7] sm:aspect-[3616/1184] max-h-[465px] rounded-[24px] overflow-hidden relative group"
           >
             <SkeletonImage
               src="/assets/banners/hero-main.png"
@@ -47,6 +47,26 @@ export function VerifiedStoresPage() {
         )}
 
         {/* Two-Row Opposite-Direction Animated Marquee (pauses on hover) */}
+        {bootstrapping && marqueeItems.length === 0 && (
+          <section
+            aria-hidden="true"
+            className="flex flex-col gap-2 sm:gap-[10px] py-1 overflow-hidden"
+          >
+            {[0, 1].map((rowIdx) => (
+              <div
+                key={rowIdx}
+                className="flex items-center gap-2 sm:gap-[10px] overflow-hidden"
+              >
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <Skeleton
+                    key={idx}
+                    className="h-[44px] sm:h-[60px] w-[140px] sm:w-[180px] rounded-full shrink-0"
+                  />
+                ))}
+              </div>
+            ))}
+          </section>
+        )}
         {marqueeItems.length > 0 && (
           <section className="flex flex-col gap-2 sm:gap-[10px] py-1">
             {[
@@ -110,7 +130,7 @@ export function VerifiedStoresPage() {
         {bootstrapping && verifiedStores.length === 0 ? (
           <VerifiedStoreShowcaseSkeleton count={2} />
         ) : verifiedStores.length === 0 ? (
-          <div className="bg-white border border-[#ececec] rounded-[24px] py-16 px-6 flex flex-col items-center text-center gap-3">
+          <div className="bg-white border border-[#ececec] py-16 px-6 flex flex-col items-center text-center gap-3 rounded-[24px]">
             <FigmaIcon name="home" className="w-10 h-10 text-[#979797]" />
             <h1 className="text-[22px] font-semibold text-black">
               No verified stores available yet
@@ -134,8 +154,8 @@ export function VerifiedStoresPage() {
                 .slice(0, 5);
               return (
                 <section key={store.id} className="flex flex-col gap-[11px]">
-                  {/* Brand Banner with Redesigned Store Tag Card */}
-                  <div className="relative w-full rounded-[22px] sm:rounded-[34px] overflow-hidden bg-white border border-[#ececec] sm:border-0 sm:bg-[#1e1e1e] sm:h-[340px] lg:h-[400px]">
+                  {/* Brand Banner with Redesigned Store Tag Card (concentric: 24px overlay + 10px inset = 34px desktop) */}
+                  <div className="relative w-full overflow-hidden bg-white border border-[#ececec] sm:border-0 sm:bg-[#1e1e1e] sm:h-[340px] lg:h-[400px] rounded-[24px] sm:rounded-[34px]">
                     <Link
                       to={`/store/${store.slug}`}
                       className="block w-full h-[155px] sm:h-full bg-[#1e1e1e]"

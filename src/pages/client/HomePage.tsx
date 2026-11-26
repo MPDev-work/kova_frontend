@@ -79,9 +79,9 @@ export function HomePage() {
     <div className="kova-container px-2.5 lg:px-[10px] pt-[14px] pb-7 flex flex-col gap-4">
       {/* 1. Hero Deck */}
       <section className="grid grid-cols-1 xl:grid-cols-[244px_minmax(0,1fr)_292px] gap-3 items-stretch">
-        {/* Left: Dynamic Categories from Backend */}
-        <aside className="bg-white border border-[#ececec] rounded-[20px] p-3.5 flex flex-col gap-2.5 h-auto xl:h-[460px]">
-          <p className="text-[15px] font-bold text-[#ff6e20] leading-[1.35]">
+        {/* Left: Dynamic Categories from Backend (24px parent - 10px pad = 14px child) */}
+        <aside className="bg-white border border-[#ececec] p-2.5 flex flex-col gap-2 h-auto xl:h-[460px] rounded-[24px]">
+          <p className="text-[15px] font-bold text-[#ff6e20] leading-[1.35] px-1.5 pt-0.5">
             Categories
           </p>
           {bootstrapping && categories.length === 0 ? (
@@ -101,7 +101,7 @@ export function HomePage() {
                 <Link
                   key={cat.id}
                   to={`/products?category=${encodeURIComponent(cat.slug)}`}
-                  className="flex items-center justify-between text-[13px] font-medium text-black hover:text-[#ff6e20] hover:bg-[#ffefe6]/60 px-2 -mx-1 py-1.5 rounded-[10px] transition-colors group"
+                  className="flex items-center justify-between text-[13px] font-medium text-black hover:text-[#ff6e20] hover:bg-[#ffefe6]/60 px-2 -mx-1 py-1.5 transition-colors group rounded-[14px]"
                 >
                   <span className="truncate">{cat.name}</span>
                   <span className="text-[14px] text-[#979797] group-hover:text-[#ff6e20] shrink-0 ml-1">
@@ -120,7 +120,7 @@ export function HomePage() {
           <div className="flex flex-col gap-2.5 xl:h-[460px]">
             <Link
               to="/promotion"
-              className="block relative w-full h-[220px] sm:h-[280px] xl:h-[314px] rounded-[20px] overflow-hidden group"
+              className="block relative w-full h-[220px] sm:h-[280px] xl:h-[314px] rounded-[24px] overflow-hidden group"
             >
               <SkeletonImage
                 src="/assets/banners/hero-main.png"
@@ -132,7 +132,7 @@ export function HomePage() {
             <div className="grid grid-cols-3 gap-2.5 h-[110px] sm:h-[136px]">
               <Link
                 to="/promotion"
-                className="block rounded-[16px] overflow-hidden relative group col-span-1"
+                className="block rounded-[24px] overflow-hidden relative group col-span-1"
               >
                 <SkeletonImage
                   src="/assets/banners/promo-flash.png"
@@ -142,7 +142,7 @@ export function HomePage() {
               </Link>
               <Link
                 to="/products"
-                className="block rounded-[16px] overflow-hidden relative group col-span-1"
+                className="block rounded-[24px] overflow-hidden relative group col-span-1"
               >
                 <SkeletonImage
                   src="/assets/banners/promo-1111.png"
@@ -152,7 +152,7 @@ export function HomePage() {
               </Link>
               <Link
                 to="/free-delivery"
-                className="block rounded-[16px] overflow-hidden relative group col-span-1"
+                className="block rounded-[24px] overflow-hidden relative group col-span-1"
               >
                 <SkeletonImage
                   src="/assets/banners/promo-12pct.png"
@@ -165,7 +165,7 @@ export function HomePage() {
         )}
 
         {/* Right: User Quick-Hub */}
-        <aside className="bg-white border border-[#ececec] rounded-[20px] p-4 flex flex-col gap-3 xl:h-[460px]">
+        <aside className="bg-white border border-[#ececec] p-2.5 flex flex-col gap-3 xl:h-[460px] rounded-[24px]">
           {bootstrapping ? (
             <HomeUserHubSkeleton />
           ) : (
@@ -202,7 +202,7 @@ export function HomePage() {
               </div>
 
               {isSignedIn ? (
-                <div className="bg-[#ffefe6] rounded-[14px] px-2 py-2.5 grid grid-cols-4 text-center">
+                <div className="bg-[#ffefe6] px-2 py-2.5 grid grid-cols-4 text-center rounded-[14px]">
                   {[
                     { count: toPay, label: 'To Pay', to: '/account/orders' },
                     { count: toShip, label: 'To Ship', to: '/account/orders' },
@@ -245,7 +245,7 @@ export function HomePage() {
               )}
 
               {/* Active Promotion Card from DB */}
-              <div className="kova-gradient rounded-[14px] px-3.5 py-3 flex flex-col gap-1.5">
+              <div className="kova-gradient px-3.5 py-3 flex flex-col gap-1.5 rounded-[14px]">
                 <p className="text-[13px] font-bold text-white leading-[1.35]">
                   {promotions[0]
                     ? promotions[0].name
@@ -270,7 +270,7 @@ export function HomePage() {
                   Latest items
                 </p>
                 {products.length === 0 ? (
-                  <p className="text-[12px] text-[#767676] py-4 text-center bg-[#f7f7f7] rounded-[12px]">
+                  <p className="text-[12px] text-[#767676] py-4 text-center bg-[#f7f7f7] rounded-[14px]">
                     No products published yet.
                   </p>
                 ) : (
@@ -281,7 +281,7 @@ export function HomePage() {
                         to={`/product/${product.slug}`}
                         className="flex flex-col items-center gap-1 group"
                       >
-                        <div className="w-full h-[74px] rounded-[12px] overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center">
+                        <div className="w-full h-[74px] overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center rounded-[14px]">
                           {product.image ? (
                             <img
                               src={product.image}
@@ -310,8 +310,8 @@ export function HomePage() {
 
       {/* 2. Flash Sale / Discounted Products (only if discounted products exist) */}
       {flashProducts.length > 0 && (
-        <section className="bg-white border-[1.5px] border-[#ff6e20] rounded-[28px] p-2.5 flex flex-col gap-3">
-          <div className="kova-gradient rounded-[16px] px-4 lg:px-[18px] py-3 flex flex-wrap items-center justify-between gap-3">
+        <section className="bg-white border-[1.5px] border-[#ff6e20] p-2.5 flex flex-col gap-3 rounded-[24px]">
+          <div className="kova-gradient px-4 lg:px-[18px] py-3 flex flex-wrap items-center justify-between gap-3 rounded-[14px]">
             <h2 className="text-[18px] sm:text-[20px] font-bold text-white leading-[1.35]">
               KOVA PROMOTIONS
             </h2>
@@ -348,7 +348,7 @@ export function HomePage() {
         {bootstrapping && verifiedStores.length === 0 ? (
           <StoreCardGridSkeleton count={3} />
         ) : verifiedStores.length === 0 ? (
-          <div className="bg-white border border-[#ececec] rounded-[20px] p-8 text-center flex flex-col items-center gap-2">
+          <div className="bg-white border border-[#ececec] p-8 text-center flex flex-col items-center gap-2 rounded-[24px]">
             <FigmaIcon name="home" className="w-8 h-8 text-[#979797]" />
             <p className="text-[15px] font-semibold text-black">
               No verified stores published yet
@@ -363,9 +363,9 @@ export function HomePage() {
               <Link
                 key={store.id}
                 to={`/store/${store.slug}`}
-                className="group w-[275px] sm:w-[320px] lg:w-[calc((100%-24px)/3)] shrink-0 snap-start bg-white border border-[#ececec] hover:border-[#ff6e20]/60 rounded-[24px] p-2.5 pb-3 flex flex-col gap-2 transition-all hover:shadow-md"
+                className="group w-[275px] sm:w-[320px] lg:w-[calc((100%-24px)/3)] shrink-0 snap-start bg-white border border-[#ececec] hover:border-[#ff6e20]/60 p-2.5 pb-3 flex flex-col gap-2 transition-all hover:shadow-md rounded-[24px]"
               >
-                <div className="h-[150px] w-full rounded-[14px] overflow-hidden bg-[#f7f7f7] flex items-center justify-center">
+                <div className="h-[150px] w-full overflow-hidden bg-[#f7f7f7] flex items-center justify-center rounded-[14px]">
                   {store.banner || store.logo ? (
                     <img
                       src={store.banner || store.logo || ''}
@@ -428,7 +428,7 @@ export function HomePage() {
         {bootstrapping && filteredProducts.length === 0 ? (
           <ProductGridSkeleton count={10} />
         ) : filteredProducts.length === 0 ? (
-          <div className="bg-white border border-[#ececec] rounded-[20px] py-14 px-6 text-center flex flex-col items-center gap-3">
+          <div className="bg-white border border-[#ececec] py-14 px-6 text-center flex flex-col items-center gap-3 rounded-[24px]">
             <FigmaIcon name="package" className="w-9 h-9 text-[#979797]" />
             <h3 className="text-[18px] font-semibold text-black">
               No products available yet

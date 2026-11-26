@@ -318,7 +318,7 @@ export function SellerOrdersPage() {
         ]}
       />
 
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FilterPillTabs<OrderStatusTab>
             value={statusFilter}
@@ -359,7 +359,7 @@ export function SellerOrdersPage() {
         {loading ? (
           <DashboardTableSkeleton rows={6} />
         ) : paged.length === 0 ? (
-          <p className="py-14 text-center bg-[#f7f7f7] rounded-[14px] text-[13.5px] text-[#767676]">
+          <p className="py-14 text-center bg-[#f7f7f7] text-[13.5px] text-[#767676] rounded-[14px]">
             No orders match this filter.
           </p>
         ) : (
@@ -495,7 +495,7 @@ export function SellerOrdersPage() {
         {selectedOrder && (
           <div className="flex flex-col gap-5">
             {/* Workflow strip */}
-            {/* <div className="bg-[#ffefe6] border border-[#ffd8c2] rounded-[14px] px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-[12px]">
+            {/* <div className="bg-[#ffefe6] border border-[#ffd8c2] px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-[12px] rounded-[14px]">
               <span className="font-semibold text-[#ff6e20]">
                 Order status: {selectedOrder.status.toUpperCase()}
               </span>
@@ -571,7 +571,7 @@ export function SellerOrdersPage() {
                   </span>
                 </div>
               )}
-              <div className="mt-2 bg-[#e7f6e7] rounded-[12px] px-3.5 py-2.5 flex items-center justify-between">
+              <div className="mt-2 bg-[#e7f6e7] px-3.5 py-2.5 flex items-center justify-between rounded-[14px]">
                 <span className="font-semibold text-[#029500]">
                   Customer paid total
                 </span>
@@ -884,7 +884,7 @@ export function SellerShippingPage() {
       />
 
       {/* Connected Logistics Providers Grid (Exact Figma Seller · 09 card row) */}
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div>
           <h2 className="text-[15.5px] font-bold text-black">
             Configured delivery methods
@@ -897,7 +897,7 @@ export function SellerShippingPage() {
         {loading ? (
           <DashboardKpiSkeleton count={4} />
         ) : methods.length === 0 ? (
-          <div className="py-10 text-center bg-[#f7f7f7] rounded-[14px] flex flex-col items-center gap-3">
+          <div className="py-10 text-center bg-[#f7f7f7] flex flex-col items-center gap-3 rounded-[14px]">
             <p className="text-[13.5px] text-[#767676]">
               No shipping methods configured yet.
             </p>
@@ -961,7 +961,7 @@ export function SellerShippingPage() {
       </section>
 
       {/* Active Shipments Table (Exact Figma Seller · 09) */}
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="flex items-center justify-between">
           <h2 className="text-[15.5px] font-bold text-black">
             Active shipments
@@ -975,7 +975,7 @@ export function SellerShippingPage() {
         </div>
 
         {activeShipments.length === 0 ? (
-          <p className="py-10 text-center bg-[#f7f7f7] rounded-[14px] text-[13px] text-[#767676]">
+          <p className="py-10 text-center bg-[#f7f7f7] text-[13px] text-[#767676] rounded-[14px]">
             No active shipments yet. Dispatched orders will appear here.
           </p>
         ) : (
@@ -1466,7 +1466,7 @@ export function SellerPromotionsPage() {
         ]}
       />
 
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <FilterPillTabs<PromoFilterTab>
           value={tab}
           onChange={setTab}
@@ -1491,7 +1491,7 @@ export function SellerPromotionsPage() {
         {loading ? (
           <DashboardTableSkeleton rows={5} />
         ) : filtered.length === 0 ? (
-          <div className="py-12 text-center bg-[#f7f7f7] rounded-[14px] flex flex-col items-center gap-3">
+          <div className="py-12 text-center bg-[#f7f7f7] flex flex-col items-center gap-3 rounded-[14px]">
             <p className="text-[13.5px] text-[#767676]">
               No store vouchers found for this filter.
             </p>
@@ -1989,7 +1989,7 @@ export function SellerBakongPage() {
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)] gap-5 items-start">
             <form
               onSubmit={handleConnect}
-              className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4"
+              className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -2052,7 +2052,7 @@ export function SellerBakongPage() {
               </div>
             </form>
 
-            <aside className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+            <aside className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
               <div className="flex items-center justify-between">
                 <h2 className="text-[15.5px] font-bold text-black">
                   Connection status
@@ -2124,7 +2124,7 @@ export function SellerBakongPage() {
           </div>
 
           {/* Full-width Store KHQR Transactions Ledger */}
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+          <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-[15.5px] font-bold text-black">
                 Store KHQR transactions
@@ -2160,7 +2160,7 @@ export function SellerBakongPage() {
             </div>
 
             {filteredTxs.length === 0 ? (
-              <p className="py-10 text-center bg-[#f7f7f7] rounded-[14px] text-[13px] text-[#767676]">
+              <p className="py-10 text-center bg-[#f7f7f7] text-[13px] text-[#767676] rounded-[14px]">
                 No KHQR transactions found for this filter.
               </p>
             ) : (
@@ -2341,7 +2341,7 @@ export function SellerPayoutsPage() {
 
           {/* Exact Figma Seller · 20 2:1 Layout (Payout History | Linked Payout Accounts) */}
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)] gap-5 items-start">
-            <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+            <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
                   Payout history
@@ -2352,7 +2352,7 @@ export function SellerPayoutsPage() {
               </div>
 
               {payouts.length === 0 ? (
-                <p className="py-12 text-center bg-[#f7f7f7] rounded-[14px] text-[13px] text-[#767676]">
+                <p className="py-12 text-center bg-[#f7f7f7] text-[13px] text-[#767676] rounded-[14px]">
                   No payout requests submitted yet.
                 </p>
               ) : (
@@ -2410,7 +2410,7 @@ export function SellerPayoutsPage() {
             </section>
 
             {/* Right Linked Payout Accounts Card (Exact Figma Seller · 20) */}
-            <aside className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-3.5">
+            <aside className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3.5 rounded-[24px]">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
                   Linked payout accounts
@@ -2441,7 +2441,7 @@ export function SellerPayoutsPage() {
                 />
               </div>
 
-              <div className="rounded-[14px] p-4 border border-[#ececec] bg-[#fafafa] flex items-start justify-between gap-2">
+              <div className="p-2.5 border border-[#ececec] bg-[#fafafa] flex items-start justify-between gap-2 rounded-[14px]">
                 <div>
                   <p className="text-[13.5px] font-bold text-black">
                     Cambodia Bank Transfer
@@ -2487,7 +2487,7 @@ export function SellerPayoutsPage() {
           onSubmit={handleRequest}
           className="flex flex-col gap-4"
         >
-          <div className="bg-[#f7f7f7] rounded-[14px] p-4 flex items-center justify-between">
+          <div className="bg-[#f7f7f7] p-2.5 flex items-center justify-between rounded-[14px]">
             <span className="text-[12.5px] text-[#767676]">
               Withdrawable balance
             </span>
@@ -2736,7 +2736,7 @@ export function SellerStorefrontPage() {
         <div className="flex flex-col gap-4">
           <form
             onSubmit={handleSaveIdentity}
-            className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4"
+            className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]"
           >
             <h2 className="text-[15.5px] font-bold text-black">
               Store identity &amp; URL
@@ -2760,7 +2760,7 @@ export function SellerStorefrontPage() {
                 <span className="text-[12px] font-semibold text-black">
                   Store URL
                 </span>
-                <div className="border border-[#ececec] bg-[#f7f7f7] rounded-[12px] px-3.5 py-2.5 text-[13px] text-[#767676] truncate">
+                <div className="border border-[#ececec] bg-[#f7f7f7] px-3.5 py-2.5 text-[13px] text-[#767676] truncate rounded-[14px]">
                   kova.com.kh/store/{profile.slug}
                 </div>
               </div>
@@ -2850,7 +2850,7 @@ export function SellerStorefrontPage() {
                     .join(', ');
                   if (!locationPreview && !googleMapsUrl.trim()) return null;
                   return (
-                    <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="bg-[#f7f7f7] border border-[#ececec] px-4 py-3 flex flex-wrap items-center justify-between gap-2 rounded-[14px]">
                       <div className="flex items-center gap-2 min-w-0 text-[13px] text-[#555555]">
                         <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
                         <span className="truncate">
@@ -2902,7 +2902,7 @@ export function SellerStorefrontPage() {
 
           <form
             onSubmit={handleSavePolicies}
-            className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4"
+            className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]"
           >
             <div>
               <h2 className="text-[15.5px] font-bold text-black">
@@ -2966,7 +2966,7 @@ export function SellerStorefrontPage() {
 
         {/* Right Logo & Banner + Status Cards (Exact Figma Seller · 11) */}
         <div className="flex flex-col gap-4">
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+          <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
             <h2 className="text-[15.5px] font-bold text-black">
               Logo &amp; banner
             </h2>
@@ -2979,7 +2979,7 @@ export function SellerStorefrontPage() {
                   className="w-full h-[128px] rounded-[14px] object-cover border border-[#ececec]"
                 />
               ) : (
-                <div className="w-full h-[128px] rounded-[14px] bg-[#f7f7f7] border border-dashed border-[#dcdcdc] flex flex-col items-center justify-center gap-1 text-[#8a8a8a]">
+                <div className="w-full h-[128px] bg-[#f7f7f7] border border-dashed border-[#dcdcdc] flex flex-col items-center justify-center gap-1 text-[#8a8a8a] rounded-[14px]">
                   <FigmaIcon name="upload" className="w-5 h-5 text-[#979797]" />
                   <span className="text-[12px] font-medium">
                     No cover banner uploaded
@@ -3028,7 +3028,7 @@ export function SellerStorefrontPage() {
             </div>
           </section>
 
-          <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-3">
+          <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 rounded-[24px]">
             <h2 className="text-[15.5px] font-bold text-black">
               Store verification &amp; status
             </h2>

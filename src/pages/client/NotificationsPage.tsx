@@ -77,7 +77,7 @@ export function NotificationsPage() {
         )}
       </div>
 
-      <div className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-3">
+      <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 rounded-[24px]">
         {bootstrapping && isSignedIn ? (
           <NotificationsSkeleton count={4} />
         ) : !isSignedIn ? (
@@ -228,7 +228,7 @@ export function NotificationsPage() {
               <Link
                 key={`order-${order.id}`}
                 to={`/account/orders/${order.order_number}`}
-                className="rounded-[16px] p-4 flex items-start gap-3.5 bg-[#f7f7f7] hover:bg-[#ffefe6] transition-colors"
+                className="p-2.5 flex items-start gap-3.5 bg-[#f7f7f7] hover:bg-[#ffefe6] transition-colors rounded-[14px]"
               >
                 <span className="w-10 h-10 rounded-full bg-white text-[#ff6e20] flex items-center justify-center shrink-0 mt-0.5 border border-[#ececec]">
                   <FigmaIcon name="bell" className="w-4 h-4" />

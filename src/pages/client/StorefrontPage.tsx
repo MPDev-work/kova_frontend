@@ -69,7 +69,7 @@ export function StorefrontPage() {
   if (notFound || !store) {
     return (
       <div className="kova-container px-4 py-16">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-12 text-center max-w-[540px] mx-auto flex flex-col items-center gap-4">
+        <div className="bg-white border border-[#ececec] p-12 text-center max-w-[540px] mx-auto flex flex-col items-center gap-2.5 sm:gap-3 rounded-[24px]">
           <FigmaIcon name="home" className="w-10 h-10 text-[#979797]" />
           <h1 className="text-[24px] font-semibold text-black">
             Store not found
@@ -90,8 +90,8 @@ export function StorefrontPage() {
 
   return (
     <div className="kova-container px-2.5 lg:px-[10px] pt-[14px] pb-10 flex flex-col gap-4">
-      <section className="bg-white border border-[#ececec] rounded-[28px] px-2.5 pt-2.5 pb-4 flex flex-col gap-3">
-        <div className="h-[200px] sm:h-[280px] w-full rounded-[18px] overflow-hidden bg-[#f7f7f7] flex items-center justify-center">
+      <section className="bg-white border border-[#ececec] px-2.5 pt-2.5 pb-4 flex flex-col gap-3 rounded-[24px]">
+        <div className="h-[200px] sm:h-[280px] w-full overflow-hidden bg-[#f7f7f7] flex items-center justify-center rounded-[14px]">
           {store.banner ? (
             <img
               src={store.banner}
@@ -236,7 +236,7 @@ export function StorefrontPage() {
       )}
 
       {products.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[20px] py-14 px-6 flex flex-col items-center text-center gap-3">
+        <div className="bg-white border border-[#ececec] py-14 px-6 flex flex-col items-center text-center gap-3 rounded-[24px]">
           <FigmaIcon name="package" className="w-9 h-9 text-[#979797]" />
           <p className="text-[16px] font-semibold text-black">
             No products listed in this store yet

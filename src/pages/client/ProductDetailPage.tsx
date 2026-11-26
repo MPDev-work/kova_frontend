@@ -65,7 +65,7 @@ export function ProductDetailPage() {
   if (notFound || !product) {
     return (
       <div className="kova-container px-4 py-16">
-        <div className="bg-white border border-[#ececec] rounded-[24px] p-12 text-center flex flex-col items-center gap-4 max-w-[560px] mx-auto">
+        <div className="bg-white border border-[#ececec] p-12 text-center flex flex-col items-center gap-2.5 sm:gap-3 max-w-[560px] mx-auto rounded-[24px]">
           <FigmaIcon name="package" className="w-10 h-10 text-[#979797]" />
           <h1 className="text-[26px] font-semibold text-black">
             Product unavailable
@@ -183,7 +183,7 @@ function ProductDetailContent({
   return (
     <div className="kova-container px-2.5 lg:px-[10px] pt-[14px] pb-7 flex flex-col gap-4">
       {/* Top Store Strip */}
-      <div className="bg-white border border-[#ececec] rounded-[16px] px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white border border-[#ececec] p-2 sm:px-3 sm:py-2 flex flex-wrap items-center justify-between gap-2.5 rounded-[24px] sm:rounded-full">
         <div className="flex flex-wrap items-center gap-3">
           <Link
             to={`/store/${product.store_slug}`}
@@ -249,7 +249,7 @@ function ProductDetailContent({
       >
         {/* Photo Gallery */}
         <div className="flex flex-col gap-2.5 w-full">
-          <div className="w-full h-[360px] sm:h-[420px] rounded-[20px] overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center">
+          <div className="w-full h-[360px] sm:h-[420px] overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center rounded-[14px]">
             {displayImage ? (
               <img
                 src={displayImage}
@@ -330,7 +330,7 @@ function ProductDetailContent({
           </h1>
 
           {/* Price Box */}
-          <div className="kova-gradient rounded-[16px] px-[18px] py-4 flex flex-col gap-1">
+          <div className="kova-gradient px-[18px] py-4 flex flex-col gap-1 rounded-[14px]">
             <div className="flex flex-wrap items-baseline gap-2.5">
               <span className="text-[32px] font-bold text-white leading-tight">
                 ${displayPrice.toFixed(2)}
@@ -458,9 +458,9 @@ function ProductDetailContent({
                 <Link
                   key={item.id}
                   to={`/product/${item.slug}`}
-                  className="bg-white h-[86px] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] p-1 rounded-[16px] flex items-center gap-3.5 transition-all group"
+                  className="bg-white h-[86px] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] p-1 flex items-center gap-3.5 transition-all group rounded-[24px]"
                 >
-                  <div className="w-[80px] h-[80px] rounded-[14px] overflow-hidden bg-[#f7f7f7] shrink-0 flex items-center justify-center">
+                  <div className="w-[80px] h-[80px] overflow-hidden bg-[#f7f7f7] shrink-0 flex items-center justify-center rounded-[14px]">
                     {item.image ? (
                       <img
                         src={item.image}
@@ -490,7 +490,7 @@ function ProductDetailContent({
       </section>
 
       {/* Tabs: Specifications & Customer Reviews */}
-      <section className="bg-white border border-[#ececec] rounded-[20px] px-5 py-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] px-5 py-5 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center gap-2">
           {[
             { id: 'specs' as const, label: 'Specifications' },
@@ -532,7 +532,7 @@ function ProductDetailContent({
                 {Object.entries(product.specifications).map(([k, v]) => (
                   <div
                     key={k}
-                    className="bg-[#f7f7f7] rounded-[14px] px-4 py-3 flex items-center justify-between gap-4"
+                    className="bg-[#f7f7f7] px-4 py-3 flex items-center justify-between gap-4 rounded-[14px]"
                   >
                     <span className="text-[13px] font-medium text-[#767676]">
                       {k}
@@ -555,7 +555,7 @@ function ProductDetailContent({
 
         {activeTab === 'reviews' && (
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#f7f7f7] rounded-[16px] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#f7f7f7] p-2.5 rounded-[14px]">
               <p className="text-[14px] font-semibold text-black">
                 {reviews.length} customer review
                 {reviews.length === 1 ? '' : 's'}

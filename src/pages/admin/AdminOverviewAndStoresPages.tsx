@@ -434,7 +434,7 @@ export function AdminOverviewPage() {
       />
 
       {showCustomPicker && (
-        <div className="bg-white border border-[#ececec] rounded-[18px] px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-white border border-[#ececec] p-2.5 lg:px-4 flex flex-wrap items-center justify-between gap-2.5 rounded-[24px] lg:rounded-full">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[12.5px] font-semibold text-black">
               Custom date range
@@ -522,9 +522,9 @@ export function AdminOverviewPage() {
           />
         </div>
 
-        {/* Bottom 2:1 Operations Row (Exact Figma Admin · 01) */}
+        {/* Bottom 2:1 Operations Row (24px parent - 14px p-3.5 = 10px child) */}
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4 items-start">
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
+          <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3 rounded-[24px]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
@@ -553,7 +553,7 @@ export function AdminOverviewPage() {
             </div>
 
             {pendingApps.length === 0 && openDisputes.length === 0 ? (
-              <div className="py-12 text-center bg-[#f7f7f7] rounded-[14px]">
+              <div className="py-12 text-center bg-[#f7f7f7] rounded-[10px]">
                 <p className="text-[14px] font-semibold text-black">
                   All queues are clear
                 </p>
@@ -665,7 +665,7 @@ export function AdminOverviewPage() {
           </section>
 
           <div className="flex flex-col gap-4">
-            <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+            <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3.5 rounded-[24px]">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
                   Top-performing stores
@@ -675,7 +675,7 @@ export function AdminOverviewPage() {
                 </p>
               </div>
               {data.top_stores.length === 0 ? (
-                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
+                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[14px]">
                   No store sales recorded for {activePeriodLabel.toLowerCase()}.
                 </p>
               ) : (
@@ -720,7 +720,7 @@ export function AdminOverviewPage() {
               )}
             </section>
 
-            <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+            <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3.5 rounded-[24px]">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
                   Best-selling products
@@ -730,7 +730,7 @@ export function AdminOverviewPage() {
                 </p>
               </div>
               {data.best_selling_products.length === 0 ? (
-                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
+                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[14px]">
                   No product orders recorded for{' '}
                   {activePeriodLabel.toLowerCase()}.
                 </p>
@@ -1074,7 +1074,7 @@ export function AdminStoresPage() {
       <KpiGrid items={kpis} />
 
       {/* Main White Table Card (Exact Figma Admin · 02) */}
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FilterPillTabs<StoreFilterMode>
             value={filterMode}
@@ -1127,7 +1127,7 @@ export function AdminStoresPage() {
           <DashboardTableSkeleton rows={6} />
         ) : isAppTab ? (
           pagedApps.length === 0 ? (
-            <div className="py-14 text-center bg-[#f7f7f7] rounded-[14px] text-[13.5px] text-[#767676]">
+            <div className="py-14 text-center bg-[#f7f7f7] text-[13.5px] text-[#767676] rounded-[14px]">
               No store applications match this filter.
             </div>
           ) : (
@@ -1211,7 +1211,7 @@ export function AdminStoresPage() {
             </div>
           )
         ) : pagedStores.length === 0 ? (
-          <div className="py-14 text-center bg-[#f7f7f7] rounded-[14px] text-[13.5px] text-[#767676]">
+          <div className="py-14 text-center bg-[#f7f7f7] text-[13.5px] text-[#767676] rounded-[14px]">
             No stores match this filter.
           </div>
         ) : (
@@ -1372,7 +1372,7 @@ export function AdminStoresPage() {
           <div className="flex flex-col gap-5">
             {/* Mini KPI strip */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[#f7f7f7] rounded-[14px] p-3.5">
+              <div className="bg-[#f7f7f7] p-3.5 rounded-[14px]">
                 <p className="text-[11px] font-medium text-[#767676]">
                   Products
                 </p>
@@ -1380,13 +1380,13 @@ export function AdminStoresPage() {
                   {selectedStore.products_count ?? 0}
                 </p>
               </div>
-              <div className="bg-[#f7f7f7] rounded-[14px] p-3.5">
+              <div className="bg-[#f7f7f7] p-3.5 rounded-[14px]">
                 <p className="text-[11px] font-medium text-[#767676]">Orders</p>
                 <p className="text-[20px] font-bold text-black mt-1">
                   {selectedStore.orders_count ?? 0}
                 </p>
               </div>
-              <div className="bg-[#f7f7f7] rounded-[14px] p-3.5">
+              <div className="bg-[#f7f7f7] p-3.5 rounded-[14px]">
                 <p className="text-[11px] font-medium text-[#767676]">Status</p>
                 <div className="mt-1.5">
                   <StatusPill
@@ -1542,7 +1542,7 @@ export function AdminStoresPage() {
       >
         {selectedApp && (
           <div className="flex flex-col gap-5">
-            <div className="flex items-center justify-between bg-[#f7f7f7] rounded-[14px] p-4">
+            <div className="flex items-center justify-between bg-[#f7f7f7] p-2.5 rounded-[14px]">
               <div>
                 <p className="text-[11.5px] text-[#767676]">
                   Application status
@@ -1600,7 +1600,7 @@ export function AdminStoresPage() {
                 </div>
               )}
               {selectedApp.rejection_reason && (
-                <div className="sm:col-span-2 bg-[#fdecec] rounded-[10px] p-3">
+                <div className="sm:col-span-2 bg-[#fdecec] p-3 rounded-[14px]">
                   <dt className="text-[#e5322d] font-semibold">
                     Rejection reason
                   </dt>

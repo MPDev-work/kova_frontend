@@ -157,7 +157,7 @@ function ProductReviewModal({
           onSubmit={handleSubmit}
           className="flex flex-col gap-4"
         >
-          <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3 flex items-center gap-3">
+          <div className="bg-[#f7f7f7] border border-[#ececec] p-3 flex items-center gap-3 rounded-[14px]">
             <div className="w-12 h-12 rounded-[10px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
               {target.productImage ? (
                 <img
@@ -412,7 +412,7 @@ export function MyOrdersPage() {
         />
       </div>
 
-      <section className="bg-white border border-[#ececec] rounded-[16px] p-5 flex flex-col gap-3.5">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3.5 rounded-[24px]">
         <h2 className="text-[16px] font-semibold text-black">
           Orders ({filtered.length})
         </h2>
@@ -618,7 +618,7 @@ export function MyOrdersPage() {
               {selectedOrder.children.map((pkg, idx) => (
                 <div
                   key={pkg.id}
-                  className="bg-white border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3.5"
+                  className="bg-white border border-[#ececec] p-2.5 flex flex-col gap-3.5 rounded-[24px]"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#ececec]">
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -690,7 +690,7 @@ export function MyOrdersPage() {
                       : undefined;
                     return (
                       <div key={item.id} className="flex items-center gap-3">
-                        <div className="w-[54px] h-[54px] rounded-[10px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center">
+                        <div className="w-[54px] h-[54px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center rounded-[14px]">
                           {item.image ? (
                             <img
                               src={item.image}
@@ -927,7 +927,7 @@ export function OrderDetailsPage() {
 
   if (!order) {
     return (
-      <div className="bg-white border border-[#ececec] rounded-[16px] p-8 text-center flex flex-col items-center gap-3">
+      <div className="bg-white border border-[#ececec] p-8 text-center flex flex-col items-center gap-3 rounded-[24px]">
         <p className="text-[16px] font-semibold text-black">Order not found</p>
         <Link
           to="/account/orders"
@@ -986,7 +986,7 @@ export function OrderDetailsPage() {
           {order.children.map((pkg, idx) => (
             <div
               key={pkg.id}
-              className="bg-white border border-[#ececec] rounded-[16px] p-5 flex flex-col gap-4"
+              className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#ececec]">
                 <div className="flex items-center gap-3">
@@ -1055,7 +1055,7 @@ export function OrderDetailsPage() {
                   : undefined;
                 return (
                   <div key={item.id} className="flex items-center gap-3.5">
-                    <div className="w-[64px] h-[64px] rounded-[12px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center">
+                    <div className="w-[64px] h-[64px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center rounded-[14px]">
                       {item.image ? (
                         <img
                           src={item.image}
@@ -1111,7 +1111,7 @@ export function OrderDetailsPage() {
           ))}
         </div>
 
-        <aside className="bg-white border border-[#ececec] rounded-[16px] p-5 flex flex-col gap-5">
+        <aside className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 rounded-[24px]">
           <div>
             <h3 className="text-[15px] font-semibold text-black mb-1.5">
               Delivery address
@@ -1249,7 +1249,7 @@ export function CancelOrderPage() {
         <h1 className="text-[22px] font-bold text-black">Cancel order</h1>
       </div>
 
-      <div className="bg-white border border-[#ececec] rounded-[16px] p-6 flex flex-col gap-4">
+      <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <p className="text-[13.5px] text-[#767676]">
           Select a cancellation reason. Pending orders are cancelled immediately
           and inventory is restored.

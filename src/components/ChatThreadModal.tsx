@@ -324,7 +324,7 @@ export function ChatThreadModal({
       ) : (
         <div className="flex flex-col gap-4">
           {/* Profile Card Bar (matches Seller & Admin chat modal) */}
-          <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-[#f7f7f7] border border-[#ececec] p-3.5 flex flex-wrap items-center justify-between gap-3 rounded-[14px]">
             <div className="flex items-center gap-3 min-w-0">
               <span className="w-10 h-10 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden shrink-0 flex items-center justify-center text-[13px] font-bold">
                 {headerAvatar ? (
@@ -385,7 +385,7 @@ export function ChatThreadModal({
           </div>
 
           {/* Chat Thread Canvas */}
-          <div className="bg-[#fafafa] border border-[#ececec] rounded-[16px] p-4 flex flex-col gap-3 min-h-[240px]">
+          <div className="bg-[#fafafa] border border-[#ececec] p-2.5 flex flex-col gap-3 min-h-[240px] rounded-[14px]">
             {(() => {
               const hasInitial =
                 Boolean(ticket.message?.trim()) ||

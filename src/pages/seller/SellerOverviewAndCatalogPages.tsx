@@ -398,7 +398,7 @@ export function SellerOverviewPage() {
       />
 
       {showCustomPicker && (
-        <div className="bg-white border border-[#ececec] rounded-[18px] px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-white border border-[#ececec] p-2.5 lg:px-4 flex flex-wrap items-center justify-between gap-2.5 rounded-[24px] lg:rounded-full">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[12.5px] font-semibold text-black">
               Custom date range
@@ -480,7 +480,7 @@ export function SellerOverviewPage() {
 
         {/* Bottom 2:1 Orders + Top Products & Low Stock Row (Exact Figma Seller · 01) */}
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-4 items-start">
-          <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
+          <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
@@ -560,7 +560,7 @@ export function SellerOverviewPage() {
           </section>
 
           <div className="flex flex-col gap-4">
-            <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+            <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3.5 rounded-[24px]">
               <div>
                 <h2 className="text-[15.5px] font-bold text-black">
                   Top-selling products
@@ -570,7 +570,7 @@ export function SellerOverviewPage() {
                 </p>
               </div>
               {data.top_products.length === 0 ? (
-                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[12px]">
+                <p className="text-[12.5px] text-[#767676] py-6 text-center bg-[#f7f7f7] rounded-[10px]">
                   No product sales recorded for{' '}
                   {activePeriodLabel.toLowerCase()}.
                 </p>
@@ -593,7 +593,7 @@ export function SellerOverviewPage() {
                               className="w-10 h-10 rounded-[10px] object-cover border border-[#ececec] shrink-0"
                             />
                           ) : (
-                            <span className="w-10 h-10 rounded-[10px] bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0">
+                            <span className="w-10 h-10 bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0 rounded-[10px]">
                               <FigmaIcon
                                 name="package"
                                 className="w-4 h-4 text-[#979797]"
@@ -619,7 +619,7 @@ export function SellerOverviewPage() {
               )}
             </section>
 
-            <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+            <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3.5 rounded-[24px]">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <h2 className="text-[15.5px] font-bold text-black">
@@ -637,7 +637,7 @@ export function SellerOverviewPage() {
                 )}
               </div>
               {lowStockProducts.length === 0 ? (
-                <p className="text-[12.5px] text-[#029500] py-5 text-center bg-[#e7f6e7] rounded-[12px] font-semibold">
+                <p className="text-[12.5px] text-[#029500] py-5 text-center bg-[#e7f6e7] font-semibold rounded-[10px]">
                   All SKUs are well-stocked.
                 </p>
               ) : (
@@ -1014,7 +1014,7 @@ export function SellerProductsPage() {
         }
       />
 
-      <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+      <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FilterPillTabs<ProductFilterTab>
             value={tab}
@@ -1035,7 +1035,7 @@ export function SellerProductsPage() {
             ]}
           />
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <select
               value={categoryFilter}
               onChange={(e) => {
@@ -1043,7 +1043,7 @@ export function SellerProductsPage() {
                 setPage(1);
               }}
               aria-label="Filter by category"
-              className="bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-3.5 h-[36px] text-[12px] font-medium text-black outline-none"
+              className="w-full sm:w-auto bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-3.5 h-[36px] text-[12px] font-medium text-black outline-none"
             >
               <option value="">All categories</option>
               {categories.map((c) => (
@@ -1053,62 +1053,67 @@ export function SellerProductsPage() {
               ))}
             </select>
 
-            <div className="flex items-center gap-2 bg-[#f7f7f7] border border-[#ececec] focus-within:border-[#ff6e20] focus-within:bg-white rounded-full px-3.5 h-[36px] w-[200px]">
-              <FigmaIcon name="search" className="w-3.5 h-3.5 text-[#979797]" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search SKU or title..."
-                className="flex-1 bg-transparent text-[12px] text-black placeholder:text-[#979797] outline-none min-w-0"
-              />
-            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2 bg-[#f7f7f7] border border-[#ececec] focus-within:border-[#ff6e20] focus-within:bg-white rounded-full px-3.5 h-[36px] flex-1 sm:flex-none sm:w-[210px] min-w-0">
+                <FigmaIcon
+                  name="search"
+                  className="w-3.5 h-3.5 text-[#979797] shrink-0"
+                />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search SKU or title..."
+                  className="flex-1 bg-transparent text-[12px] text-black placeholder:text-[#979797] outline-none min-w-0"
+                />
+              </div>
 
-            <div
-              className="inline-flex items-center bg-[#f7f7f7] border border-[#ececec] rounded-full p-0.5 h-[36px]"
-              role="group"
-              aria-label="Product view layout"
-            >
-              <button
-                type="button"
-                onClick={() => handleSetViewMode('table')}
-                title="Table view"
-                aria-label="Table view"
-                aria-pressed={viewMode === 'table'}
-                className={`inline-flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
-                  viewMode === 'table'
-                    ? 'bg-[#ff6e20] text-white'
-                    : 'text-[#767676] hover:text-black'
-                }`}
+              <div
+                className="inline-flex items-center bg-[#f7f7f7] border border-[#ececec] rounded-full p-0.5 h-[36px] shrink-0"
+                role="group"
+                aria-label="Product view layout"
               >
-                <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Table</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetViewMode('grid')}
-                title="Grid view"
-                aria-label="Grid view"
-                aria-pressed={viewMode === 'grid'}
-                className={`inline-flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
-                  viewMode === 'grid'
-                    ? 'bg-[#ff6e20] text-white'
-                    : 'text-[#767676] hover:text-black'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Grid</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetViewMode('table')}
+                  title="Table view"
+                  aria-label="Table view"
+                  aria-pressed={viewMode === 'table'}
+                  className={`inline-flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+                    viewMode === 'table'
+                      ? 'bg-[#ff6e20] text-white'
+                      : 'text-[#767676] hover:text-black'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Table</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetViewMode('grid')}
+                  title="Grid view"
+                  aria-label="Grid view"
+                  aria-pressed={viewMode === 'grid'}
+                  className={`inline-flex items-center gap-1.5 h-[30px] px-3 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+                    viewMode === 'grid'
+                      ? 'bg-[#ff6e20] text-white'
+                      : 'text-[#767676] hover:text-black'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Grid</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Contextual Bulk Action Bar (Exact Figma Seller · 02 orange strip) */}
         {selectedIds.length > 0 && (
-          <div className="bg-[#ffefe6] border border-[#ffd8c2] rounded-[14px] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-[#ffefe6] border border-[#ffd8c2] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 rounded-[14px]">
             <span className="text-[12.5px] font-bold text-[#ff6e20]">
               {selectedIds.length} product{selectedIds.length > 1 ? 's' : ''}{' '}
               selected
@@ -1145,7 +1150,7 @@ export function SellerProductsPage() {
         {loading ? (
           <DashboardTableSkeleton rows={6} />
         ) : paged.length === 0 ? (
-          <div className="py-14 text-center bg-[#f7f7f7] rounded-[14px] flex flex-col items-center gap-3">
+          <div className="py-14 text-center bg-[#f7f7f7] flex flex-col items-center gap-3 rounded-[14px]">
             <FigmaIcon name="package" className="w-8 h-8 text-[#979797]" />
             <p className="text-[14.5px] font-semibold text-black">
               No products found
@@ -1159,7 +1164,7 @@ export function SellerProductsPage() {
             </button>
           </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5">
             {paged.map((p) => {
               const regular = Number(p.regular_price || 0);
               const discount =
@@ -1186,14 +1191,14 @@ export function SellerProductsPage() {
               return (
                 <div
                   key={p.id}
-                  className={`group bg-white border transition-all rounded-[20px] flex flex-col gap-2 pb-3 overflow-hidden ${
+                  className={`group bg-white border transition-all rounded-[14px] flex flex-col gap-1.5 sm:gap-2 pb-2.5 sm:pb-3 overflow-hidden min-w-0 ${
                     isChecked
                       ? 'border-[#ff6e20] ring-2 ring-[#ff6e20]/15'
                       : 'border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-md'
                   }`}
                 >
                   {/* Photo Box — matches client ProductCard */}
-                  <div className="relative aspect-[276/260] w-full overflow-hidden rounded-[20px] bg-[#f7f7f7]">
+                  <div className="relative aspect-square sm:aspect-[276/260] w-full overflow-hidden bg-[#f7f7f7]">
                     <button
                       type="button"
                       onClick={() => void openProductDetail(p)}
@@ -1207,128 +1212,108 @@ export function SellerProductsPage() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-[#979797]">
-                          <FigmaIcon name="package" className="w-10 h-10" />
+                          <FigmaIcon name="package" className="w-8 h-8 sm:w-10 sm:h-10" />
                         </div>
                       )}
                     </button>
 
-                    {/* Top-left High-Contrast Status Badge */}
-                    {/* <div className="absolute top-2.5 left-2.5">
-                      <span
-                        className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm ${
-                          p.stock_quantity === 0
-                            ? 'bg-[#e5322d] text-white'
-                            : p.status === 'published'
-                              ? 'bg-[#029500] text-white'
-                              : p.status === 'draft'
-                                ? 'bg-[#ff6e20] text-white'
-                                : 'bg-[#333333] text-white'
-                        }`}
-                      >
-                        {p.stock_quantity === 0
-                          ? 'Out of stock'
-                          : p.status === 'published'
-                            ? 'Active'
-                            : p.status === 'draft'
-                              ? 'Draft'
-                              : 'Archived'}
-                      </span>
-                    </div> */}
-
                     {/* Discount Badge */}
                     {discountPct > 0 && (
-                      <div className="absolute top-2.5 right-2.5 bg-[#e5322d] text-white text-[11px] font-bold leading-[1.35] px-2 py-[3px] rounded-full">
+                      <div className="absolute top-2 right-2 bg-[#e5322d] text-white text-[10px] sm:text-[11px] font-bold leading-[1.35] px-1.5 sm:px-2 py-[2px] sm:py-[3px] rounded-full">
                         -{discountPct}%
                       </div>
                     )}
 
                     {/* Free Delivery Badge (bottom-left corner — matches client ProductCard) */}
                     {p.free_shipping && (
-                      <div className="absolute bottom-0 left-0 z-10 bg-green-600 rounded-tr-[14px] px-2.5 py-1 flex items-center gap-1 leading-none shadow-sm">
-                        <span className="text-[11.5px] text-[#ffe169]">
+                      <div className="absolute bottom-0 left-0 z-10 bg-green-600 rounded-tr-[12px] px-2 py-0.5 sm:px-2.5 sm:py-1 flex items-center gap-1 leading-none shadow-sm">
+                        <span className="text-[10px] sm:text-[11.5px] text-[#ffe169]">
                           Free
                         </span>
-                        <span className="text-[11.5px] text-white">
+                        <span className="text-[10px] sm:text-[11.5px] text-white">
                           Delivery
                         </span>
                       </div>
                     )}
 
                     {p.stock_quantity === 0 && (
-                      <div className="absolute bottom-2 right-2 bg-black/75 text-white text-[10.5px] font-semibold px-2.5 py-0.5 rounded-full">
+                      <div className="absolute bottom-2 right-2 bg-black/75 text-white text-[10px] sm:text-[10.5px] font-semibold px-2 py-0.5 rounded-full">
                         Out of stock
                       </div>
                     )}
                   </div>
 
-                  {/* Card Info — matches client ProductCard */}
-                  <div className="px-3 flex flex-col gap-[5px] flex-1">
+                  {/* Card Info — compact 2-col responsive layout */}
+                  <div className="px-2 sm:px-3 flex flex-col gap-1 sm:gap-[5px] flex-1 min-w-0">
                     <button
                       type="button"
                       onClick={() => void openProductDetail(p)}
-                      className="text-left text-[14px] font-medium leading-[1.35] text-black line-clamp-2 min-h-[38px] group-hover:text-[#ff6e20] transition-colors cursor-pointer"
+                      className="text-left text-[12.5px] sm:text-[14px] font-medium leading-[1.3] sm:leading-[1.35] text-black line-clamp-2 min-h-[33px] sm:min-h-[38px] group-hover:text-[#ff6e20] transition-colors cursor-pointer"
                     >
                       {p.name}
                     </button>
 
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="bg-[#ffefe6] text-[#ff6e20] text-[10px] font-semibold leading-[1.35] px-1.5 py-[2px] rounded-[6px] inline-flex items-center gap-1 max-w-[140px]">
+                      <span className="bg-[#ffefe6] text-[#ff6e20] text-[9.5px] sm:text-[10px] font-semibold leading-[1.35] px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 max-w-full">
                         <span className="truncate">{storeName}</span>
                         {storeVerified && <VerifiedBadge size="xs" />}
                       </span>
                       {reviewsCount > 0 && (
-                        <span className="text-[11px] text-[#979797] leading-[1.35]">
+                        <span className="text-[10.5px] sm:text-[11px] text-[#979797] leading-[1.35]">
                           ★ {rating.toFixed(1)} ({reviewsCount})
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-baseline gap-1.5 mt-auto pt-0.5">
-                      <span className="text-[21px] font-bold leading-[1.2] text-[#ff6e20]">
+                    <div className="flex items-baseline gap-1 sm:gap-1.5 flex-wrap mt-auto pt-0.5">
+                      <span className="text-[16px] sm:text-[21px] font-bold leading-[1.2] text-[#ff6e20]">
                         ${price.toFixed(2)}
                       </span>
-                      <span className="text-[11px] font-semibold text-[#ff6e20]">
+                      <span className="text-[10px] sm:text-[11px] font-semibold text-[#ff6e20]">
                         USD
                       </span>
                       {regular > price && (
-                        <span className="text-[11px] text-[#979797] line-through">
+                        <span className="text-[10px] sm:text-[11px] text-[#979797] line-through">
                           ${regular.toFixed(2)}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 text-[11px]">
-                      <span className="text-[#767676]">
+                    <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
+                      <span className="text-[#767676] truncate">
                         {formatKhr(price, price >= 300, khrRate)}
                       </span>
                       <span
-                        className={`font-semibold ${
+                        className={`font-semibold shrink-0 ${
                           p.stock_quantity === 0 || low
                             ? 'text-[#e5322d]'
                             : 'text-[#029500]'
                         }`}
                       >
-                        {p.stock_quantity} in stock
+                        {p.stock_quantity} left
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 pt-2 mt-1 border-t border-[#f1f1f1]">
+                    <div className="flex items-center gap-1 sm:gap-1.5 pt-2 mt-1 border-t border-[#f1f1f1]">
                       <button
                         type="button"
                         onClick={() => void openProductDetail(p)}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold py-1.5 px-3 rounded-full transition-colors cursor-pointer"
+                        className="flex-1 min-w-0 inline-flex items-center justify-center gap-1 bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[11px] sm:text-[12px] font-semibold py-1.5 px-2 sm:px-3 rounded-full transition-colors cursor-pointer"
                       >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>View detail</span>
+                        <Eye className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate sm:hidden">View</span>
+                        <span className="hidden sm:inline truncate">
+                          View detail
+                        </span>
                       </button>
                       <button
                         type="button"
                         onClick={() => openEditProductModal(p.id)}
                         title="Edit product"
                         aria-label={`Edit ${p.name}`}
-                        className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ff6e20]/40 text-[#555555] hover:text-[#ff6e20] flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ff6e20]/40 text-[#555555] hover:text-[#ff6e20] flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       </button>
                       <button
                         type="button"
@@ -1336,9 +1321,9 @@ export function SellerProductsPage() {
                         onClick={() => void handleDelete(p)}
                         title="Delete product"
                         aria-label={`Delete ${p.name}`}
-                        className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#fff0f0] border border-[#ececec] hover:border-[#e5322d]/40 text-[#767676] hover:text-[#e5322d] flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer shrink-0"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f7f7f7] hover:bg-[#fff0f0] border border-[#ececec] hover:border-[#e5322d]/40 text-[#767676] hover:text-[#e5322d] flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer shrink-0"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1406,7 +1391,7 @@ export function SellerProductsPage() {
                               className="w-11 h-11 rounded-[10px] object-cover border border-[#ececec] shrink-0"
                             />
                           ) : (
-                            <span className="w-11 h-11 rounded-[10px] bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0">
+                            <span className="w-11 h-11 bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0 rounded-[14px]">
                               <FigmaIcon
                                 name="package"
                                 className="w-4 h-4 text-[#979797]"
@@ -1611,7 +1596,7 @@ export function SellerProductsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-[310px_minmax(0,1fr)] gap-5">
                   {/* Image Gallery */}
                   <div className="flex flex-col gap-2.5">
-                    <div className="relative aspect-square w-full rounded-[18px] overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center">
+                    <div className="relative aspect-square w-full overflow-hidden bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center rounded-[14px]">
                       {currentImg ? (
                         <img
                           src={currentImg}
@@ -1712,7 +1697,7 @@ export function SellerProductsPage() {
                     </div>
 
                     {/* Price Card */}
-                    <div className="bg-[#f7f7f7] border border-[#ececec] rounded-[14px] p-3.5 flex flex-wrap items-baseline justify-between gap-2">
+                    <div className="bg-[#f7f7f7] border border-[#ececec] p-3.5 flex flex-wrap items-baseline justify-between gap-2 rounded-[14px]">
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-[26px] font-bold text-[#ff6e20] leading-none">
                           ${effective.toFixed(2)}
@@ -1733,13 +1718,13 @@ export function SellerProductsPage() {
 
                     {/* Key Metadata Grid */}
                     <div className="grid grid-cols-2 gap-2.5 text-[12.5px]">
-                      <div className="bg-[#fafafa] border border-[#ececec] rounded-[12px] px-3 py-2.5">
+                      <div className="bg-[#fafafa] border border-[#ececec] px-3 py-2.5 rounded-[14px]">
                         <p className="text-[11px] text-[#8a8a8a]">SKU</p>
                         <p className="font-mono font-semibold text-black mt-0.5 truncate">
                           {p.sku}
                         </p>
                       </div>
-                      <div className="bg-[#fafafa] border border-[#ececec] rounded-[12px] px-3 py-2.5">
+                      <div className="bg-[#fafafa] border border-[#ececec] px-3 py-2.5 rounded-[14px]">
                         <p className="text-[11px] text-[#8a8a8a]">Category</p>
                         <p className="font-semibold text-black mt-0.5 truncate">
                           {p.category?.name || 'Uncategorized'}
@@ -1748,7 +1733,7 @@ export function SellerProductsPage() {
                             : ''}
                         </p>
                       </div>
-                      <div className="bg-[#fafafa] border border-[#ececec] rounded-[12px] px-3 py-2.5">
+                      <div className="bg-[#fafafa] border border-[#ececec] px-3 py-2.5 rounded-[14px]">
                         <p className="text-[11px] text-[#8a8a8a]">Inventory</p>
                         <p
                           className={`font-semibold mt-0.5 ${
@@ -1766,7 +1751,7 @@ export function SellerProductsPage() {
                           )}
                         </p>
                       </div>
-                      <div className="bg-[#fafafa] border border-[#ececec] rounded-[12px] px-3 py-2.5">
+                      <div className="bg-[#fafafa] border border-[#ececec] px-3 py-2.5 rounded-[14px]">
                         <p className="text-[11px] text-[#8a8a8a]">
                           Listed / Updated
                         </p>
@@ -1783,7 +1768,7 @@ export function SellerProductsPage() {
 
                 {/* Full Description */}
                 {p.description && (
-                  <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-1.5">
+                  <div className="bg-[#fafafa] border border-[#ececec] p-2.5 flex flex-col gap-1.5 rounded-[14px]">
                     <h4 className="text-[13px] font-bold text-black">
                       Description
                     </h4>
@@ -1803,7 +1788,7 @@ export function SellerProductsPage() {
                       {p.variants.map((v) => (
                         <div
                           key={v.id}
-                          className="bg-[#fafafa] border border-[#ececec] rounded-[12px] p-3 flex items-center justify-between gap-3"
+                          className="bg-[#fafafa] border border-[#ececec] p-3 flex items-center justify-between gap-3 rounded-[14px]"
                         >
                           <div className="min-w-0">
                             <p className="text-[13px] font-semibold text-black truncate">
@@ -1840,7 +1825,7 @@ export function SellerProductsPage() {
                       {specEntries.map(([k, v]) => (
                         <div
                           key={k}
-                          className="bg-[#fafafa] border border-[#ececec] rounded-[10px] px-3 py-2"
+                          className="bg-[#fafafa] border border-[#ececec] px-3 py-2 rounded-[14px]"
                         >
                           <p className="text-[11px] text-[#8a8a8a]">{k}</p>
                           <p className="text-[12.5px] font-semibold text-black truncate">
@@ -1851,7 +1836,7 @@ export function SellerProductsPage() {
                       {p.attributes?.map((attr, idx) => (
                         <div
                           key={`${attr.name}-${idx}`}
-                          className="bg-[#fafafa] border border-[#ececec] rounded-[10px] px-3 py-2"
+                          className="bg-[#fafafa] border border-[#ececec] px-3 py-2 rounded-[14px]"
                         >
                           <p className="text-[11px] text-[#8a8a8a]">
                             {attr.name}
@@ -1868,7 +1853,7 @@ export function SellerProductsPage() {
                 )}
 
                 {/* SEO & Extra Metadata */}
-                <div className="bg-[#fafafa] border border-[#ececec] rounded-[14px] p-4 flex flex-col gap-1.5 text-[12px]">
+                <div className="bg-[#fafafa] border border-[#ececec] p-2.5 flex flex-col gap-1.5 text-[12px] rounded-[14px]">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-bold text-black">
                       Listing &amp; SEO details
@@ -2202,7 +2187,7 @@ function SellerProductFormModal({
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)] gap-4 items-start">
             <div className="flex flex-col gap-4">
               {/* Card 1: Basic Information */}
-              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
+              <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
                 <h2 className="text-[15.5px] font-bold text-black">
                   Basic information
                 </h2>
@@ -2246,7 +2231,7 @@ function SellerProductFormModal({
               </section>
 
               {/* Card 2: Product Media (Exact Figma orange dashed upload box) */}
-              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+              <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3.5 rounded-[24px]">
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <h2 className="text-[15.5px] font-bold text-black">
@@ -2305,7 +2290,7 @@ function SellerProductFormModal({
                   ))}
 
                   {images.length < 8 && (
-                    <label className="flex-1 min-w-[220px] min-h-[114px] border border-dashed border-[#ff6e20]/70 bg-[#fffaf7] hover:bg-[#ffefe6]/60 transition-colors rounded-[14px] px-4 py-5 flex flex-col items-center justify-center gap-1 cursor-pointer text-center">
+                    <label className="flex-1 min-w-[220px] min-h-[114px] border border-dashed border-[#ff6e20]/70 bg-[#fffaf7] hover:bg-[#ffefe6]/60 transition-colors px-4 py-5 flex flex-col items-center justify-center gap-1 cursor-pointer text-center rounded-[14px]">
                       <FigmaIcon
                         name="upload"
                         className="w-5 h-5 text-[#ff6e20]"
@@ -2330,7 +2315,7 @@ function SellerProductFormModal({
               </section>
 
               {/* Card 3: Pricing & Margin */}
-              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
+              <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
                 <div>
                   <h2 className="text-[15.5px] font-bold text-black">
                     Pricing &amp; KHR conversion
@@ -2383,7 +2368,7 @@ function SellerProductFormModal({
               </section>
 
               {/* Card 4: Inventory & SKU */}
-              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-4">
+              <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
                 <h2 className="text-[15.5px] font-bold text-black">
                   Inventory &amp; SKU
                 </h2>
@@ -2432,7 +2417,7 @@ function SellerProductFormModal({
 
             {/* Right Sidebar Cards (Exact Figma Seller · 03) */}
             <div className="flex flex-col gap-4">
-              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+              <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3.5 rounded-[24px]">
                 <h2 className="text-[15.5px] font-bold text-black">
                   Product status
                 </h2>
@@ -2494,7 +2479,7 @@ function SellerProductFormModal({
                 </div>
               </section>
 
-              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-3.5">
+              <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3.5 rounded-[24px]">
                 <div>
                   <h2 className="text-[15.5px] font-bold text-black">
                     Organization
@@ -2522,7 +2507,7 @@ function SellerProductFormModal({
                 </label>
               </section>
 
-              <section className="bg-white border border-[#ececec] rounded-[18px] p-5 flex flex-col gap-2">
+              <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2 rounded-[24px]">
                 <h2 className="text-[15.5px] font-bold text-black">
                   Search engine preview
                 </h2>
@@ -2724,7 +2709,7 @@ export function SellerInventoryPage() {
 
       {/* Exact Figma Seller · 06 2:1 Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(310px,1fr)] gap-5 items-start">
-        <section className="bg-white border border-[#ececec] rounded-[20px] p-5 flex flex-col gap-4">
+        <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
           <div>
             <h2 className="text-[15.5px] font-bold text-black">
               Stock levels &amp; SKU ledger
@@ -2754,7 +2739,7 @@ export function SellerInventoryPage() {
             <DashboardTableSkeleton rows={5} />
           ) : tab === 'history' ? (
             movements.length === 0 ? (
-              <p className="py-12 text-center bg-[#f7f7f7] rounded-[14px] text-[13px] text-[#767676]">
+              <p className="py-12 text-center bg-[#f7f7f7] text-[13px] text-[#767676] rounded-[14px]">
                 No stock movements recorded yet.
               </p>
             ) : (
@@ -2814,7 +2799,7 @@ export function SellerInventoryPage() {
               </div>
             )
           ) : filteredProducts.length === 0 ? (
-            <p className="py-12 text-center bg-[#f7f7f7] rounded-[14px] text-[13px] text-[#767676]">
+            <p className="py-12 text-center bg-[#f7f7f7] text-[13px] text-[#767676] rounded-[14px]">
               No products in this stock tier.
             </p>
           ) : (
@@ -2854,7 +2839,7 @@ export function SellerInventoryPage() {
                                 className="w-10 h-10 rounded-[10px] object-cover border border-[#ececec] shrink-0"
                               />
                             ) : (
-                              <span className="w-10 h-10 rounded-[10px] bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0">
+                              <span className="w-10 h-10 bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0 rounded-[14px]">
                                 <FigmaIcon
                                   name="package"
                                   className="w-4 h-4 text-[#979797]"
@@ -2919,7 +2904,7 @@ export function SellerInventoryPage() {
         {/* Exact Figma Seller · 06 Orange-Bordered Stock Adjustment Panel */}
         <form
           onSubmit={handleAdjust}
-          className="bg-white border border-[#ff6e20]/60 rounded-[20px] p-5 flex flex-col gap-4"
+          className="bg-white border border-[#ff6e20]/60 p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">

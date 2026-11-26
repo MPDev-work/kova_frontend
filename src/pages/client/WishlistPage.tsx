@@ -8,7 +8,7 @@ export function WishlistPage() {
   const { bootstrapping, isSignedIn, wishlist } = useStore();
 
   return (
-    <div className="kova-container px-4 lg:px-6 pt-5 pb-12 flex flex-col gap-5">
+    <div className="kova-container px-2.5 lg:px-6 pt-5 pb-12 flex flex-col gap-5">
       <p className="text-[12px] text-[#767676]">Home &nbsp;/&nbsp; Wishlist</p>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -39,7 +39,7 @@ export function WishlistPage() {
       {bootstrapping && isSignedIn ? (
         <ProductGridSkeleton count={5} />
       ) : !isSignedIn ? (
-        <div className="bg-white border border-[#ececec] rounded-[24px] py-16 px-6 flex flex-col items-center text-center gap-4">
+        <div className="bg-white border border-[#ececec] py-16 px-6 flex flex-col items-center text-center gap-2.5 sm:gap-3 rounded-[24px]">
           <div className="w-16 h-16 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <FigmaIcon name="heart" className="w-8 h-8" />
           </div>
@@ -57,7 +57,7 @@ export function WishlistPage() {
           </Link>
         </div>
       ) : wishlist.length === 0 ? (
-        <div className="bg-white border border-[#ececec] rounded-[24px] py-16 px-6 flex flex-col items-center text-center gap-4">
+        <div className="bg-white border border-[#ececec] py-16 px-6 flex flex-col items-center text-center gap-2.5 sm:gap-3 rounded-[24px]">
           <div className="w-16 h-16 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <FigmaIcon name="heart" className="w-8 h-8" />
           </div>
