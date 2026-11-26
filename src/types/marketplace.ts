@@ -47,6 +47,9 @@ export interface Store {
   policies?: string | null;
   products_count?: number;
   reviews_count?: number;
+  followers_count?: number;
+  is_following?: boolean;
+  followed_at?: string | null;
   shipping_methods?: ShippingMethod[];
 }
 

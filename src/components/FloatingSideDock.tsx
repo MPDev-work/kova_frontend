@@ -8,6 +8,7 @@ import {
   Home,
   MessagesSquare,
   ShoppingCart,
+  Store,
   User,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
@@ -40,6 +41,7 @@ export function FloatingSideDock() {
     user,
     cartCount,
     wishlistIds,
+    followedStores,
     notifications,
     unreadNotificationsCount,
   } = useStore();
@@ -58,12 +60,14 @@ export function FloatingSideDock() {
     'group relative w-10 h-10 rounded-[12px] flex items-center justify-center transition-colors';
 
   const profileTarget = isSignedIn && user ? '/account/profile' : '/login';
+  const followingTarget =
+    isSignedIn && user ? '/account/following' : '/login';
   const isHomeActive = pathname === '/';
   const isMessengerActive = pathname.startsWith('/help/tickets');
   const isCartActive = pathname === '/cart' || pathname === '/checkout';
-  const isWishlistActive = pathname === '/wishlist';
+  const isFollowingActive = pathname.startsWith('/account/following');
   const isProfileActive =
-    pathname.startsWith('/account') ||
+    (pathname.startsWith('/account') && !isFollowingActive) ||
     pathname === '/login' ||
     pathname === '/register';
 
@@ -177,7 +181,7 @@ export function FloatingSideDock() {
         </button>
       </aside>
 
-      {/* Mobile App Bottom Tab Bar (Home, Messenger, Cart, Wishlist, Profile) */}
+      {/* Mobile App Bottom Tab Bar (Home, Messenger, Cart, Following, Profile) */}
       <nav
         aria-label="Mobile navigation"
         className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-[12px] border-t border-[#ececec] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom)] select-none"
@@ -256,28 +260,28 @@ export function FloatingSideDock() {
           </Link>
 
           <Link
-            to="/wishlist"
+            to={followingTarget}
             className={`relative flex flex-col items-center justify-center gap-0.5 transition-colors ${
-              isWishlistActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
+              isFollowingActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
             }`}
           >
             <span className="relative inline-flex">
-              <Heart
+              <Store
                 className="w-[21px] h-[21px]"
-                strokeWidth={isWishlistActive ? 2.25 : 1.85}
+                strokeWidth={isFollowingActive ? 2.25 : 1.85}
               />
-              {!bootstrapping && isSignedIn && wishlistIds.length > 0 && (
+              {!bootstrapping && isSignedIn && followedStores.length > 0 && (
                 <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
-                  {wishlistIds.length > 99 ? '99+' : wishlistIds.length}
+                  {followedStores.length > 99 ? '99+' : followedStores.length}
                 </span>
               )}
             </span>
             <span
               className={`text-[10.5px] leading-tight ${
-                isWishlistActive ? 'font-bold' : 'font-medium'
+                isFollowingActive ? 'font-bold' : 'font-medium'
               }`}
             >
-              Wishlist
+              Following
             </span>
           </Link>
 

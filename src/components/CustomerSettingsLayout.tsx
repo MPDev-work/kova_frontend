@@ -37,6 +37,7 @@ function getBreadcrumbTitle(pathname: string): string {
   if (pathname.startsWith('/account/addresses/') && pathname.endsWith('/edit'))
     return 'Edit Address';
   if (pathname.startsWith('/account/addresses')) return 'Address Book';
+  if (pathname.startsWith('/account/following')) return 'Following';
   if (pathname.startsWith('/account/recently-viewed')) return 'Recently Viewed';
   if (pathname.startsWith('/account/reviews/write')) return 'Write a Review';
   if (pathname.startsWith('/account/reviews')) return 'My Reviews';
@@ -58,6 +59,7 @@ export function CustomerSettingsLayout() {
     addresses,
     reviews,
     wishlistIds,
+    followedStores,
     cartCount,
     notifications,
     unreadNotificationsCount,
@@ -166,6 +168,14 @@ export function CustomerSettingsLayout() {
           matchPrefixes: ['/account/orders'],
         },
         {
+          label: 'Following',
+          to: '/account/following',
+          icon: 'heart',
+          badge: followedStores.length,
+          badgeTone: 'orange',
+          matchPrefixes: ['/account/following'],
+        },
+        {
           label: 'My Reviews',
           to: '/account/reviews',
           icon: 'star',
@@ -222,6 +232,8 @@ export function CustomerSettingsLayout() {
       navigate('/account/security');
     } else if (q.includes('priv')) {
       navigate('/account/privacy');
+    } else if (q.includes('follow')) {
+      navigate('/account/following');
     } else if (q.includes('review')) {
       navigate('/account/reviews');
     } else {

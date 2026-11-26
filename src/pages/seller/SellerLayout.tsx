@@ -45,6 +45,9 @@ function getSellerBreadcrumbs(storeName: string, pathname: string): string[] {
   if (pathname.startsWith('/seller/reviews')) {
     return [storeName, 'Customer Reviews'];
   }
+  if (pathname.startsWith('/seller/followers')) {
+    return [storeName, 'Followers'];
+  }
   if (pathname.startsWith('/seller/messages')) {
     return [storeName, 'Customer Messages'];
   }
@@ -92,6 +95,7 @@ export function SellerLayout() {
   );
   const [summary, setSummary] = useState<SellerDashboardData | null>(null);
   const [openMessagesCount, setOpenMessagesCount] = useState(0);
+  const [followersCount, setFollowersCount] = useState(0);
 
   const isStoreOwner = Boolean(
     user?.roles?.includes('store_owner') || user?.store,
@@ -126,12 +130,16 @@ export function SellerLayout() {
       storeOwnerApi.getProfile(),
       storeOwnerApi.getDashboard(),
       storeOwnerApi.getTickets({ status: 'open', per_page: 1 }),
-    ]).then(([profRes, dashRes, ticketRes]) => {
+      storeOwnerApi.getFollowers({ per_page: 1 }),
+    ]).then(([profRes, dashRes, ticketRes, followRes]) => {
       if (!active) return;
       if (profRes.status === 'fulfilled') setStoreProfile(profRes.value);
       if (dashRes.status === 'fulfilled') setSummary(dashRes.value);
       if (ticketRes.status === 'fulfilled') {
         setOpenMessagesCount(ticketRes.value.stats?.open ?? 0);
+      }
+      if (followRes.status === 'fulfilled') {
+        setFollowersCount(followRes.value.stats?.total_followers ?? 0);
       }
     });
     return () => {
@@ -316,6 +324,13 @@ export function SellerLayout() {
       icon: 'star',
     },
     {
+      label: 'Followers',
+      to: '/seller/followers',
+      icon: 'heart',
+      badge: followersCount > 0 ? followersCount : undefined,
+      badgeTone: 'orange',
+    },
+    {
       label: 'Messages',
       to: '/seller/messages',
       icon: 'mail',
@@ -374,10 +389,7 @@ export function SellerLayout() {
     <>
       <div className="flex flex-col gap-3.5 overflow-y-auto no-scrollbar">
         <div className="flex items-center justify-between gap-2 px-1.5 pt-0.5">
-          <KovaLogo
-            size="sm"
-            to="/seller"
-          />
+          <KovaLogo size="sm" to="/seller" />
           {isMobile && (
             <button
               type="button"

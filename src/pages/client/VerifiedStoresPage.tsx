@@ -8,7 +8,7 @@ import {
   SkeletonImage,
   VerifiedStoreShowcaseSkeleton,
 } from '../../components/Skeleton';
-import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { StoreTagCard } from '../../components/StoreTagCard';
 
 export function VerifiedStoresPage() {
   const { bootstrapping, stores, products } = useStore();
@@ -134,8 +134,8 @@ export function VerifiedStoresPage() {
                 .slice(0, 5);
               return (
                 <section key={store.id} className="flex flex-col gap-[11px]">
-                  {/* Brand Banner with Clean Mobile Card & Desktop Frosted Glass Overlay */}
-                  <div className="relative w-full rounded-[22px] sm:rounded-[34px] overflow-hidden bg-white border border-[#ececec] sm:border-0 sm:bg-[#1e1e1e] sm:h-[320px] lg:h-[380px]">
+                  {/* Brand Banner with Redesigned Store Tag Card */}
+                  <div className="relative w-full rounded-[22px] sm:rounded-[34px] overflow-hidden bg-white border border-[#ececec] sm:border-0 sm:bg-[#1e1e1e] sm:h-[340px] lg:h-[400px]">
                     <Link
                       to={`/store/${store.slug}`}
                       className="block w-full h-[155px] sm:h-full bg-[#1e1e1e]"
@@ -151,65 +151,11 @@ export function VerifiedStoresPage() {
                       )}
                     </Link>
 
-                    <div className="p-3 sm:p-[12px] flex items-center gap-3 sm:gap-6 bg-white sm:absolute sm:left-[10px] sm:bottom-[10px] sm:w-[calc(100%-20px)] sm:max-w-[838px] sm:h-[176px] sm:rounded-[24px] sm:backdrop-blur-[18px] sm:bg-white/75 sm:shadow-[0_0_24px_rgba(0,0,0,0.22)]">
-                      <Link
-                        to={`/store/${store.slug}`}
-                        className="w-[62px] h-[62px] sm:w-[152px] sm:h-[152px] rounded-[14px] bg-white overflow-hidden shrink-0 flex items-center justify-center border border-[#ececec]"
-                      >
-                        {store.logo ? (
-                          <img
-                            src={store.logo}
-                            alt={store.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <FigmaIcon name="home" className="w-7 h-7 sm:w-10 sm:h-10 text-[#ff6e20]" />
-                        )}
-                      </Link>
-
-                      <div className="flex-1 min-w-0 sm:pr-3 flex flex-col gap-1.5 sm:gap-2">
-                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                          {store.is_verified && (
-                            <span className="bg-[#ff6e20] text-white text-[10px] sm:text-[11px] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full">
-                              VERIFIED STORE
-                            </span>
-                          )}
-                          <span className="bg-[#f4f4f4] sm:bg-white/90 text-black text-[10px] sm:text-[11px] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full">
-                            {store.products_count ?? storeItems.length} products
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <Link
-                            to={`/store/${store.slug}`}
-                            className="text-[17px] sm:text-[26px] font-bold text-black hover:text-[#ff6e20] transition-colors inline-flex items-center gap-1.5 sm:gap-2 min-w-0"
-                          >
-                            <span className="truncate">{store.name}</span>
-                            {store.is_verified && (
-                              <VerifiedBadge size="sm" label="Verified store" />
-                            )}
-                          </Link>
-                          <Link
-                            to={`/store/${store.slug}`}
-                            className="sm:hidden shrink-0 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-3.5 py-1.5 rounded-full transition-colors whitespace-nowrap"
-                          >
-                            Visit
-                          </Link>
-                        </div>
-                        {store.description && (
-                          <p className="hidden sm:block text-[13.5px] font-medium text-black/75 truncate">
-                            {store.description}
-                          </p>
-                        )}
-                        <div className="hidden sm:flex flex-wrap items-center gap-2 pt-0.5">
-                          <Link
-                            to={`/store/${store.slug}`}
-                            className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
-                          >
-                            Visit storefront
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
+                    <StoreTagCard
+                      store={store}
+                      productsCount={store.products_count ?? storeItems.length}
+                      variant="overlay"
+                    />
                   </div>
 
                   {/* 5-Column Product Row */}

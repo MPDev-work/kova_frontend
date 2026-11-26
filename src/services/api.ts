@@ -1243,6 +1243,31 @@ export const customerApi = {
     return res.data;
   },
 
+  async getFollowingStores() {
+    const res = await apiRequest<Store[]>('/customer/following');
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async followStore(storeIdOrSlug: number | string) {
+    return apiRequest<{
+      store_id: number;
+      is_following: boolean;
+      followers_count: number;
+    }>(`/stores/${encodeURIComponent(String(storeIdOrSlug))}/follow`, {
+      method: 'POST',
+    });
+  },
+
+  async unfollowStore(storeIdOrSlug: number | string) {
+    return apiRequest<{
+      store_id: number;
+      is_following: boolean;
+      followers_count: number;
+    }>(`/stores/${encodeURIComponent(String(storeIdOrSlug))}/follow`, {
+      method: 'DELETE',
+    });
+  },
+
   async applyForStore(payload: {
     store_name: string;
     store_description?: string;

@@ -85,7 +85,9 @@ import {
   SellerStorefrontPage,
 } from './pages/seller/SellerOperationsPages';
 import { SellerReviewsPage } from './pages/seller/SellerReviewsPage';
+import { SellerFollowersPage } from './pages/seller/SellerFollowersPage';
 import { SellerAccountSettingsPage } from './pages/seller/SellerAccountSettingsPage';
+import { FollowingStoresPage } from './pages/client/FollowingStoresPage';
 import { SellerStorePreviewPage } from './pages/seller/SellerStorePreviewPage';
 import { DashboardAccountSettingsPage } from './components/DashboardAccountSettingsPage';
 import { TicketInboxPanel } from './components/TicketInboxPanel';
@@ -246,6 +248,7 @@ export default function App() {
               path="addresses/:addressId/edit"
               element={<EditAddressPage />}
             />
+            <Route path="following" element={<FollowingStoresPage />} />
             <Route path="recently-viewed" element={<RecentlyViewedPage />} />
             <Route path="reviews" element={<MyReviewsPage />} />
             <Route path="reviews/write" element={<WriteReviewPage />} />
@@ -289,6 +292,7 @@ export default function App() {
             <Route path="inventory" element={<SellerInventoryPage />} />
             <Route path="orders" element={<SellerOrdersPage />} />
             <Route path="reviews" element={<SellerReviewsPage />} />
+            <Route path="followers" element={<SellerFollowersPage />} />
             <Route path="messages" element={<TicketInboxPanel mode="seller" />} />
             <Route
               path="shipping"

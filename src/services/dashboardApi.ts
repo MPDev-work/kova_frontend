@@ -145,6 +145,24 @@ export interface AdminUserItem {
   store?: { id: number; name: string; status: string } | null;
 }
 
+export interface SellerFollowerStats {
+  total_followers: number;
+  new_last_30_days: number;
+  ordering_followers: number;
+}
+
+export interface SellerFollowerItem {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  avatar?: string | null;
+  status?: string;
+  followed_at?: string | null;
+  orders_count: number;
+  total_spent: number;
+}
+
 export interface AdminCategoryItem {
   id: number;
   name: string;
@@ -1381,6 +1399,26 @@ export const storeOwnerApi = {
     return {
       stats: res.data.stats,
       reviews: normalizePaginated(res.data.reviews),
+    };
+  },
+
+  async getFollowers(params?: {
+    search?: string;
+    page?: number;
+    per_page?: number;
+  }) {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.per_page) qs.set('per_page', String(params.per_page));
+    const q = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiRequest<{
+      stats: SellerFollowerStats;
+      followers: PaginatedResult<SellerFollowerItem> | SellerFollowerItem[];
+    }>(`/store-owner/followers${q}`);
+    return {
+      stats: res.data.stats,
+      followers: normalizePaginated(res.data.followers),
     };
   },
 

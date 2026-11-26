@@ -151,10 +151,16 @@ interface StoreContextValue {
   ) => Promise<{ ok: boolean; message: string }>;
   removeCoupon: () => void;
 
-  // Wishlist & Recently Viewed
+  // Wishlist, Following & Recently Viewed
   wishlist: Product[];
   wishlistIds: number[];
   toggleWishlist: (productId: number) => Promise<void>;
+  followedStores: Store[];
+  followedStoreIds: number[];
+  refreshFollowing: () => Promise<void>;
+  toggleFollowStore: (
+    storeId: number,
+  ) => Promise<{ is_following: boolean; followers_count: number } | null>;
   recentlyViewedIds: number[];
   trackProductView: (productId: number) => void;
 
@@ -307,6 +313,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     null,
   );
   const [wishlist, setWishlist] = useState<Product[]>([]);
+  const [followedStores, setFollowedStores] = useState<Store[]>([]);
   const [recentlyViewedIds, setRecentlyViewedIds] = useState<number[]>(() => {
     try {
       const raw = window.localStorage.getItem('kova_recently_viewed');
@@ -521,21 +528,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshFollowing = useCallback(async () => {
+    if (!getAuthToken()) return;
+    try {
+      const list = await customerApi.getFollowingStores();
+      setFollowedStores(list);
+    } catch {
+      setFollowedStores([]);
+    }
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
-    const [wishRes, ordRes, addrRes, revRes, tckRes] = await Promise.allSettled(
-      [
+    const [wishRes, ordRes, addrRes, revRes, tckRes, followRes] =
+      await Promise.allSettled([
         wishlistApi.getWishlist(),
         orderApi.getOrders(30),
         customerApi.getAddresses(),
         customerApi.getMyReviews(),
         customerApi.getTickets(),
-      ],
-    );
+        customerApi.getFollowingStores(),
+      ]);
     if (wishRes.status === 'fulfilled') setWishlist(wishRes.value);
     if (ordRes.status === 'fulfilled') setOrders(ordRes.value);
     if (addrRes.status === 'fulfilled') setAddresses(addrRes.value);
     if (revRes.status === 'fulfilled') setReviews(revRes.value);
     if (tckRes.status === 'fulfilled') setTickets(tckRes.value);
+    if (followRes.status === 'fulfilled') setFollowedStores(followRes.value);
   }, []);
 
   useEffect(() => {
@@ -824,6 +842,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAuthToken(null);
     setUser(null);
     setWishlist([]);
+    setFollowedStores([]);
     setOrders([]);
     setAddresses([]);
     setReviews([]);
@@ -860,6 +879,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setCart(EMPTY_CART);
     setWishlist([]);
+    setFollowedStores([]);
     setOrders([]);
     setAddresses([]);
     setReviews([]);
@@ -877,6 +897,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setCart(EMPTY_CART);
     setWishlist([]);
+    setFollowedStores([]);
     setOrders([]);
     setAddresses([]);
     setReviews([]);
@@ -1051,6 +1072,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     return Math.min(d, couponEligibleSubtotal);
   })();
+
+  const toggleFollowStore = async (storeId: number) => {
+    if (!user) {
+      showToast('Please sign in to follow stores.');
+      return null;
+    }
+    const currentlyFollowing = followedStores.some((s) => s.id === storeId);
+    try {
+      const res = currentlyFollowing
+        ? await customerApi.unfollowStore(storeId)
+        : await customerApi.followStore(storeId);
+      const { is_following, followers_count } = res.data;
+
+      setStores((prev) =>
+        prev.map((s) =>
+          s.id === storeId ? { ...s, is_following, followers_count } : s,
+        ),
+      );
+
+      const fresh = await customerApi.getFollowingStores().catch(() => null);
+      if (fresh) {
+        setFollowedStores(fresh);
+      } else if (!is_following) {
+        setFollowedStores((prev) => prev.filter((s) => s.id !== storeId));
+      }
+
+      showToast(
+        res.message ||
+          (is_following ? 'Store followed.' : 'Store unfollowed.'),
+      );
+      return { is_following, followers_count };
+    } catch (err) {
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to update follow status.',
+      );
+      return null;
+    }
+  };
 
   const toggleWishlist = async (productId: number) => {
     if (!user) {
@@ -1261,6 +1322,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         wishlist,
         wishlistIds: wishlist.map((p) => p.id),
         toggleWishlist,
+        followedStores,
+        followedStoreIds: followedStores.map((s) => s.id),
+        refreshFollowing,
+        toggleFollowStore,
         recentlyViewedIds,
         trackProductView,
         orders,

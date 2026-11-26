@@ -30,15 +30,16 @@ export function PromotionPage() {
       <div className="kova-container px-2.5 lg:px-[10px] pt-[12px] pb-12 flex flex-col gap-[14px]">
         {/* Hero Banner */}
         {bootstrapping ? (
-          <Skeleton className="w-full aspect-[3616/1184] min-h-[180px] max-h-[458px] rounded-[24px]" />
+          <Skeleton className="w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[18px] sm:rounded-[24px]" />
         ) : (
           <Link
             to="/products"
-            className="block w-full aspect-[3616/1184] min-h-[180px] max-h-[458px] rounded-[24px] overflow-hidden group"
+            className="relative block w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[18px] sm:rounded-[24px] overflow-hidden group bg-[#ff6e20]"
           >
             <SkeletonImage
               src="/assets/banners/hero-main.png"
               alt="Kova Promotions"
+              wrapperClassName="absolute inset-0"
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.015]"
             />
           </Link>
@@ -46,59 +47,63 @@ export function PromotionPage() {
 
         {/* 5-Tile Promotional Bento Grid */}
         {bootstrapping ? (
-          <section className="grid grid-cols-1 lg:grid-cols-[276px_minmax(0,1fr)_560px] gap-3">
-            <Skeleton className="h-[220px] lg:h-[268px] rounded-[18px]" />
-            <div className="flex flex-col gap-3">
-              <Skeleton className="h-[128px] rounded-[18px]" />
-              <div className="grid grid-cols-2 gap-3">
-                <Skeleton className="h-[128px] rounded-[18px]" />
-                <Skeleton className="h-[128px] rounded-[18px]" />
+          <section className="grid grid-cols-2 lg:grid-cols-[276px_minmax(0,1fr)_560px] gap-2.5 sm:gap-3">
+            <Skeleton className="aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[16px] sm:rounded-[18px]" />
+            <div className="col-span-2 lg:col-span-1 order-first lg:order-none flex flex-col gap-2.5 sm:gap-3">
+              <Skeleton className="aspect-[16/6] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px]" />
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                <Skeleton className="aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px]" />
+                <Skeleton className="aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px]" />
               </div>
             </div>
-            <Skeleton className="h-[220px] lg:h-[268px] rounded-[18px]" />
+            <Skeleton className="aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[16px] sm:rounded-[18px]" />
           </section>
         ) : (
-          <section className="grid grid-cols-1 lg:grid-cols-[276px_minmax(0,1fr)_560px] gap-3">
+          <section className="grid grid-cols-2 lg:grid-cols-[276px_minmax(0,1fr)_560px] gap-2.5 sm:gap-3">
             <Link
               to="/products"
-              className="block h-[220px] lg:h-[268px] rounded-[18px] overflow-hidden group"
+              className="relative block aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
             >
               <SkeletonImage
                 src="/assets/banners/promo-12pct.png"
                 alt="Voucher Offers"
+                wrapperClassName="absolute inset-0"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               />
             </Link>
 
-            <div className="flex flex-col gap-3">
+            <div className="col-span-2 lg:col-span-1 order-first lg:order-none flex flex-col gap-2.5 sm:gap-3">
               <Link
                 to="/products"
-                className="block h-[128px] rounded-[18px] overflow-hidden group"
+                className="relative block aspect-[16/6] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
               >
                 <SkeletonImage
                   src="/assets/banners/promo-flash.png"
                   alt="Flash Sale"
+                  wrapperClassName="absolute inset-0"
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                 />
               </Link>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 <Link
                   to="/products"
-                  className="block h-[128px] rounded-[18px] overflow-hidden group"
+                  className="relative block aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
                 >
                   <SkeletonImage
                     src="/assets/banners/promo-treat-yourself.png"
                     alt="Featured Deals"
+                    wrapperClassName="absolute inset-0"
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 </Link>
                 <Link
                   to="/products"
-                  className="block h-[128px] rounded-[18px] overflow-hidden group"
+                  className="relative block aspect-[16/10] lg:aspect-auto lg:h-[128px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
                 >
                   <SkeletonImage
                     src="/assets/banners/promo-90pct.png"
                     alt="Shopping Day Deals"
+                    wrapperClassName="absolute inset-0"
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 </Link>
@@ -107,11 +112,12 @@ export function PromotionPage() {
 
             <Link
               to="/products"
-              className="block h-[220px] lg:h-[268px] rounded-[18px] overflow-hidden group"
+              className="relative block aspect-[4/3] lg:aspect-auto lg:h-[268px] rounded-[16px] sm:rounded-[18px] overflow-hidden group bg-white"
             >
               <SkeletonImage
                 src="/assets/banners/promo-1111.png"
                 alt="Big Sale"
+                wrapperClassName="absolute inset-0"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               />
             </Link>

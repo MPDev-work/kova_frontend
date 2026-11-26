@@ -40,27 +40,28 @@ export function FreeDeliveryPage() {
       <div className="kova-container px-2.5 lg:px-[10px] pt-[12px] pb-12 flex flex-col gap-[14px]">
         {/* Hero Banner */}
         {bootstrapping ? (
-          <Skeleton className="w-full aspect-[3616/1184] min-h-[180px] max-h-[458px] rounded-[24px]" />
+          <Skeleton className="w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[18px] sm:rounded-[24px]" />
         ) : (
           <Link
             to="/products"
-            className="block w-full aspect-[3616/1184] min-h-[180px] max-h-[458px] rounded-[24px] overflow-hidden group"
+            className="relative block w-full aspect-[16/6] sm:aspect-[3616/1184] max-h-[458px] rounded-[18px] sm:rounded-[24px] overflow-hidden group bg-[#ff6e20]"
           >
             <SkeletonImage
               src="/assets/banners/hero-main.png"
               alt="Kova Delivery Zone"
+              wrapperClassName="absolute inset-0"
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.015]"
             />
           </Link>
         )}
 
         {/* Delivery Zone Callout */}
-        <section className="bg-[#ff6d11] rounded-[18px] px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+        <section className="bg-[#ff6d11] rounded-[16px] sm:rounded-[18px] px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex flex-col gap-1">
-            <h1 className="text-[20px] sm:text-[22px] font-bold text-white leading-[1.3]">
+            <h1 className="text-[16px] sm:text-[22px] font-bold text-white leading-[1.3]">
               DELIVERY ACROSS ALL 25 PROVINCES OF CAMBODIA
             </h1>
-            <p className="text-[13.5px] text-white/95">
+            <p className="text-[12.5px] sm:text-[13.5px] text-white/95">
               Compare store shipping rates at checkout or apply a free-shipping
               promotion code.
             </p>
@@ -69,7 +70,7 @@ export function FreeDeliveryPage() {
             <button
               type="button"
               onClick={() => void applyCoupon(freeShipPromo.code)}
-              className="bg-white hover:bg-[#ffefe6] text-[#ff6d11] text-[13px] font-bold px-5 py-2.5 rounded-full transition-colors shrink-0"
+              className="self-start sm:self-auto bg-white hover:bg-[#ffefe6] text-[#ff6d11] text-[12.5px] sm:text-[13px] font-bold px-4 sm:px-5 py-2 sm:py-2.5 rounded-full transition-colors shrink-0 cursor-pointer"
             >
               Apply {freeShipPromo.code}
             </button>
@@ -77,7 +78,7 @@ export function FreeDeliveryPage() {
         </section>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar sm:flex-wrap pb-0.5 -mx-2.5 px-2.5 sm:mx-0 sm:px-0">
           {[
             { id: 'all', label: 'All Products' },
             { id: 'under15', label: 'Under $15' },
@@ -88,7 +89,7 @@ export function FreeDeliveryPage() {
               key={pill.id}
               type="button"
               onClick={() => setActiveCategory(pill.id)}
-              className={`px-4 py-2 rounded-full text-[13px] transition-colors ${
+              className={`px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-[12.5px] sm:text-[13px] whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                 activeCategory === pill.id
                   ? 'bg-[#ff6e20] text-white font-semibold'
                   : 'bg-[#ffefe6] text-black font-medium hover:bg-[#ffdfcd]'
