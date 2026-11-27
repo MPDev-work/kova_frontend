@@ -2241,12 +2241,12 @@ function SellerProductFormModal({
       subtitle="Create a product listing with pricing, product media, inventory, and SEO preview."
       widthClass="max-w-[960px]"
       footer={
-        <div className="w-full flex flex-wrap items-center justify-end gap-2.5">
+        <div className="w-full flex flex-nowrap items-center justify-end gap-2">
           <button
             type="button"
             disabled={saving}
             onClick={handleCancelClose}
-            className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4.5 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-60"
+            className="bg-white border border-[#ececec] hover:border-black text-[12px] sm:text-[12.5px] font-semibold text-black px-3.5 sm:px-4.5 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-60 whitespace-nowrap shrink-0"
           >
             Cancel
           </button>
@@ -2254,7 +2254,7 @@ function SellerProductFormModal({
             type="button"
             disabled={saving || uploadingImg || loading}
             onClick={() => void submitProduct('draft')}
-            className="bg-[#ffefe6] hover:bg-[#ffe1cf] disabled:opacity-60 text-[#ff6e20] text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors cursor-pointer"
+            className="bg-[#ffefe6] hover:bg-[#ffe1cf] disabled:opacity-60 text-[#ff6e20] text-[12px] sm:text-[12.5px] font-semibold px-3.5 sm:px-4.5 py-2 rounded-full transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             Save as draft
           </button>
@@ -2262,7 +2262,7 @@ function SellerProductFormModal({
             type="submit"
             form={formId}
             disabled={saving || uploadingImg || loading}
-            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer"
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12px] sm:text-[12.5px] font-semibold px-4 sm:px-5 py-2 rounded-full transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             {saving ? 'Saving...' : isEdit ? 'Save product' : 'Publish product'}
           </button>

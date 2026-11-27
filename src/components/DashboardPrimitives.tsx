@@ -673,7 +673,7 @@ export function SlideOverDrawer({
         <div className="flex-1 overflow-y-auto p-3.5 sm:p-5">{children}</div>
 
         {footer && (
-          <div className="px-4 sm:px-5 py-3 border-t border-[#ececec] bg-[#fafafa] flex flex-wrap items-center justify-end gap-2 shrink-0">
+          <div className="px-3.5 sm:px-5 py-3 border-t border-[#ececec] bg-[#fafafa] flex flex-nowrap items-center justify-end gap-2 overflow-x-auto shrink-0">
             {footer}
           </div>
         )}

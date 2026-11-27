@@ -198,7 +198,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
       }
       widthClass="max-w-[580px]"
       footer={
-        <div className="w-full flex flex-wrap items-center justify-between gap-2">
+        <div className="w-full flex flex-nowrap items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => {
@@ -211,16 +211,16 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                 navigate('/help/tickets');
               }
             }}
-            className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
+            className="text-[12px] sm:text-[12.5px] font-semibold text-[#ff6e20] hover:underline whitespace-nowrap shrink-0"
           >
             Open all messages
           </button>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-nowrap items-center gap-2 shrink-0">
             {unreadNotificationsCount > 0 && (
               <button
                 type="button"
                 onClick={() => void markAllNotificationsRead()}
-                className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-3.5 py-2 rounded-full transition-colors"
+                className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-3 sm:px-3.5 py-2 rounded-full transition-colors whitespace-nowrap shrink-0"
               >
                 Mark all read
               </button>
@@ -229,7 +229,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
               <button
                 type="button"
                 onClick={handleClearAll}
-                className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[12px] font-semibold px-3.5 py-2 rounded-full transition-colors"
+                className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[12px] font-semibold px-3 sm:px-3.5 py-2 rounded-full transition-colors whitespace-nowrap shrink-0"
               >
                 Clear all
               </button>

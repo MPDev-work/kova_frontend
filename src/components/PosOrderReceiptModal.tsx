@@ -1071,44 +1071,44 @@ export function PosOrderReceiptModal({
       onClose={onClose}
       title="Order Receipt (80mm POS Slip)"
       subtitle={`Order #${model.orderNumber} · Thermal POS format ready for PDF export, printing, or chat`}
-      widthClass="max-w-[480px]"
+      widthClass="max-w-[520px]"
       footer={
-        <div className="flex flex-wrap items-center justify-end gap-2 w-full">
+        <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:gap-2 w-full">
           <button
             type="button"
             disabled={sendingToChat}
             onClick={() => printPosSlip(model)}
-            className="inline-flex items-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[12px] sm:text-[12.5px] font-semibold text-black px-3 sm:px-3.5 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
           >
-            <Printer className="w-3.5 h-3.5" />
-            Print
+            <Printer className="w-3.5 h-3.5 shrink-0" />
+            <span>Print</span>
           </button>
           <button
             type="button"
             disabled={exporting || sendingToChat}
             onClick={() => void handleExportPdf()}
-            className="inline-flex items-center gap-1.5 bg-[#ffefe6] hover:bg-[#ffdfcd] disabled:opacity-60 text-[#ff6e20] text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 bg-[#ffefe6] hover:bg-[#ffdfcd] disabled:opacity-60 text-[#ff6e20] text-[12px] sm:text-[12.5px] font-semibold px-3 sm:px-3.5 py-2 rounded-full transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             {exporting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
             ) : (
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5 shrink-0" />
             )}
-            {exporting ? 'Exporting...' : 'Download PDF'}
+            <span>{exporting ? 'Exporting...' : 'Download PDF'}</span>
           </button>
           {onSendToChat && (
             <button
               type="button"
               disabled={sendingToChat || exporting}
               onClick={() => void handleSendToChat()}
-              className="inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12px] sm:text-[12.5px] font-semibold px-3.5 sm:px-4 py-2 rounded-full transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               {sendingToChat ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
               ) : (
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-3.5 h-3.5 shrink-0" />
               )}
-              {sendingToChat ? 'Sending...' : chatButtonLabel}
+              <span>{sendingToChat ? 'Sending...' : chatButtonLabel}</span>
             </button>
           )}
         </div>
