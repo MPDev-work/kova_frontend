@@ -14,12 +14,14 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ContactVerificationCard } from './ContactVerificationCard';
+import { AvatarCropModal } from './AvatarCropModal';
 import { DashboardPageHeader } from './DashboardPrimitives';
 import { PasswordInput } from './PasswordInput';
 import { VerifiedBadge } from './VerifiedBadge';
 import { useStore } from '../context/StoreContext';
 import { ApiError, authApi, customerApi } from '../services/api';
 import { formatShortDate } from '../utils/currency';
+import { validateUploadFile } from '../utils/mediaUpload';
 
 interface DashboardAccountSettingsPageProps {
   workspace: 'admin' | 'seller';
@@ -47,6 +49,7 @@ export function DashboardAccountSettingsPage({
   const [name, setName] = useState(user?.name || '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Verified Change Email
@@ -137,12 +140,23 @@ export function DashboardAccountSettingsPage({
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (fileRef.current) fileRef.current.value = '';
     if (!file) return;
+    const err = validateUploadFile(file, 'image');
+    if (err) {
+      showToast(err);
+      return;
+    }
+    setPendingAvatarFile(file);
+  };
+
+  const handleConfirmCroppedAvatar = async (croppedFile: File) => {
     setUploadingAvatar(true);
     try {
-      await uploadAvatar(file);
+      await uploadAvatar(croppedFile);
+      setPendingAvatarFile(null);
     } catch (err) {
       showToast(
         err instanceof ApiError
@@ -151,7 +165,6 @@ export function DashboardAccountSettingsPage({
       );
     } finally {
       setUploadingAvatar(false);
-      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
@@ -470,9 +483,9 @@ export function DashboardAccountSettingsPage({
                   <input
                     ref={fileRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp"
+                    accept="image/*"
                     className="hidden"
-                    onChange={(e) => void handleAvatarUpload(e)}
+                    onChange={handleAvatarUpload}
                   />
                   <button
                     type="button"
@@ -486,11 +499,19 @@ export function DashboardAccountSettingsPage({
                     </span>
                   </button>
                   <span className="text-[11.5px] text-[#8a8a8a]">
-                    JPG, PNG, or WebP
+                    Any image · 1:1 crop (max 20MB)
                   </span>
                 </div>
               </div>
             </div>
+
+            <AvatarCropModal
+              open={Boolean(pendingAvatarFile)}
+              file={pendingAvatarFile}
+              uploading={uploadingAvatar}
+              onCancel={() => setPendingAvatarFile(null)}
+              onConfirm={handleConfirmCroppedAvatar}
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5 sm:col-span-2">

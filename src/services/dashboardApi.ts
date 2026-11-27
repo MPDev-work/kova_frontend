@@ -519,17 +519,6 @@ export const adminApi = {
     };
   },
 
-  async startConversation(payload: { order_id: number }) {
-    const res = await apiRequest<DashboardTicketItem>(
-      '/store-owner/tickets/start',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      },
-    );
-    return res.data;
-  },
-
   async getTicket(id: number) {
     const res = await apiRequest<DashboardTicketItem>(`/admin/tickets/${id}`);
     return res.data;

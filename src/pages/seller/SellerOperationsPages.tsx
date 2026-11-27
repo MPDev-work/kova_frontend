@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, MapPin, Receipt } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
-import { ApiError } from '../../services/api';
+import { ApiError, customerApi } from '../../services/api';
 import {
   storeOwnerApi,
   type BakongTxItem,
@@ -17,6 +17,7 @@ import {
 } from '../../services/dashboardApi';
 import { formatRiel, formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
+import { validateUploadFile } from '../../utils/mediaUpload';
 import {
   DashboardPageHeader,
   FilterPillTabs,
@@ -49,6 +50,7 @@ type OrderStatusTab =
   | 'cancelled';
 
 export function SellerOrdersPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { khrRate, showToast, user } = useStore();
 
@@ -235,6 +237,56 @@ export function SellerOrdersPage() {
       );
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleSendReceiptToCustomer = async (receiptImageFile: File) => {
+    if (!selectedOrder) return;
+    try {
+      const receiptUrl = await customerApi.uploadChatImage(
+        receiptImageFile,
+        'standard',
+      );
+      const ticket = await storeOwnerApi.startConversation({
+        order_id: selectedOrder.id,
+      });
+      const orderItems = selectedOrder.items || [];
+      const firstItem = orderItems[0];
+      const totalQty = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+      await storeOwnerApi.replyTicket(
+        ticket.id,
+        `Order receipt for #${selectedOrder.order_number}`,
+        [receiptUrl],
+        {
+          context_card: {
+            kind: 'order',
+            order_id: selectedOrder.id,
+            order_number: selectedOrder.order_number,
+            order_status: selectedOrder.status,
+            total_amount: Number(selectedOrder.total_amount || 0),
+            item_count: totalQty || firstItem?.quantity || 1,
+            product_name:
+              firstItem?.product_name || `Order #${selectedOrder.order_number}`,
+            quantity: firstItem?.quantity ?? null,
+            unit_price:
+              firstItem?.unit_price != null
+                ? Number(firstItem.unit_price)
+                : null,
+            store_name: storeProfile?.name || user?.store?.name || null,
+          },
+        },
+      );
+      showToast('Receipt sent to customer in chat.');
+      setReceiptOpen(false);
+      setSelectedOrder(null);
+      navigate(`/seller/messages?chat=${ticket.id}`);
+    } catch (err) {
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to send receipt to customer.',
+      );
+      throw err;
     }
   };
 
@@ -697,6 +749,8 @@ export function SellerOrdersPage() {
         khrRate={khrRate}
         carrierOverride={carrier}
         trackingOverride={tracking}
+        viewerRole="seller"
+        onSendToChat={handleSendReceiptToCustomer}
       />
     </div>
   );
@@ -2552,6 +2606,8 @@ export function SellerStorefrontPage() {
   const [announcements, setAnnouncements] = useState('');
   const [policies, setPolicies] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [draggingBanner, setDraggingBanner] = useState(false);
+  const [draggingLogo, setDraggingLogo] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
@@ -2655,12 +2711,12 @@ export function SellerStorefrontPage() {
     }
   };
 
-  const handleBrandingUpload = async (
-    kind: 'logo' | 'banner',
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadBrandingFile = async (kind: 'logo' | 'banner', file: File) => {
+    const err = validateUploadFile(file, 'image');
+    if (err) {
+      showToast(err);
+      return;
+    }
     setUploading(true);
     try {
       await storeOwnerApi.updateBranding({ [kind]: file });
@@ -2672,8 +2728,17 @@ export function SellerStorefrontPage() {
       );
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
+  };
+
+  const handleBrandingUpload = async (
+    kind: 'logo' | 'banner',
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await uploadBrandingFile(kind, file);
   };
 
   if (loading || !profile) {
@@ -2971,26 +3036,57 @@ export function SellerStorefrontPage() {
               Logo &amp; banner
             </h2>
 
-            <div className="flex flex-col gap-2">
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                if (!draggingBanner) setDraggingBanner(true);
+              }}
+              onDragLeave={() => setDraggingBanner(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDraggingBanner(false);
+                if (uploading) return;
+                const file = e.dataTransfer.files?.[0];
+                if (file) void uploadBrandingFile('banner', file);
+              }}
+              className={`flex flex-col gap-2 rounded-[16px] transition-all ${
+                draggingBanner
+                  ? 'ring-2 ring-[#ff6e20] bg-[#ffefe6]/50 p-1.5 -m-1.5'
+                  : ''
+              }`}
+            >
               {profile.banner ? (
-                <img
-                  src={profile.banner}
-                  alt="Store cover banner"
-                  className="w-full h-[128px] rounded-[14px] object-cover border border-[#ececec]"
-                />
+                <div className="relative">
+                  <img
+                    src={profile.banner}
+                    alt="Store cover banner"
+                    className="w-full h-[128px] rounded-[14px] object-cover border border-[#ececec]"
+                  />
+                  {draggingBanner && (
+                    <div className="absolute inset-0 rounded-[14px] bg-[#ff6e20]/20 border-2 border-dashed border-[#ff6e20] flex items-center justify-center text-[12px] font-bold text-[#ff6e20] bg-white/80">
+                      Drop cover banner here
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="w-full h-[128px] bg-[#f7f7f7] border border-dashed border-[#dcdcdc] flex flex-col items-center justify-center gap-1 text-[#8a8a8a] rounded-[14px]">
                   <FigmaIcon name="upload" className="w-5 h-5 text-[#979797]" />
                   <span className="text-[12px] font-medium">
-                    No cover banner uploaded
+                    {draggingBanner
+                      ? 'Drop cover banner here'
+                      : 'Drag & drop or upload cover banner'}
                   </span>
                 </div>
               )}
+              <p className="text-[11px] text-[#8a8a8a]">
+                Full resolution preserved · Max 20MB · Drag &amp; drop supported
+              </p>
               <label className="inline-flex items-center justify-center bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-4 py-2 rounded-full cursor-pointer transition-colors w-full">
                 {uploading ? 'Uploading...' : 'Upload cover banner'}
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/*"
                   disabled={uploading}
                   onChange={(e) => void handleBrandingUpload('banner', e)}
                   className="hidden"
@@ -2998,7 +3094,26 @@ export function SellerStorefrontPage() {
               </label>
             </div>
 
-            <div className="flex items-center gap-3.5 pt-2 border-t border-[#f1f1f1]">
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                if (!draggingLogo) setDraggingLogo(true);
+              }}
+              onDragLeave={() => setDraggingLogo(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDraggingLogo(false);
+                if (uploading) return;
+                const file = e.dataTransfer.files?.[0];
+                if (file) void uploadBrandingFile('logo', file);
+              }}
+              className={`flex items-center gap-3.5 pt-2.5 border-t border-[#f1f1f1] rounded-[14px] transition-all ${
+                draggingLogo
+                  ? 'ring-2 ring-[#ff6e20] bg-[#ffefe6]/60 p-2 -mx-1'
+                  : ''
+              }`}
+            >
               {profile.logo ? (
                 <img
                   src={profile.logo}
@@ -3012,13 +3127,18 @@ export function SellerStorefrontPage() {
               )}
               <div className="flex flex-col gap-1.5 min-w-0">
                 <p className="text-[12.5px] font-bold text-black">
-                  Store logo (512×512)
+                  Store logo (256×256)
+                </p>
+                <p className="text-[11px] text-[#8a8a8a]">
+                  {draggingLogo
+                    ? 'Drop logo image here'
+                    : 'Drag & drop or click · Max 20MB'}
                 </p>
                 <label className="inline-flex items-center justify-center bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-3.5 py-1.5 rounded-full cursor-pointer transition-colors w-fit">
                   {uploading ? 'Uploading...' : 'Upload new logo'}
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/webp"
+                    accept="image/*"
                     disabled={uploading}
                     onChange={(e) => void handleBrandingUpload('logo', e)}
                     className="hidden"

@@ -9,14 +9,17 @@ import {
   CheckSquare,
   ChevronLeft,
   ImagePlus,
+  Loader2,
   MessageCircle,
   MessageCircleMore,
+  Mic,
   MoreHorizontal,
   RefreshCw,
   Search,
   Send,
   SquarePen,
   Trash2,
+  X,
 } from 'lucide-react';
 import {
   ChatMessageBody,
@@ -24,6 +27,7 @@ import {
   PendingContextCardBar,
 } from './ChatMessageContent';
 import { consumePendingChatCard } from '../utils/chatContextCard';
+import { validateUploadFile } from '../utils/mediaUpload';
 import { FigmaIcon } from './FigmaIcon';
 import { VerifiedBadge } from './VerifiedBadge';
 import { useStore } from '../context/StoreContext';
@@ -59,17 +63,20 @@ function getLastPreview(ticket: UnifiedTicket, mode: WorkspaceMode): string {
     const isOwn =
       mode === 'customer' ? !latest.is_admin_reply : latest.is_admin_reply;
     const card = latest.metadata?.context_card;
+    const hasVoice = Boolean(latest.metadata?.voice?.url);
     const body =
       latest.message?.trim() ||
-      (latest.attachments && latest.attachments.length > 0
-        ? latest.attachments.length === 1
-          ? 'Sent a photo'
-          : `Sent ${latest.attachments.length} photos`
-        : card
-          ? card.kind === 'order' && card.order_number
-            ? `Order #${card.order_number.replace(/^#/, '')}`
-            : card.product_name
-          : '');
+      (hasVoice
+        ? 'Voice message'
+        : latest.attachments && latest.attachments.length > 0
+          ? latest.attachments.length === 1
+            ? 'Sent a photo'
+            : `Sent ${latest.attachments.length} photos`
+          : card
+            ? card.kind === 'order' && card.order_number
+              ? `Order #${card.order_number.replace(/^#/, '')}`
+              : card.product_name
+            : '');
     if (!body) return 'New message';
     return isOwn ? `You: ${body}` : body;
   }
@@ -124,6 +131,12 @@ export function MessengerWorkspace({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [sending, setSending] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+
+  // Voice messenger state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
@@ -143,6 +156,13 @@ export function MessengerWorkspace({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const handledStartKeyRef = useRef<string | null>(null);
+  const dragDepthRef = useRef(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordTimerRef = useRef<number | null>(null);
+  const recordCancelledRef = useRef(false);
+  const recordStartMsRef = useRef(0);
 
   const fetchList = useCallback(
     async (silent = false) => {
@@ -418,6 +438,9 @@ export function MessengerWorkspace({
 
   const selectChat = (id: number | null) => {
     if (id !== selectedId) {
+      cancelVoiceRecording();
+      dragDepthRef.current = 0;
+      setIsDraggingFiles(false);
       prevThreadMetaRef.current = { id: null, count: 0 };
       isNearBottomRef.current = true;
       setShowScrollBottom(false);
@@ -652,29 +675,291 @@ export function MessengerWorkspace({
     }
   };
 
-  const handleImageUpload = async (files: FileList | null) => {
+  const handleImageUpload = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+    const validFiles: File[] = [];
+    for (const file of fileArray) {
+      const err = validateUploadFile(file, 'image');
+      if (err) {
+        showToast(err);
+        continue;
+      }
+      validFiles.push(file);
+    }
+    if (validFiles.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     const remaining = 6 - replyAttachments.length;
     if (remaining <= 0) {
       showToast('You can attach up to 6 images per message.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
     setUploadingImage(true);
     try {
-      const selected = Array.from(files).slice(0, remaining);
+      const selected = validFiles.slice(0, remaining);
       const uploadedUrls: string[] = [];
       for (const file of selected) {
-        const url = await customerApi.uploadChatImage(file);
+        const url = await customerApi.uploadChatImage(file, 'standard');
         uploadedUrls.push(url);
       }
       setReplyAttachments((prev) => [...prev, ...uploadedUrls]);
     } catch (err) {
       showToast(
-        err instanceof ApiError ? err.message : 'Unable to upload image.',
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Unable to upload image.',
       );
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const cleanupRecordingResources = useCallback(() => {
+    if (recordTimerRef.current !== null) {
+      window.clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    mediaRecorderRef.current = null;
+    audioChunksRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      recordCancelledRef.current = true;
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== 'inactive'
+      ) {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // Ignore stop errors on unmount
+        }
+      }
+      cleanupRecordingResources();
+    };
+  }, [cleanupRecordingResources]);
+
+  const cancelVoiceRecording = useCallback(() => {
+    recordCancelledRef.current = true;
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== 'inactive') {
+      try {
+        rec.stop();
+      } catch {
+        // Ignore
+      }
+    }
+    cleanupRecordingResources();
+    setIsRecording(false);
+    setRecordingSeconds(0);
+  }, [cleanupRecordingResources]);
+
+  const stopAndSendVoiceRecording = useCallback(() => {
+    recordCancelledRef.current = false;
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== 'inactive') {
+      rec.stop();
+    }
+  }, []);
+
+  const startVoiceRecording = async () => {
+    if (!activeTicket || isRecording || uploadingVoice || sending) return;
+    if (
+      typeof window === 'undefined' ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === 'undefined'
+    ) {
+      showToast('Voice recording is not supported in this browser.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferredMimes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+      ];
+      const supportedMime =
+        preferredMimes.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+      const recorder = supportedMime
+        ? new MediaRecorder(stream, { mimeType: supportedMime })
+        : new MediaRecorder(stream);
+
+      const targetTicketId = activeTicket.id;
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recordCancelledRef.current = false;
+      recordStartMsRef.current = Date.now();
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) {
+          audioChunksRef.current.push(ev.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const wasCancelled = recordCancelledRef.current;
+        const chunks = [...audioChunksRef.current];
+        const elapsedSeconds = Math.max(
+          1,
+          Math.round((Date.now() - recordStartMsRef.current) / 1000),
+        );
+        const actualMime =
+          recorder.mimeType || supportedMime || 'audio/webm';
+
+        cleanupRecordingResources();
+        setIsRecording(false);
+        setRecordingSeconds(0);
+
+        if (wasCancelled || chunks.length === 0) return;
+
+        const blob = new Blob(chunks, { type: actualMime });
+        const ext = actualMime.includes('mp4')
+          ? 'm4a'
+          : actualMime.includes('ogg')
+            ? 'ogg'
+            : 'webm';
+        const audioFile = new File([blob], `voice-${Date.now()}.${ext}`, {
+          type: actualMime,
+        });
+
+        const sizeErr = validateUploadFile(audioFile, 'audio');
+        if (sizeErr) {
+          showToast(sizeErr);
+          return;
+        }
+
+        setUploadingVoice(true);
+        try {
+          const audioUrl = await customerApi.uploadChatAudio(audioFile);
+          forceScrollBottomRef.current = true;
+          setShowScrollBottom(false);
+          const voiceMeta: ChatMessageMetadata = {
+            voice: {
+              url: audioUrl,
+              duration: elapsedSeconds,
+              mime_type: actualMime,
+            },
+          };
+
+          if (mode === 'admin') {
+            const res = await adminApi.replyTicket(
+              targetTicketId,
+              '',
+              undefined,
+              voiceMeta,
+            );
+            if (selectedIdRef.current === targetTicketId) {
+              setActiveTicket(res.ticket);
+            }
+          } else if (mode === 'seller') {
+            const res = await storeOwnerApi.replyTicket(
+              targetTicketId,
+              '',
+              undefined,
+              voiceMeta,
+            );
+            if (selectedIdRef.current === targetTicketId) {
+              setActiveTicket(res.ticket);
+            }
+          } else {
+            await customerApi.replyTicket(
+              targetTicketId,
+              '',
+              undefined,
+              voiceMeta,
+            );
+            const fresh = await customerApi.getTicket(targetTicketId);
+            if (selectedIdRef.current === targetTicketId) {
+              setActiveTicket(fresh);
+            }
+          }
+
+          void fetchList(true);
+          void refreshNotifications(false);
+        } catch (err) {
+          showToast(
+            err instanceof ApiError
+              ? err.message
+              : 'Unable to send voice message.',
+          );
+        } finally {
+          setUploadingVoice(false);
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      recordTimerRef.current = window.setInterval(() => {
+        setRecordingSeconds((prev) => {
+          const next = prev + 1;
+          if (next >= 180) {
+            stopAndSendVoiceRecording();
+          }
+          return next;
+        });
+      }, 1000);
+    } catch {
+      cleanupRecordingResources();
+      setIsRecording(false);
+      showToast('Microphone access was denied or is unavailable.');
+    }
+  };
+
+  const formatTimer = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const rem = secs % 60;
+    return `${mins}:${rem < 10 ? '0' : ''}${rem}`;
+  };
+
+  const handleChatDragEnter = (e: React.DragEvent<HTMLElement>) => {
+    if (!matchedActiveTicket || headerTicket?.is_blocked) return;
+    if (!Array.from(e.dataTransfer.types || []).includes('Files')) return;
+    e.preventDefault();
+    dragDepthRef.current += 1;
+    setIsDraggingFiles(true);
+  };
+
+  const handleChatDragOver = (e: React.DragEvent<HTMLElement>) => {
+    if (!matchedActiveTicket || headerTicket?.is_blocked) return;
+    if (!Array.from(e.dataTransfer.types || []).includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleChatDragLeave = (e: React.DragEvent<HTMLElement>) => {
+    if (!isDraggingFiles) return;
+    e.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setIsDraggingFiles(false);
+    }
+  };
+
+  const handleChatDrop = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    dragDepthRef.current = 0;
+    setIsDraggingFiles(false);
+    if (!matchedActiveTicket || headerTicket?.is_blocked) return;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void handleImageUpload(e.dataTransfer.files);
     }
   };
 
@@ -1120,10 +1405,27 @@ export function MessengerWorkspace({
 
       {/* RIGHT PANE: Active Conversation OR "No chats selected" Empty State */}
       <section
+        onDragEnter={handleChatDragEnter}
+        onDragOver={handleChatDragOver}
+        onDragLeave={handleChatDragLeave}
+        onDrop={handleChatDrop}
         className={`${
           selectedId ? 'flex' : 'hidden lg:flex'
-        } flex-1 min-w-0 flex-col bg-[#fafafa]`}
+        } relative flex-1 min-w-0 flex-col bg-[#fafafa]`}
       >
+        {isDraggingFiles && matchedActiveTicket && !headerTicket?.is_blocked && (
+          <div className="pointer-events-none absolute inset-2.5 z-40 rounded-[24px] border-2 border-dashed border-[#ff6e20] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-center p-6">
+            <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+              <ImagePlus className="w-6 h-6" />
+            </span>
+            <p className="text-[15px] font-bold text-black">
+              Drop images to attach
+            </p>
+            <p className="text-[12px] text-[#767676]">
+              Up to 6 images · Max 20MB each · Auto 720p
+            </p>
+          </div>
+        )}
         {!selectedId ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none">
             <div className="w-20 h-20 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center mb-4">
@@ -1549,67 +1851,123 @@ export function MessengerWorkspace({
                   }
                 />
 
-                <div className="flex items-end gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => void handleImageUpload(e.target.files)}
-                  />
-                  <button
-                    type="button"
-                    disabled={uploadingImage}
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Send photo"
-                    aria-label="Send photo"
-                    className="w-9 h-9 mb-0.5 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center shrink-0 transition-colors disabled:opacity-50"
-                  >
-                    <ImagePlus className="w-4 h-4" />
-                  </button>
-                  <textarea
-                    ref={replyTextareaRef}
-                    rows={1}
-                    value={replyText}
-                    onChange={(e) => {
-                      setReplyText(e.target.value);
-                      e.target.style.height = 'auto';
-                      e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
-                    }}
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === 'Enter' &&
-                        !e.shiftKey &&
-                        !e.nativeEvent.isComposing
-                      ) {
-                        e.preventDefault();
-                        e.currentTarget.form?.requestSubmit();
+                {isRecording ? (
+                  <div className="flex items-center justify-between gap-2.5 bg-[#fff6f1] border border-[#ff6e20]/40 rounded-full px-2.5 py-1.5">
+                    <button
+                      type="button"
+                      onClick={cancelVoiceRecording}
+                      aria-label="Cancel voice recording"
+                      title="Cancel recording"
+                      className="w-9 h-9 rounded-full bg-white hover:bg-[#fff0f0] border border-[#ececec] text-[#555555] hover:text-[#e5322d] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#e5322d] animate-pulse shrink-0" />
+                      <span className="text-[13px] font-semibold text-black">
+                        Recording
+                      </span>
+                      <span className="text-[13px] font-bold text-[#ff6e20] tabular-nums">
+                        {formatTimer(recordingSeconds)}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={stopAndSendVoiceRecording}
+                      aria-label="Send voice message"
+                      className="inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] text-white px-4 py-2 rounded-full text-[13px] font-semibold transition-colors shrink-0 cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-end gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => void handleImageUpload(e.target.files)}
+                    />
+                    <button
+                      type="button"
+                      disabled={uploadingImage || uploadingVoice}
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Send photo (or drag & drop)"
+                      aria-label="Send photo"
+                      className="w-9 h-9 mb-0.5 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        !matchedActiveTicket ||
+                        uploadingImage ||
+                        uploadingVoice ||
+                        sending
                       }
-                    }}
-                    placeholder={
-                      uploadingImage
-                        ? 'Uploading photo...'
-                        : 'Write a message... (Shift + Enter for new line)'
-                    }
-                    className="flex-1 bg-[#f4f4f4] focus:bg-white border border-transparent focus:border-[#ff6e20] rounded-[20px] px-4 py-2.5 text-[14px] leading-[1.45] text-black placeholder:text-[#8a8a8a] outline-none transition-colors min-w-0 resize-none max-h-[140px] overflow-y-auto no-scrollbar"
-                  />
-                  <button
-                    type="submit"
-                    disabled={
-                      !matchedActiveTicket ||
-                      sending ||
-                      uploadingImage ||
-                      (!replyText.trim() &&
-                        replyAttachments.length === 0 &&
-                        !pendingContextCard)
-                    }
-                    className="mb-0.5 inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-45 text-white px-4.5 py-2 rounded-full text-[13px] font-semibold transition-colors shrink-0"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>{sending ? 'Sending...' : 'Send'}</span>
-                  </button>
-                </div>
+                      onClick={() => void startVoiceRecording()}
+                      title="Record voice message"
+                      aria-label="Record voice message"
+                      className="w-9 h-9 mb-0.5 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {uploadingVoice ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-[#ff6e20]" />
+                      ) : (
+                        <Mic className="w-4 h-4" />
+                      )}
+                    </button>
+                    <textarea
+                      ref={replyTextareaRef}
+                      rows={1}
+                      value={replyText}
+                      onChange={(e) => {
+                        setReplyText(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === 'Enter' &&
+                          !e.shiftKey &&
+                          !e.nativeEvent.isComposing
+                        ) {
+                          e.preventDefault();
+                          e.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                      placeholder={
+                        uploadingVoice
+                          ? 'Sending voice message...'
+                          : uploadingImage
+                            ? 'Uploading photo...'
+                            : 'Write a message or drop photos...'
+                      }
+                      className="flex-1 bg-[#f4f4f4] focus:bg-white border border-transparent focus:border-[#ff6e20] rounded-[20px] px-4 py-2.5 text-[14px] leading-[1.45] text-black placeholder:text-[#8a8a8a] outline-none transition-colors min-w-0 resize-none max-h-[140px] overflow-y-auto no-scrollbar"
+                    />
+                    <button
+                      type="submit"
+                      disabled={
+                        !matchedActiveTicket ||
+                        sending ||
+                        uploadingImage ||
+                        uploadingVoice ||
+                        (!replyText.trim() &&
+                          replyAttachments.length === 0 &&
+                          !pendingContextCard)
+                      }
+                      className="mb-0.5 inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-45 text-white px-4.5 py-2 rounded-full text-[13px] font-semibold transition-colors shrink-0 cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{sending ? 'Sending...' : 'Send'}</span>
+                    </button>
+                  </div>
+                )}
               </form>
             )}
           </>

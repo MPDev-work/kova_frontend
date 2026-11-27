@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Loader2, Printer } from 'lucide-react';
+import { Download, Loader2, Printer, Send } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import type { SellerOrderItem } from '../services/dashboardApi';
 import { DashboardModal } from './DashboardPrimitives';
@@ -21,6 +21,9 @@ export interface PosOrderReceiptModalProps {
   khrRate: number;
   carrierOverride?: string;
   trackingOverride?: string;
+  viewerRole?: 'seller' | 'customer';
+  onSendToChat?: (receiptImageFile: File) => Promise<void>;
+  sendToChatLabel?: string;
 }
 
 function formatReceiptDateTime(iso?: string | null): string {
@@ -718,6 +721,299 @@ function printPosSlip(model: ReceiptDataModel): void {
   }, 250);
 }
 
+/**
+ * Renders the authentic 80mm thermal POS receipt directly onto an HTML5 Canvas
+ * at 640px width (portrait 720p sharp, zero dark-mode/Tailwind CSS quirks)
+ * and returns a PNG File ready to send in Kova chat.
+ */
+async function renderPosReceiptToPngFile(
+  model: ReceiptDataModel,
+): Promise<File> {
+  const WIDTH = 640;
+  const PAD_X = 40;
+  const CONTENT_W = WIDTH - PAD_X * 2;
+  const RIGHT_X = WIDTH - PAD_X;
+  const LINE_H = 26;
+
+  const logoAsset = await loadImageAsPngDataUrl('/images/kova-logo.png');
+  let logoImg: HTMLImageElement | null = null;
+  if (logoAsset) {
+    logoImg = await new Promise<HTMLImageElement | null>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = logoAsset.dataUrl;
+    });
+  }
+
+  const wrapText = (
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number,
+  ): string[] => {
+    const words = (text || '—').split(/\s+/);
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (ctx.measureText(candidate).width <= maxWidth) {
+        current = candidate;
+      } else {
+        if (current) lines.push(current);
+        current = word;
+      }
+    }
+    if (current) lines.push(current);
+    return lines.length > 0 ? lines : ['—'];
+  };
+
+  const drawReceipt = (
+    ctx: CanvasRenderingContext2D,
+    dryRun: boolean,
+  ): number => {
+    let y = 48;
+
+    const drawDivider = () => {
+      y += 12;
+      if (!dryRun) {
+        ctx.save();
+        ctx.strokeStyle = '#b5b5b5';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(PAD_X, y);
+        ctx.lineTo(RIGHT_X, y);
+        ctx.stroke();
+        ctx.restore();
+      }
+      y += 26;
+    };
+
+    const drawKv = (label: string, value: string, bold = false) => {
+      ctx.font = `${bold ? '700' : '400'} 20px "Courier New", Courier, monospace`;
+      const lines = wrapText(ctx, value || '—', CONTENT_W - 190);
+      if (!dryRun) {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#707070';
+        ctx.font = '400 19px "Courier New", Courier, monospace';
+        ctx.fillText(label, PAD_X, y);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#141414';
+        ctx.font = `${bold ? '700' : '400'} 20px "Courier New", Courier, monospace`;
+        lines.forEach((line, idx) => {
+          ctx.fillText(line, RIGHT_X, y + idx * LINE_H);
+        });
+      }
+      y += Math.max(1, lines.length) * LINE_H + 6;
+    };
+
+    // Store title
+    ctx.font = '800 30px Inter, Arial, Helvetica, sans-serif';
+    const storeLines = wrapText(ctx, model.storeName.toUpperCase(), CONTENT_W);
+    if (!dryRun) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#141414';
+      storeLines.forEach((line, i) => {
+        ctx.fillText(line, WIDTH / 2, y + i * 36);
+      });
+    }
+    y += storeLines.length * 36;
+
+    if (model.storePhone || model.storeAddress) {
+      ctx.font = '400 17px "Courier New", Courier, monospace';
+      const meta = [model.storePhone, model.storeAddress]
+        .filter(Boolean)
+        .join(' · ');
+      const metaLines = wrapText(ctx, meta, CONTENT_W);
+      if (!dryRun) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#707070';
+        metaLines.forEach((line, i) => {
+          ctx.fillText(line, WIDTH / 2, y + i * 22);
+        });
+      }
+      y += metaLines.length * 22 + 4;
+    }
+
+    if (!dryRun) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#707070';
+      ctx.font = '400 18px "Courier New", Courier, monospace';
+      ctx.fillText(model.dateTime, WIDTH / 2, y + 6);
+    }
+    y += 38;
+
+    // Order ID Dashed Box
+    const boxTop = y;
+    const boxH = model.childOrderNumber ? 106 : 86;
+    if (!dryRun) {
+      ctx.save();
+      ctx.strokeStyle = '#3a3a3a';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.roundRect(PAD_X, boxTop, CONTENT_W, boxH, 16);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(WIDTH / 2 - 64, boxTop - 12, 128, 24);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#222222';
+      ctx.font = '700 18px "Courier New", Courier, monospace';
+      ctx.fillText('Order ID', WIDTH / 2, boxTop + 5);
+
+      ctx.fillStyle = '#141414';
+      ctx.font = '700 26px "Courier New", Courier, monospace';
+      ctx.fillText(`#${model.orderNumber}`, WIDTH / 2, boxTop + 52);
+
+      if (model.childOrderNumber) {
+        ctx.fillStyle = '#707070';
+        ctx.font = '400 17px "Courier New", Courier, monospace';
+        ctx.fillText(`Pkg: ${model.childOrderNumber}`, WIDTH / 2, boxTop + 82);
+      }
+    }
+    y = boxTop + boxH + 34;
+
+    drawKv('Payment', model.paymentMethod);
+    drawKv('Pay Status', model.paymentStatus, true);
+    drawKv('Order Status', model.orderStatus, true);
+    if (model.khqrBillNumber) drawKv('Bill Ref', model.khqrBillNumber);
+
+    drawDivider();
+
+    drawKv('Ordered By', model.customerName, true);
+    drawKv('Phone', model.customerPhone);
+    if (model.customerEmail) drawKv('Email', model.customerEmail);
+    drawKv('Address', model.addressLines.join(', '));
+
+    drawDivider();
+
+    drawKv('Delivery', model.deliveryName, true);
+    if (model.shippingMethodName) drawKv('Method', model.shippingMethodName);
+    drawKv('Tracking No', model.trackingNumber || 'Pending');
+
+    drawDivider();
+
+    const totalQty = model.items.reduce((sum, it) => sum + it.quantity, 0);
+    if (!dryRun) {
+      ctx.font = '700 18px "Courier New", Courier, monospace';
+      ctx.fillStyle = '#707070';
+      ctx.textAlign = 'left';
+      ctx.fillText(`ITEMS (${totalQty})`, PAD_X, y);
+      ctx.textAlign = 'right';
+      ctx.fillText('AMOUNT', RIGHT_X, y);
+    }
+    y += 28;
+
+    for (const item of model.items) {
+      ctx.font = '700 20px "Courier New", Courier, monospace';
+      const nameLines = wrapText(
+        ctx,
+        `${item.quantity}x ${item.name}`,
+        CONTENT_W - 135,
+      );
+      if (!dryRun) {
+        ctx.fillStyle = '#141414';
+        ctx.textAlign = 'left';
+        nameLines.forEach((line, idx) => {
+          ctx.fillText(line, PAD_X, y + idx * 24);
+        });
+        ctx.textAlign = 'right';
+        ctx.fillText(`$${item.total.toFixed(2)}`, RIGHT_X, y);
+      }
+      y += nameLines.length * 24;
+
+      const sub = [item.sku || null, `$${item.unitPrice.toFixed(2)} each`]
+        .filter(Boolean)
+        .join(' · ');
+      if (!dryRun) {
+        ctx.font = '400 17px "Courier New", Courier, monospace';
+        ctx.fillStyle = '#707070';
+        ctx.textAlign = 'left';
+        ctx.fillText(sub, PAD_X, y);
+      }
+      y += 26;
+    }
+
+    drawDivider();
+
+    drawKv('Subtotal', `$${model.subtotal.toFixed(2)}`);
+    drawKv(
+      'Shipping',
+      model.shipping > 0 ? `$${model.shipping.toFixed(2)}` : 'FREE',
+    );
+    if (model.discount > 0) {
+      drawKv('Discount', `-$${model.discount.toFixed(2)}`);
+    }
+    drawKv('Total (USD)', `$${model.total.toFixed(2)}`, true);
+    drawKv('Total (KHR)', model.totalKhrAscii, true);
+
+    drawDivider();
+
+    drawKv('Store', model.storeName);
+    drawKv('Operator', model.operator);
+
+    y += 18;
+    if (logoImg && logoAsset) {
+      const logoW = 160;
+      const logoH = Math.round(logoW * (logoAsset.height / logoAsset.width));
+      if (!dryRun) {
+        ctx.drawImage(logoImg, (WIDTH - logoW) / 2, y, logoW, logoH);
+      }
+      y += logoH + 22;
+    } else {
+      if (!dryRun) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff6e20';
+        ctx.font = '800 32px Inter, Arial, sans-serif';
+        ctx.fillText('KOVA', WIDTH / 2, y + 26);
+      }
+      y += 46;
+    }
+
+    if (!dryRun) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#707070';
+      ctx.font = '400 17px "Courier New", Courier, monospace';
+      ctx.fillText('Thank you for shopping on KOVA', WIDTH / 2, y);
+    }
+    y += 38;
+
+    return y;
+  };
+
+  // Pass 1: measure total height
+  const measureCanvas = document.createElement('canvas');
+  measureCanvas.width = WIDTH;
+  measureCanvas.height = 100;
+  const measureCtx = measureCanvas.getContext('2d');
+  if (!measureCtx) throw new Error('Canvas unavailable');
+  const totalHeight = Math.max(520, Math.ceil(drawReceipt(measureCtx, true)));
+
+  // Pass 2: render crisp white thermal receipt PNG
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = WIDTH;
+  finalCanvas.height = totalHeight;
+  const ctx = finalCanvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas unavailable');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, WIDTH, totalHeight);
+  drawReceipt(ctx, false);
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    finalCanvas.toBlob((b) => resolve(b), 'image/png'),
+  );
+  if (!blob) throw new Error('Failed to render receipt image');
+
+  const safeOrderNum = model.orderNumber.replace(/[^a-zA-Z0-9_-]/g, '');
+  return new File([blob], `KOVA-Receipt-${safeOrderNum || 'order'}.png`, {
+    type: 'image/png',
+    lastModified: Date.now(),
+  });
+}
+
 export function PosOrderReceiptModal({
   open,
   onClose,
@@ -727,8 +1023,12 @@ export function PosOrderReceiptModal({
   khrRate,
   carrierOverride,
   trackingOverride,
+  viewerRole = 'seller',
+  onSendToChat,
+  sendToChatLabel,
 }: PosOrderReceiptModalProps) {
   const [exporting, setExporting] = useState(false);
+  const [sendingToChat, setSendingToChat] = useState(false);
 
   if (!order) return null;
 
@@ -741,6 +1041,9 @@ export function PosOrderReceiptModal({
     trackingOverride,
   );
   const totalQty = model.items.reduce((sum, it) => sum + it.quantity, 0);
+  const chatButtonLabel =
+    sendToChatLabel ||
+    (viewerRole === 'customer' ? 'Send to seller' : 'Send to customer');
 
   const handleExportPdf = async () => {
     setExporting(true);
@@ -751,44 +1054,72 @@ export function PosOrderReceiptModal({
     }
   };
 
+  const handleSendToChat = async () => {
+    if (!onSendToChat) return;
+    setSendingToChat(true);
+    try {
+      const receiptFile = await renderPosReceiptToPngFile(model);
+      await onSendToChat(receiptFile);
+    } finally {
+      setSendingToChat(false);
+    }
+  };
+
   return (
     <DashboardModal
       open={open}
       onClose={onClose}
       title="Order Receipt (80mm POS Slip)"
-      subtitle={`Order #${model.orderNumber} · Thermal POS format ready for PDF export or printing`}
-      widthClass="max-w-[460px]"
+      subtitle={`Order #${model.orderNumber} · Thermal POS format ready for PDF export, printing, or chat`}
+      widthClass="max-w-[480px]"
       footer={
-        <>
+        <div className="flex flex-wrap items-center justify-end gap-2 w-full">
           <button
             type="button"
+            disabled={sendingToChat}
             onClick={onClose}
-            className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer"
+            className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-50"
           >
             Close
           </button>
           <button
             type="button"
+            disabled={sendingToChat}
             onClick={() => printPosSlip(model)}
-            className="inline-flex items-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-50"
           >
             <Printer className="w-3.5 h-3.5" />
             Print
           </button>
           <button
             type="button"
-            disabled={exporting}
+            disabled={exporting || sendingToChat}
             onClick={() => void handleExportPdf()}
-            className="inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 bg-[#ffefe6] hover:bg-[#ffdfcd] disabled:opacity-60 text-[#ff6e20] text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors cursor-pointer"
           >
             {exporting ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Download className="w-3.5 h-3.5" />
             )}
-            {exporting ? 'Exporting...' : 'Export PDF'}
+            {exporting ? 'Exporting...' : 'Download PDF'}
           </button>
-        </>
+          {onSendToChat && (
+            <button
+              type="button"
+              disabled={sendingToChat || exporting}
+              onClick={() => void handleSendToChat()}
+              className="inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors cursor-pointer"
+            >
+              {sendingToChat ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+              {sendingToChat ? 'Sending...' : chatButtonLabel}
+            </button>
+          )}
+        </div>
       }
     >
       <div className="bg-[#f2f3f5] rounded-[16px] py-6 px-4 flex justify-center">

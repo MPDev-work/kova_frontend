@@ -11,6 +11,7 @@ import { VerifiedBadge } from './VerifiedBadge';
 import { useStore } from '../context/StoreContext';
 import { ApiError, customerApi } from '../services/api';
 import { formatShortDate } from '../utils/currency';
+import { validateUploadFile } from '../utils/mediaUpload';
 import type { SupportTicket } from '../types/marketplace';
 
 interface ChatThreadModalProps {
@@ -132,9 +133,20 @@ export function ChatThreadModal({
     }
     setUploadingImage(true);
     try {
-      const selected = Array.from(files).slice(0, remaining);
+      const validFiles: File[] = [];
+      for (const file of Array.from(files)) {
+        const error = validateUploadFile(file, 'image');
+        if (error) {
+          showToast(error);
+          continue;
+        }
+        validFiles.push(file);
+        if (validFiles.length >= remaining) break;
+      }
+      if (validFiles.length === 0) return;
+
       const uploadedUrls: string[] = [];
-      for (const file of selected) {
+      for (const file of validFiles) {
         const url = await customerApi.uploadChatImage(file);
         uploadedUrls.push(url);
       }

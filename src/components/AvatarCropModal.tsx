@@ -24,10 +24,34 @@ export function AvatarCropModal({
 }: AvatarCropModalProps) {
   useBodyScrollLock(open);
 
+  if (!open || !file) return null;
+
+  return (
+    <AvatarCropModalDialog
+      key={`${file.name}-${file.size}-${file.lastModified}`}
+      file={file}
+      uploading={uploading}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+function AvatarCropModalDialog({
+  file,
+  uploading,
+  onCancel,
+  onConfirm,
+}: {
+  file: File;
+  uploading: boolean;
+  onCancel: () => void;
+  onConfirm: (croppedFile: File) => void | Promise<void>;
+}) {
   const stageRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const imageUrl = useMemo(() => URL.createObjectURL(file), [file]);
   const [naturalSize, setNaturalSize] = useState<{
     w: number;
     h: number;
@@ -46,30 +70,15 @@ export function AvatarCropModal({
     origY: number;
   } | null>(null);
 
-  // Create & revoke object URL whenever file changes
+  // Revoke object URL on unmount or file change
   useEffect(() => {
-    if (!open || !file) {
-      setImageUrl(null);
-      setNaturalSize(null);
-      setZoom(1);
-      setOffset({ x: 0, y: 0 });
-      return;
-    }
-
-    const url = URL.createObjectURL(file);
-    setImageUrl(url);
-    setNaturalSize(null);
-    setZoom(1);
-    setOffset({ x: 0, y: 0 });
-
     return () => {
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(imageUrl);
     };
-  }, [open, file]);
+  }, [imageUrl]);
 
   // Measure responsive square viewport
   useEffect(() => {
-    if (!open) return;
     const measure = () => {
       const rect = stageRef.current?.getBoundingClientRect();
       if (rect && rect.width > 0) {
@@ -79,11 +88,10 @@ export function AvatarCropModal({
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [open]);
+  }, []);
 
   // Escape key cancels when not busy
   useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !uploading && !processing) {
         onCancel();
@@ -91,7 +99,7 @@ export function AvatarCropModal({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, uploading, processing, onCancel]);
+  }, [uploading, processing, onCancel]);
 
   const baseScale = useMemo(() => {
     if (!naturalSize) return 1;
@@ -238,8 +246,6 @@ export function AvatarCropModal({
       setProcessing(false);
     }
   };
-
-  if (!open || !file) return null;
 
   const busy = uploading || processing;
   const dispW = naturalSize ? naturalSize.w * baseScale * zoom : viewportSize;

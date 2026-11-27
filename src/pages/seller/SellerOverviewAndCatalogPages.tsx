@@ -12,6 +12,7 @@ import {
 } from '../../services/dashboardApi';
 import { formatKhr, formatRiel, formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
+import { validateUploadFile } from '../../utils/mediaUpload';
 import {
   DashboardModal,
   DashboardPageHeader,
@@ -1927,6 +1928,7 @@ function SellerProductFormModal({
   const { user, categories, khrRate, showToast, refreshCatalog } = useStore();
 
   const [loading, setLoading] = useState(Boolean(productId));
+  const [draggingImages, setDraggingImages] = useState(false);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
@@ -1997,16 +1999,25 @@ function SellerProductFormModal({
     };
   }, [open, productId, showToast, onClose]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const uploadProductImageFiles = async (rawFiles: File[]) => {
+    if (rawFiles.length === 0) return;
+    const validFiles: File[] = [];
+    for (const file of rawFiles) {
+      const err = validateUploadFile(file, 'image');
+      if (err) {
+        showToast(err);
+        continue;
+      }
+      validFiles.push(file);
+    }
+    if (validFiles.length === 0) return;
+
     const remainingSlots = Math.max(0, 8 - images.length);
     if (remainingSlots === 0) {
       showToast('Maximum of 8 product images allowed.');
-      e.target.value = '';
       return;
     }
-    const filesToUpload = files.slice(0, remainingSlots);
+    const filesToUpload = validFiles.slice(0, remainingSlots);
     setUploadingImg(true);
     try {
       for (const file of filesToUpload) {
@@ -2028,7 +2039,22 @@ function SellerProductFormModal({
       showToast(err instanceof ApiError ? err.message : 'Image upload failed.');
     } finally {
       setUploadingImg(false);
-      e.target.value = '';
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    await uploadProductImageFiles(files);
+  };
+
+  const handleProductDrop = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    setDraggingImages(false);
+    if (uploadingImg) return;
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length > 0) {
+      void uploadProductImageFiles(files);
     }
   };
 
@@ -2290,22 +2316,39 @@ function SellerProductFormModal({
                   ))}
 
                   {images.length < 8 && (
-                    <label className="flex-1 min-w-[220px] min-h-[114px] border border-dashed border-[#ff6e20]/70 bg-[#fffaf7] hover:bg-[#ffefe6]/60 transition-colors px-4 py-5 flex flex-col items-center justify-center gap-1 cursor-pointer text-center rounded-[14px]">
+                    <label
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'copy';
+                        if (!draggingImages) setDraggingImages(true);
+                      }}
+                      onDragLeave={() => setDraggingImages(false)}
+                      onDrop={handleProductDrop}
+                      className={`flex-1 min-w-[220px] min-h-[114px] border border-dashed transition-all px-4 py-5 flex flex-col items-center justify-center gap-1 cursor-pointer text-center rounded-[14px] ${
+                        draggingImages
+                          ? 'border-[#ff6e20] bg-[#ffefe6] ring-2 ring-[#ff6e20]/25'
+                          : 'border-[#ff6e20]/70 bg-[#fffaf7] hover:bg-[#ffefe6]/60'
+                      }`}
+                    >
                       <FigmaIcon
                         name="upload"
                         className="w-5 h-5 text-[#ff6e20]"
                       />
                       <span className="text-[13px] font-semibold text-[#ff6e20]">
-                        {uploadingImg ? 'Uploading images...' : 'Upload images'}
+                        {uploadingImg
+                          ? 'Uploading images...'
+                          : draggingImages
+                            ? 'Drop images here'
+                            : 'Drag & drop or click to upload'}
                       </span>
                       <span className="text-[11px] text-[#8a8a8a]">
-                        Click to select PNG, JPG, or WebP
+                        Any browser image · Max 20MB · Auto 720p
                       </span>
                       <input
                         type="file"
                         multiple
                         disabled={uploadingImg}
-                        accept="image/png,image/jpeg,image/webp"
+                        accept="image/*"
                         onChange={handleImageUpload}
                         className="hidden"
                       />

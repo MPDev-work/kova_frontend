@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Receipt } from 'lucide-react';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { DashboardModal, StatusPill } from '../../components/DashboardPrimitives';
 import { useStore } from '../../context/StoreContext';
-import { ApiError, orderApi } from '../../services/api';
+import { ApiError, customerApi, orderApi } from '../../services/api';
 import { formatRiel, formatShortDate } from '../../utils/currency';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { KhqrModal } from '../../components/KhqrModal';
 import { OrderStatusStepper } from '../../components/OrderStatusStepper';
+import { PosOrderReceiptModal } from '../../components/PosOrderReceiptModal';
+import { buildReceiptOrderFromCustomerOrder } from '../../utils/posReceipt';
 import { savePendingChatCard } from '../../utils/chatContextCard';
 import type {
   ChatContextCard,
@@ -246,6 +249,7 @@ function ProductReviewModal({
 }
 
 export function MyOrdersPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     orders,
@@ -262,6 +266,10 @@ export function MyOrdersPage() {
     () => searchParams.get('order'),
   );
   const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
+  const [receiptTarget, setReceiptTarget] = useState<{
+    order: OrderRecord;
+    pkg: ChildOrderRecord;
+  } | null>(null);
   const [khqrOrders, setKhqrOrders] = useState<ChildOrderRecord[]>([]);
   const [loadingKhqrOrderId, setLoadingKhqrOrderId] = useState<number | null>(
     null,
@@ -295,6 +303,41 @@ export function MyOrdersPage() {
       const next = new URLSearchParams(searchParams);
       next.delete('order');
       setSearchParams(next, { replace: true });
+    }
+  };
+
+  const handleSendReceiptToSeller = async (receiptImageFile: File) => {
+    if (!receiptTarget) return;
+    const { order, pkg } = receiptTarget;
+    const storeId = pkg.store_id ?? pkg.store?.id ?? null;
+    try {
+      const receiptUrl = await customerApi.uploadChatImage(
+        receiptImageFile,
+        'standard',
+      );
+      const ticket = await customerApi.startConversation({
+        store_id: storeId,
+        order_id: order.id,
+      });
+      await customerApi.replyTicket(
+        ticket.id,
+        `Order receipt for #${order.order_number}`,
+        [receiptUrl],
+        {
+          context_card: buildOrderChatCard(order, pkg),
+        },
+      );
+      showToast('Receipt sent to seller in chat.');
+      setReceiptTarget(null);
+      closeOrderModal();
+      navigate(`/help/tickets?chat=${ticket.id}`);
+    } catch (err) {
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to send receipt to seller.',
+      );
+      throw err;
     }
   };
 
@@ -653,6 +696,16 @@ export function MyOrdersPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusPill label={pkg.status} />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReceiptTarget({ order: selectedOrder, pkg })
+                        }
+                        className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] hover:border-[#ff6e20] hover:text-[#ff6e20] border border-[#ececec] text-[#444444] text-[11.5px] font-semibold px-3 py-1 rounded-full transition-colors"
+                      >
+                        <Receipt className="w-3.5 h-3.5" />
+                        <span>Generate receipt</span>
+                      </button>
                       {pkg.store && (
                         <>
                           <Link
@@ -846,11 +899,38 @@ export function MyOrdersPage() {
         target={reviewTarget}
         onClose={() => setReviewTarget(null)}
       />
+
+      <PosOrderReceiptModal
+        open={Boolean(receiptTarget)}
+        onClose={() => setReceiptTarget(null)}
+        order={
+          receiptTarget
+            ? buildReceiptOrderFromCustomerOrder(
+                receiptTarget.order,
+                receiptTarget.pkg,
+              )
+            : null
+        }
+        store={
+          receiptTarget?.pkg.store
+            ? { name: receiptTarget.pkg.store.name }
+            : null
+        }
+        operatorName={receiptTarget?.pkg.store?.name || 'KOVA Store'}
+        khrRate={khrRate}
+        viewerRole="customer"
+        onSendToChat={
+          receiptTarget?.pkg.store || receiptTarget?.pkg.store_id
+            ? handleSendReceiptToSeller
+            : undefined
+        }
+      />
     </div>
   );
 }
 
 export function OrderDetailsPage() {
+  const navigate = useNavigate();
   const { orderId } = useParams<{ orderId: string }>();
   const {
     khrRate,
@@ -866,6 +946,44 @@ export function OrderDetailsPage() {
   const [loadingKhqr, setLoadingKhqr] = useState(false);
   const [restartTimeoutOnReopen, setRestartTimeoutOnReopen] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
+  const [receiptTarget, setReceiptTarget] = useState<{
+    order: OrderRecord;
+    pkg: ChildOrderRecord;
+  } | null>(null);
+
+  const handleSendReceiptToSeller = async (receiptImageFile: File) => {
+    if (!receiptTarget) return;
+    const { order: targetOrder, pkg } = receiptTarget;
+    const storeId = pkg.store_id ?? pkg.store?.id ?? null;
+    try {
+      const receiptUrl = await customerApi.uploadChatImage(
+        receiptImageFile,
+        'standard',
+      );
+      const ticket = await customerApi.startConversation({
+        store_id: storeId,
+        order_id: targetOrder.id,
+      });
+      await customerApi.replyTicket(
+        ticket.id,
+        `Order receipt for #${targetOrder.order_number}`,
+        [receiptUrl],
+        {
+          context_card: buildOrderChatCard(targetOrder, pkg),
+        },
+      );
+      showToast('Receipt sent to seller in chat.');
+      setReceiptTarget(null);
+      navigate(`/help/tickets?chat=${ticket.id}`);
+    } catch (err) {
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to send receipt to seller.',
+      );
+      throw err;
+    }
+  };
 
   const handleOpenKhqr = async () => {
     if (!order) return;
@@ -1020,6 +1138,14 @@ export function OrderDetailsPage() {
                   <span className="bg-[#ffefe6] text-[#ff6e20] text-[11.5px] font-semibold px-3 py-1 rounded-full capitalize">
                     {pkg.status}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setReceiptTarget({ order, pkg })}
+                    className="inline-flex items-center gap-1.5 bg-white hover:bg-[#ffefe6] hover:border-[#ff6e20] hover:text-[#ff6e20] border border-[#ececec] text-[#444444] text-[12px] font-semibold px-3.5 py-1 rounded-full transition-colors"
+                  >
+                    <Receipt className="w-3.5 h-3.5" />
+                    <span>Generate receipt</span>
+                  </button>
                   {pkg.store && (
                     <>
                       <Link
@@ -1214,6 +1340,32 @@ export function OrderDetailsPage() {
         }
         target={reviewTarget}
         onClose={() => setReviewTarget(null)}
+      />
+
+      <PosOrderReceiptModal
+        open={Boolean(receiptTarget)}
+        onClose={() => setReceiptTarget(null)}
+        order={
+          receiptTarget
+            ? buildReceiptOrderFromCustomerOrder(
+                receiptTarget.order,
+                receiptTarget.pkg,
+              )
+            : null
+        }
+        store={
+          receiptTarget?.pkg.store
+            ? { name: receiptTarget.pkg.store.name }
+            : null
+        }
+        operatorName={receiptTarget?.pkg.store?.name || 'KOVA Store'}
+        khrRate={khrRate}
+        viewerRole="customer"
+        onSendToChat={
+          receiptTarget?.pkg.store || receiptTarget?.pkg.store_id
+            ? handleSendReceiptToSeller
+            : undefined
+        }
       />
     </div>
   );
