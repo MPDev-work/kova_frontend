@@ -841,6 +841,13 @@ export const checkoutApi = {
       amount: number;
       currency: string;
       verified_at?: string;
+      hash?: string | null;
+      bill_number?: string | null;
+      transaction_reference?: string | null;
+      from_account_id?: string | null;
+      to_account_id?: string | null;
+      merchant_name?: string | null;
+      payer_name?: string | null;
       seconds_remaining?: number;
       order_number?: string;
       parent_order_number?: string;

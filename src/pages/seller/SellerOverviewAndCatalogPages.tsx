@@ -2345,7 +2345,7 @@ function SellerProductFormModal({
                       }`}
                     >
                       {img.is_primary && (
-                        <span className="absolute top-2.5 left-2.5 bg-[#ff6e20] text-white text-[9.5px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                        <span className="absolute top-2.5 left-2.5 bg-[#ff6e20] text-white text-[9.5px] font-bold px-2 py-0.5 rounded-full">
                           Primary
                         </span>
                       )}

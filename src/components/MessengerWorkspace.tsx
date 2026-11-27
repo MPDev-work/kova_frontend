@@ -748,11 +748,24 @@ export function MessengerWorkspace({
 
   const stopAndSendVoiceRecording = useCallback(() => {
     recordCancelledRef.current = false;
+    if (recordTimerRef.current !== null) {
+      window.clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
     const rec = mediaRecorderRef.current;
     if (rec && rec.state !== 'inactive') {
+      try {
+        rec.requestData();
+      } catch {
+        // Ignore if browser doesn't support requestData before stop
+      }
       rec.stop();
+    } else {
+      cleanupRecordingResources();
+      setIsRecording(false);
+      setRecordingSeconds(0);
     }
-  }, []);
+  }, [cleanupRecordingResources]);
 
   const startVoiceRecording = async () => {
     if (!activeTicket || isRecording || uploadingVoice || sending) return;
@@ -765,20 +778,93 @@ export function MessengerWorkspace({
       return;
     }
 
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const preferredMimes = [
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      } catch (constraintErr) {
+        const name =
+          constraintErr instanceof DOMException ? constraintErr.name : '';
+        if (name === 'OverconstrainedError' || name === 'TypeError') {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } else {
+          throw constraintErr;
+        }
+      }
+    } catch (err) {
+      cleanupRecordingResources();
+      setIsRecording(false);
+      const errName = err instanceof DOMException ? err.name : '';
+      if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        showToast('No microphone was detected on this device.');
+      } else if (
+        errName === 'NotReadableError' ||
+        errName === 'TrackStartError'
+      ) {
+        showToast(
+          'Your microphone is busy or unavailable in another app. Close other mic apps and try again.',
+        );
+      } else {
+        showToast(
+          'Microphone permission is blocked. Allow microphone access in your browser settings.',
+        );
+      }
+      return;
+    }
+
+    try {
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0 || audioTracks[0].readyState === 'ended') {
+        stream.getTracks().forEach((t) => t.stop());
+        showToast('Microphone audio track is unavailable. Check your mic input device.');
+        return;
+      }
+
+      const candidateMimes = [
+        'audio/mp4',
         'audio/webm;codecs=opus',
         'audio/webm',
-        'audio/mp4',
         'audio/ogg;codecs=opus',
         'audio/ogg',
       ];
-      const supportedMime =
-        preferredMimes.find((m) => MediaRecorder.isTypeSupported(m)) || '';
-      const recorder = supportedMime
-        ? new MediaRecorder(stream, { mimeType: supportedMime })
-        : new MediaRecorder(stream);
+      const supportedCandidates = candidateMimes.filter((m) => {
+        try {
+          return (
+            typeof MediaRecorder.isTypeSupported === 'function' &&
+            MediaRecorder.isTypeSupported(m)
+          );
+        } catch {
+          return false;
+        }
+      });
+
+      // Try each supported MIME type, then fall back to browser default (no options)
+      let recorder: MediaRecorder | null = null;
+      let chosenMime = '';
+      for (const mime of [...supportedCandidates, '']) {
+        try {
+          const candidate = mime
+            ? new MediaRecorder(stream, { mimeType: mime })
+            : new MediaRecorder(stream);
+          recorder = candidate;
+          chosenMime = candidate.mimeType || mime;
+          break;
+        } catch {
+          // Try next supported format
+        }
+      }
+
+      if (!recorder) {
+        stream.getTracks().forEach((t) => t.stop());
+        showToast('Voice recording format is not supported on this device.');
+        return;
+      }
 
       const targetTicketId = activeTicket.id;
       mediaStreamRef.current = stream;
@@ -793,6 +879,13 @@ export function MessengerWorkspace({
         }
       };
 
+      recorder.onerror = () => {
+        cleanupRecordingResources();
+        setIsRecording(false);
+        setRecordingSeconds(0);
+        showToast('Voice recording stopped unexpectedly. Please try again.');
+      };
+
       recorder.onstop = async () => {
         const wasCancelled = recordCancelledRef.current;
         const chunks = [...audioChunksRef.current];
@@ -801,7 +894,7 @@ export function MessengerWorkspace({
           Math.round((Date.now() - recordStartMsRef.current) / 1000),
         );
         const actualMime =
-          recorder.mimeType || supportedMime || 'audio/webm';
+          recorder?.mimeType || chosenMime || chunks[0]?.type || 'audio/webm';
 
         cleanupRecordingResources();
         setIsRecording(false);
@@ -810,11 +903,16 @@ export function MessengerWorkspace({
         if (wasCancelled || chunks.length === 0) return;
 
         const blob = new Blob(chunks, { type: actualMime });
+        if (blob.size === 0) return;
         const ext = actualMime.includes('mp4')
           ? 'm4a'
           : actualMime.includes('ogg')
             ? 'ogg'
-            : 'webm';
+            : actualMime.includes('mpeg') || actualMime.includes('mp3')
+              ? 'mp3'
+              : actualMime.includes('wav')
+                ? 'wav'
+                : 'webm';
         const audioFile = new File([blob], `voice-${Date.now()}.${ext}`, {
           type: actualMime,
         });
@@ -884,7 +982,11 @@ export function MessengerWorkspace({
         }
       };
 
-      recorder.start();
+      try {
+        recorder.start(250);
+      } catch {
+        recorder.start();
+      }
       setIsRecording(true);
       setRecordingSeconds(0);
       recordTimerRef.current = window.setInterval(() => {
@@ -897,9 +999,10 @@ export function MessengerWorkspace({
         });
       }, 1000);
     } catch {
+      stream.getTracks().forEach((t) => t.stop());
       cleanupRecordingResources();
       setIsRecording(false);
-      showToast('Microphone access was denied or is unavailable.');
+      showToast('Unable to start voice recording. Check your microphone input device.');
     }
   };
 

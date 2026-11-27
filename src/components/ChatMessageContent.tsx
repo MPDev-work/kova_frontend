@@ -224,6 +224,23 @@ function renderLinkedText(text: string, isOwn: boolean) {
 
 const VOICE_BAR_HEIGHTS = [35, 62, 48, 84, 56, 95, 72, 44, 88, 66, 52, 78, 42, 68, 54, 80, 46, 60];
 
+let activeVoiceAudioEl: HTMLAudioElement | null = null;
+
+/**
+ * Ensure Cloudinary-hosted voice messages (including legacy .webm/.ogg recordings)
+ * are served as universally playable MP3 with valid duration headers and byte-range
+ * seeking (required for reliable first-tap playback on iOS Safari and mobile Chrome).
+ */
+function getPlayableVoiceUrl(rawUrl: string): string {
+  if (!rawUrl || !rawUrl.includes('res.cloudinary.com')) return rawUrl;
+  if (/\.mp3(\?|$)/i.test(rawUrl)) return rawUrl;
+  if (!/\/video\/upload\//i.test(rawUrl)) return rawUrl;
+  const withTransform = rawUrl.includes('/video/upload/f_mp3')
+    ? rawUrl
+    : rawUrl.replace('/video/upload/', '/video/upload/f_mp3/');
+  return withTransform.replace(/\.(webm|weba|ogg|oga|opus|m4a|mp4)(\?|$)/i, '.mp3$2');
+}
+
 function formatAudioSeconds(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const total = Math.floor(seconds);
@@ -240,81 +257,218 @@ function VoiceMessagePlayer({
   isOwn: boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const primarySrc = getPlayableVoiceUrl(voice.url);
+  const [srcUrl, setSrcUrl] = useState(primarySrc);
   const [playing, setPlaying] = useState(false);
+  const [buffering, setBuffering] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState<number>(
-    typeof voice.duration === 'number' && voice.duration > 0
+
+  const fallbackDuration =
+    typeof voice.duration === 'number' &&
+    Number.isFinite(voice.duration) &&
+    voice.duration > 0
       ? voice.duration
-      : 0,
-  );
+      : 0;
+
+  const [duration, setDuration] = useState<number>(fallbackDuration);
+  const durationRef = useRef<number>(fallbackDuration);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const onLoaded = () => {
-      if (Number.isFinite(audio.duration) && audio.duration > 0) {
-        setDuration(audio.duration);
+    const finishPlayback = () => {
+      audio.pause();
+      try {
+        audio.currentTime = 0;
+      } catch {
+        // Ignore seek errors on unloaded streams
       }
-    };
-    const onTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-    };
-    const onEnded = () => {
+      if (activeVoiceAudioEl === audio) {
+        activeVoiceAudioEl = null;
+      }
       setPlaying(false);
+      setBuffering(false);
       setCurrentTime(0);
     };
-    const onPause = () => setPlaying(false);
-    const onPlay = () => setPlaying(true);
 
-    audio.addEventListener('loadedmetadata', onLoaded);
-    audio.addEventListener('durationchange', onLoaded);
+    const syncDuration = () => {
+      const d = audio.duration;
+      // Ignore Infinity / NaN / absurdly large bogus durations from streaming containers
+      if (Number.isFinite(d) && d > 0 && d < 36000) {
+        durationRef.current = d;
+        setDuration(d);
+      } else if (fallbackDuration > 0) {
+        durationRef.current = fallbackDuration;
+        setDuration(fallbackDuration);
+      }
+    };
+
+    const onTimeUpdate = () => {
+      const maxDur = durationRef.current;
+      const t = audio.currentTime;
+
+      if (audio.ended) {
+        finishPlayback();
+        return;
+      }
+
+      // Guard against mobile/WebM streams that fail to emit `ended` and count infinitely
+      if (maxDur > 0 && t >= maxDur + 0.35) {
+        finishPlayback();
+        return;
+      }
+
+      setCurrentTime(maxDur > 0 ? Math.min(t, maxDur) : t);
+    };
+
+    const onEnded = () => {
+      finishPlayback();
+    };
+
+    const onPause = () => {
+      if (activeVoiceAudioEl === audio) {
+        activeVoiceAudioEl = null;
+      }
+      setPlaying(false);
+      setBuffering(false);
+    };
+
+    const onPlay = () => {
+      setPlaying(true);
+    };
+
+    const onPlaying = () => {
+      setPlaying(true);
+      setBuffering(false);
+    };
+
+    const onWaiting = () => {
+      setBuffering(true);
+    };
+
+    const onError = () => {
+      // If transformed MP3 URL fails, fall back once to the original raw URL
+      if (srcUrl !== voice.url) {
+        setSrcUrl(voice.url);
+      } else {
+        finishPlayback();
+      }
+    };
+
+    audio.addEventListener('loadedmetadata', syncDuration);
+    audio.addEventListener('durationchange', syncDuration);
+    audio.addEventListener('canplay', syncDuration);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('play', onPlay);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('error', onError);
 
     return () => {
       audio.pause();
-      audio.removeEventListener('loadedmetadata', onLoaded);
-      audio.removeEventListener('durationchange', onLoaded);
+      if (activeVoiceAudioEl === audio) {
+        activeVoiceAudioEl = null;
+      }
+      audio.removeEventListener('loadedmetadata', syncDuration);
+      audio.removeEventListener('durationchange', syncDuration);
+      audio.removeEventListener('canplay', syncDuration);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('error', onError);
     };
-  }, [voice.url]);
+  }, [srcUrl, voice.url, fallbackDuration]);
 
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (playing) {
+
+    if (playing || !audio.paused) {
       audio.pause();
-    } else {
-      void audio.play().catch(() => setPlaying(false));
+      return;
+    }
+
+    // Pause any other currently playing voice message
+    if (activeVoiceAudioEl && activeVoiceAudioEl !== audio) {
+      activeVoiceAudioEl.pause();
+    }
+    activeVoiceAudioEl = audio;
+
+    // Reset if previous play finished or drifted near the end
+    const maxDur = durationRef.current;
+    if (audio.ended || (maxDur > 0 && audio.currentTime >= maxDur - 0.1)) {
+      try {
+        audio.currentTime = 0;
+      } catch {
+        // Ignore
+      }
+      setCurrentTime(0);
+    }
+
+    setBuffering(audio.readyState < 2);
+
+    // Call play() directly inside the user-gesture tap handler (required by iOS Safari!)
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      void playPromise.catch(() => {
+        // On mobile browsers where first play fails before metadata loads, reload & retry once
+        try {
+          audio.load();
+          void audio.play().catch(() => {
+            setPlaying(false);
+            setBuffering(false);
+            if (activeVoiceAudioEl === audio) {
+              activeVoiceAudioEl = null;
+            }
+          });
+        } catch {
+          setPlaying(false);
+          setBuffering(false);
+        }
+      });
     }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    if (!audio || !duration) return;
+    const maxDur = durationRef.current;
+    if (!audio || !maxDur) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    audio.currentTime = ratio * duration;
-    setCurrentTime(audio.currentTime);
+    try {
+      audio.currentTime = ratio * maxDur;
+      setCurrentTime(audio.currentTime);
+    } catch {
+      // Ignore seek errors before audio is seekable
+    }
   };
 
   const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
+  const displayTime =
+    playing || buffering || currentTime > 0
+      ? formatAudioSeconds(currentTime)
+      : formatAudioSeconds(duration);
 
   return (
     <div
-      className={`w-[244px] sm:w-[270px] max-w-full rounded-[20px] px-3 py-2.5 flex items-center gap-2.5 ${
+      className={`w-[252px] sm:w-[276px] max-w-full rounded-[20px] pl-2.5 pr-3.5 py-2 flex items-center gap-2.5 ${
         isOwn
-          ? 'bg-[#ff6e20] text-white rounded-br-[6px] shadow-[0_4px_14px_rgba(255,110,32,0.22)]'
+          ? 'bg-[#ff6e20] text-white rounded-br-[6px]'
           : 'bg-white border border-[#ececec] text-black rounded-bl-[6px] shadow-[0_1px_3px_rgba(0,0,0,0.04)]'
       }`}
     >
-      <audio ref={audioRef} src={voice.url} preload="metadata" />
+      <audio
+        ref={audioRef}
+        src={srcUrl}
+        preload="auto"
+        playsInline
+      />
       <button
         type="button"
         onClick={togglePlay}
@@ -325,57 +479,53 @@ function VoiceMessagePlayer({
             : 'bg-[#ffefe6] text-[#ff6e20] hover:bg-[#ff6e20] hover:text-white'
         }`}
       >
-        {playing ? (
+        {buffering && !playing ? (
+          <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+        ) : playing ? (
           <FigmaIcon name="pause-filled" className="w-4 h-4" />
         ) : (
           <FigmaIcon name="play-filled" className="w-4 h-4 ml-0.5" />
         )}
       </button>
 
-      <div className="flex-1 min-w-0 flex flex-col gap-1">
-        <div
-          role="slider"
-          aria-label="Voice message progress"
-          aria-valuemin={0}
-          aria-valuemax={Math.round(duration)}
-          aria-valuenow={Math.round(currentTime)}
-          tabIndex={0}
-          onClick={handleSeek}
-          className="h-6 flex items-center gap-[3px] cursor-pointer"
-        >
-          {VOICE_BAR_HEIGHTS.map((pct, idx) => {
-            const barRatio = (idx + 1) / VOICE_BAR_HEIGHTS.length;
-            const active = progress >= barRatio - 0.03;
-            return (
-              <span
-                key={idx}
-                style={{ height: `${Math.round((pct / 100) * 20)}px` }}
-                className={`flex-1 rounded-full transition-colors ${
-                  isOwn
-                    ? active
-                      ? 'bg-white'
-                      : 'bg-white/40'
-                    : active
-                      ? 'bg-[#ff6e20]'
-                      : 'bg-[#dcdcdc]'
-                }`}
-              />
-            );
-          })}
-        </div>
-
-        <div
-          className={`flex items-center justify-end text-[10.5px] font-medium tabular-nums ${
-            isOwn ? 'text-white/85' : 'text-[#8a8a8a]'
-          }`}
-        >
-          <span>
-            {playing || currentTime > 0
-              ? `${formatAudioSeconds(currentTime)} / ${formatAudioSeconds(duration)}`
-              : formatAudioSeconds(duration)}
-          </span>
-        </div>
+      <div
+        role="slider"
+        aria-label="Voice message progress"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(duration)}
+        aria-valuenow={Math.round(currentTime)}
+        tabIndex={0}
+        onClick={handleSeek}
+        className="flex-1 min-w-0 h-7 flex items-center gap-[3px] cursor-pointer"
+      >
+        {VOICE_BAR_HEIGHTS.map((pct, idx) => {
+          const barRatio = (idx + 1) / VOICE_BAR_HEIGHTS.length;
+          const active = progress >= barRatio - 0.03;
+          return (
+            <span
+              key={idx}
+              style={{ height: `${Math.round((pct / 100) * 20)}px` }}
+              className={`flex-1 rounded-full transition-colors ${
+                isOwn
+                  ? active
+                    ? 'bg-white'
+                    : 'bg-white/40'
+                  : active
+                    ? 'bg-[#ff6e20]'
+                    : 'bg-[#dcdcdc]'
+              }`}
+            />
+          );
+        })}
       </div>
+
+      <span
+        className={`shrink-0 text-[11.5px] font-medium tabular-nums leading-none min-w-[28px] text-right ${
+          isOwn ? 'text-white/90' : 'text-[#8a8a8a]'
+        }`}
+      >
+        {displayTime}
+      </span>
     </div>
   );
 }
@@ -428,7 +578,11 @@ export function ChatMessageBody({
         )}
 
         {voiceMessage && (
-          <VoiceMessagePlayer voice={voiceMessage} isOwn={isOwn} />
+          <VoiceMessagePlayer
+            key={voiceMessage.url}
+            voice={voiceMessage}
+            isOwn={isOwn}
+          />
         )}
 
         {images.length > 0 && (
@@ -462,7 +616,7 @@ export function ChatMessageBody({
           <div
             className={`rounded-[20px] px-4 py-2.5 ${
               isOwn
-                ? 'bg-[#ff6e20] text-white rounded-br-[6px] shadow-[0_4px_14px_rgba(255,110,32,0.22)]'
+                ? 'bg-[#ff6e20] text-white rounded-br-[6px]'
                 : 'bg-white border border-[#ececec] text-black rounded-bl-[6px] shadow-[0_1px_3px_rgba(0,0,0,0.04)]'
             }`}
           >

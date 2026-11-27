@@ -12,7 +12,7 @@ import {
 function AuthStaticHeroPanel() {
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="w-full h-full rounded-[28px] overflow-hidden bg-[#ff5200] shadow-[0_14px_40px_rgba(255,110,32,0.18)]">
+      <div className="w-full h-full rounded-[28px] overflow-hidden bg-[#ff5200]">
         <img
           src="/images/auth-hero.jpg"
           alt="Kova Marketplace"

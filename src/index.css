@@ -156,11 +156,11 @@
 
 @keyframes khqr-ring-expand {
   0% {
-    transform: scale(0.6);
-    opacity: 0.55;
+    transform: scale(0.68);
+    opacity: 0.52;
   }
   100% {
-    transform: scale(1.75);
+    transform: scale(1.45);
     opacity: 0;
   }
 }
@@ -185,12 +185,24 @@
     stroke-dashoffset: 64;
     opacity: 0;
   }
-  20% {
+  12% {
     opacity: 1;
   }
-  100% {
+  42% {
     stroke-dashoffset: 0;
     opacity: 1;
+  }
+  82% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  96% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 64;
+    opacity: 0;
   }
 }
 
@@ -229,11 +241,11 @@
 }
 
 .khqr-success-ring {
-  animation: khqr-ring-expand 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: khqr-ring-expand 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 .khqr-success-ring-delay {
-  animation: khqr-ring-expand 1.3s cubic-bezier(0.16, 1, 0.3, 1) 0.18s forwards;
+  animation: khqr-ring-expand 1.6s cubic-bezier(0.16, 1, 0.3, 1) 0.35s infinite;
 }
 
 .khqr-success-circle {
@@ -243,7 +255,7 @@
 .khqr-success-check {
   stroke-dasharray: 64;
   stroke-dashoffset: 0;
-  animation: khqr-check-draw 0.48s cubic-bezier(0.65, 0, 0.35, 1) 0.24s both;
+  animation: khqr-check-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 .khqr-success-spark {
@@ -256,7 +268,7 @@
 
 .khqr-redirect-bar {
   transform-origin: left center;
-  animation: khqr-progress-fill 2.1s linear 0.15s both;
+  animation: khqr-progress-fill 3s linear both;
 }
 
 @keyframes kova-toast-in {

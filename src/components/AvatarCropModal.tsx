@@ -391,7 +391,7 @@ function AvatarCropModalDialog({
             onClick={() => void handleConfirm()}
             aria-label="Confirm and upload avatar"
             title="Save avatar"
-            className="w-12 h-12 rounded-full bg-[#ff6e20] hover:bg-[#e85d12] text-white shadow-[0_6px_18px_rgba(255,110,32,0.32)] flex items-center justify-center transition-colors disabled:opacity-50"
+            className="w-12 h-12 rounded-full bg-[#ff6e20] hover:bg-[#e85d12] text-white flex items-center justify-center transition-colors disabled:opacity-50"
           >
             {busy ? (
               <Loader2

@@ -1,27 +1,92 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { FigmaIcon } from './FigmaIcon';
 import { ApiError, checkoutApi } from '../services/api';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import type { ChildOrderRecord } from '../types/marketplace';
 
-const SUCCESS_SPARKS = [
-  { angle: '0deg', color: '#029500', size: 7 },
-  { angle: '45deg', color: '#ff6e20', size: 6 },
-  { angle: '90deg', color: '#029500', size: 7 },
-  { angle: '135deg', color: '#fbbf24', size: 6 },
-  { angle: '180deg', color: '#029500', size: 7 },
-  { angle: '225deg', color: '#ff6e20', size: 6 },
-  { angle: '270deg', color: '#029500', size: 7 },
-  { angle: '315deg', color: '#fbbf24', size: 6 },
-];
+interface PaidReceiptDetails {
+  amount: number;
+  currency: 'USD' | 'KHR';
+  verifiedAt: string;
+  hash: string | null;
+  billNumber: string;
+  transactionReference: string | null;
+  fromAccountId: string | null;
+  toAccountId: string | null;
+  merchantName: string;
+  payerName: string | null;
+  orderNumber: string | null;
+  parentOrderNumber: string | null;
+}
+
+const BAKONG_BANK_NAMES: Record<string, string> = {
+  aclb: 'ACLEDA',
+  abaa: 'ABA Bank',
+  bkrt: 'Bakong',
+  wing: 'Wing Bank',
+  cadi: 'Canadia Bank',
+  ftbb: 'FTB Bank',
+  sath: 'Sathapana Bank',
+  vatt: 'Vattanac Bank',
+  pras: 'KB PRASAC',
+  amkt: 'AMK',
+  chip: 'Chip Mong Bank',
+  ppcb: 'PPCBank',
+  jtrb: 'J Trust Royal',
+  prin: 'Prince Bank',
+  cpbp: 'Cambodia Post Bank',
+  phib: 'Phillip Bank',
+  mayb: 'Maybank',
+  hlbb: 'Hong Leong Bank',
+  mbcb: 'MB Bank',
+  shbk: 'Shinhan Bank',
+  woor: 'Woori Bank',
+  lolc: 'LOLC',
+  trmc: 'TrueMoney',
+  lyhr: 'Ly Hour PayPro',
+};
+
+function parseBakongAccountDisplay(accountId?: string | null): {
+  handle: string | null;
+  bank: string | null;
+} {
+  if (!accountId || !accountId.trim()) return { handle: null, bank: null };
+  const trimmed = accountId.trim();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex === -1) {
+    return { handle: trimmed, bank: null };
+  }
+  const suffix = trimmed.slice(atIndex + 1).toLowerCase();
+  const bank = BAKONG_BANK_NAMES[suffix] ?? suffix.toUpperCase();
+  return {
+    handle: trimmed,
+    bank,
+  };
+}
+
+function formatBakongReceiptDateTime(iso?: string | null): string {
+  const dt = iso ? new Date(iso) : new Date();
+  const safe = Number.isNaN(dt.getTime()) ? new Date() : dt;
+  const day = String(safe.getDate()).padStart(2, '0');
+  const month = safe.toLocaleString('en-US', { month: 'short' });
+  const year = safe.getFullYear();
+  const hours = String(safe.getHours()).padStart(2, '0');
+  const mins = String(safe.getMinutes()).padStart(2, '0');
+  return `${day} ${month} ${year} - ${hours}:${mins}`;
+}
+
+function formatReceiptAmount(amount: number, currency: 'USD' | 'KHR'): string {
+  if (currency === 'KHR') {
+    return Math.round(amount).toLocaleString('en-US');
+  }
+  const fixed = amount.toFixed(2);
+  // Keep 2 decimals unless trailing zero after non-zero tenth or clean amount? Keep standard 2 decimals e.g. 2.50 / 0.01
+  return Number(fixed).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 interface KhqrModalProps {
   open: boolean;
@@ -84,6 +149,10 @@ function KhqrModalContent({
     'pending' | 'paid' | 'timeout' | 'error'
   >('pending');
   const [allCompleted, setAllCompleted] = useState(false);
+  const [paidReceipt, setPaidReceipt] = useState<PaidReceiptDetails | null>(
+    null,
+  );
+  const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [nowTs, setNowTs] = useState(() => Date.now());
 
@@ -91,6 +160,7 @@ function KhqrModalContent({
   const completedRef = useRef(false);
   const timeoutHandledRef = useRef(false);
   const timedOutOrderRef = useRef<string | undefined>(undefined);
+  const confirmedOrderRef = useRef<string | undefined>(undefined);
 
   const currentOrder = payableOrders[activeIndex] || payableOrders[0];
   const khqr = currentOrder.khqr!;
@@ -135,15 +205,49 @@ function KhqrModalContent({
     }
   }, [cancelling, statusTone, onCancel, onClose]);
 
+  const handleContinueAfterPaid = useCallback(() => {
+    if (allCompleted) {
+      onAllPaid(confirmedOrderRef.current);
+      return;
+    }
+    if (activeIndex + 1 < payableOrders.length) {
+      setStatusTone('pending');
+      setStatusMessage('');
+      setPaidReceipt(null);
+      setCopiedOrderId(false);
+      setActiveIndex((idx) => idx + 1);
+    } else {
+      onAllPaid(confirmedOrderRef.current);
+    }
+  }, [allCompleted, activeIndex, payableOrders.length, onAllPaid]);
+
+  // Auto-navigate 3 seconds after payment succeeds
+  useEffect(() => {
+    if (statusTone !== 'paid') return;
+    const timer = window.setTimeout(() => {
+      handleContinueAfterPaid();
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [statusTone, handleContinueAfterPaid]);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && allowBackdropClose && statusTone !== 'paid' && !cancelling) {
+      if (e.key !== 'Escape' || cancelling) return;
+      if (statusTone === 'paid') {
+        handleContinueAfterPaid();
+      } else if (allowBackdropClose) {
         onClose();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, allowBackdropClose, statusTone, cancelling]);
+  }, [
+    onClose,
+    allowBackdropClose,
+    statusTone,
+    cancelling,
+    handleContinueAfterPaid,
+  ]);
 
   const triggerTimeoutState = useCallback(
     (timedOutOrderNumber?: string) => {
@@ -180,8 +284,28 @@ function KhqrModalContent({
         if (res.data.payment_status === 'successful') {
           const confirmedOrderNumber =
             res.data.parent_order_number || res.data.order_number;
+          confirmedOrderRef.current = confirmedOrderNumber;
           const nextPaid = { ...paidMap, [khqr.bill_number]: true };
           setPaidMap(nextPaid);
+          setCopiedOrderId(false);
+          setPaidReceipt({
+            amount: Number(res.data.amount ?? khqr.amount ?? 0),
+            currency:
+              (res.data.currency || khqr.currency || 'USD').toUpperCase() ===
+              'KHR'
+                ? 'KHR'
+                : 'USD',
+            verifiedAt: res.data.verified_at || new Date().toISOString(),
+            hash: res.data.hash ?? null,
+            billNumber: res.data.bill_number || khqr.bill_number,
+            transactionReference: res.data.transaction_reference ?? null,
+            fromAccountId: res.data.from_account_id ?? null,
+            toAccountId: res.data.to_account_id ?? null,
+            merchantName: (res.data.merchant_name || merchantName).trim(),
+            payerName: res.data.payer_name ?? null,
+            orderNumber: res.data.order_number || currentOrder.order_number || null,
+            parentOrderNumber: res.data.parent_order_number ?? null,
+          });
           setStatusTone('paid');
           setStatusMessage('Payment confirmed!');
 
@@ -191,13 +315,6 @@ function KhqrModalContent({
           if (allDone) {
             completedRef.current = true;
             setAllCompleted(true);
-            window.setTimeout(() => onAllPaid(confirmedOrderNumber), 2250);
-          } else if (activeIndex + 1 < payableOrders.length) {
-            window.setTimeout(() => {
-              setStatusTone('pending');
-              setStatusMessage('');
-              setActiveIndex((idx) => idx + 1);
-            }, 1600);
           }
           return;
         }
@@ -226,10 +343,12 @@ function KhqrModalContent({
     },
     [
       khqr.bill_number,
+      khqr.amount,
+      khqr.currency,
+      currentOrder.order_number,
+      merchantName,
       paidMap,
       payableOrders,
-      activeIndex,
-      onAllPaid,
       cancelling,
       triggerTimeoutState,
     ],
@@ -297,109 +416,220 @@ function KhqrModalContent({
     return { size, pathData: segments.join('') };
   }, [khqr.khqr_payload]);
 
-  const isCompactState = statusTone === 'paid' || statusTone === 'timeout';
+  const isPaidState = statusTone === 'paid';
+  const isTimeoutState = statusTone === 'timeout';
+
+  const handleCopyOrderId = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedOrderId(true);
+      window.setTimeout(() => setCopiedOrderId(false), 1800);
+    } catch {
+      // Clipboard unavailable
+    }
+  };
+
+  if (isPaidState) {
+    const receiptCurrency = paidReceipt?.currency ?? currency;
+    const receiptSymbol = receiptCurrency === 'KHR' ? '៛' : '$';
+    const receiptAmount = formatReceiptAmount(
+      paidReceipt?.amount ?? Number(khqr.amount || 0),
+      receiptCurrency,
+    );
+    const receiptMerchant = paidReceipt?.merchantName || merchantName;
+    const rawOrderId =
+      paidReceipt?.parentOrderNumber ||
+      paidReceipt?.orderNumber ||
+      paidReceipt?.billNumber ||
+      khqr.bill_number;
+    const displayOrderId = rawOrderId.startsWith('#')
+      ? rawOrderId
+      : `#${rawOrderId}`;
+    const dateTimeText = formatBakongReceiptDateTime(paidReceipt?.verifiedAt);
+    const fromInfo = parseBakongAccountDisplay(paidReceipt?.fromAccountId);
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[4px] overflow-y-auto flex flex-col px-3.5 sm:px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="relative w-full max-w-[364px] sm:max-w-[392px] mx-auto my-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.32)]">
+          {/* Main White Bakong Slip Card */}
+          <div className="bg-white rounded-t-[22px] sm:rounded-t-[24px] overflow-hidden">
+            {/* Top Looping Success Tick Badge + Amount + Merchant */}
+            <div className="px-4 sm:px-6 pt-6 sm:pt-8 pb-5 sm:pb-6 flex flex-col items-center text-center">
+              <div className="relative w-20 h-20 sm:w-[92px] sm:h-[92px] flex items-center justify-center">
+                <span
+                  className="khqr-success-ring absolute inset-1.5 rounded-full bg-[#389B3C]/20 pointer-events-none"
+                  aria-hidden="true"
+                />
+                <span
+                  className="khqr-success-ring-delay absolute inset-1.5 rounded-full border-2 border-[#389B3C]/30 pointer-events-none"
+                  aria-hidden="true"
+                />
+                <div className="khqr-success-circle relative w-16 h-16 sm:w-[74px] sm:h-[74px] rounded-full bg-[#389B3C] ring-[3px] ring-[#E8F5E9] flex items-center justify-center">
+                  <svg
+                    viewBox="0 0 42 42"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-8 h-8 sm:w-[38px] sm:h-[38px]"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M10.5 21.8L17.6 28.8L31.8 14.2"
+                      stroke="#FFFFFF"
+                      strokeWidth="4.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="khqr-success-check"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <p className="khqr-fade-up mt-2.5 sm:mt-3 text-[28px] sm:text-[34px] font-extrabold text-[#111111] leading-tight tracking-[-0.025em] tabular-nums">
+                -{receiptSymbol} {receiptAmount}
+              </p>
+
+              <p className="khqr-fade-up mt-1 text-[13.5px] sm:text-[14.5px] text-[#767676] font-medium max-w-full truncate">
+                To{' '}
+                <span className="font-bold text-[#555555] uppercase">
+                  {receiptMerchant}
+                </span>
+              </p>
+            </div>
+
+            {/* Ticket Side Cutouts + Dashed Perforation Line */}
+            <div className="relative flex items-center">
+              <span
+                aria-hidden="true"
+                className="w-4 h-7 rounded-r-full bg-black/55 -ml-2 shrink-0"
+              />
+              <div className="flex-1 border-t-[1.5px] border-dashed border-[#D8D8D8]" />
+              <span
+                aria-hidden="true"
+                className="w-4 h-7 rounded-l-full bg-black/55 -mr-2 shrink-0"
+              />
+            </div>
+
+            {/* Structured Bakong Transaction Details */}
+            <div className="px-4 sm:px-6 pt-2 pb-4 sm:pb-5 text-[12px] sm:text-[13px] leading-[1.45]">
+              {/* Order ID */}
+              <div className="flex items-center gap-2 sm:gap-2.5 py-2.5 sm:py-3 border-b border-[#EFEFEF]">
+                <span className="w-[96px] sm:w-[114px] shrink-0 font-bold text-[#171717] whitespace-nowrap">
+                  Order ID
+                </span>
+                <span className="shrink-0 text-[#767676] font-semibold">:</span>
+                <div className="flex-1 flex items-center justify-between gap-1.5 min-w-0">
+                  <span
+                    className="font-mono text-[11.5px] sm:text-[12.5px] text-[#555555] truncate"
+                    title={displayOrderId}
+                  >
+                    {displayOrderId}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyOrderId(displayOrderId)}
+                    aria-label="Copy order ID"
+                    title={copiedOrderId ? 'Copied!' : 'Copy order ID'}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                      copiedOrderId
+                        ? 'bg-[#e7f6e7] text-[#389B3C]'
+                        : 'hover:bg-[#f4f4f4] text-[#171717]'
+                    }`}
+                  >
+                    <FigmaIcon
+                      name={copiedOrderId ? 'check' : 'copy'}
+                      className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Date And Time */}
+              <div className="flex items-center gap-2 sm:gap-2.5 py-2.5 sm:py-3 border-b border-[#EFEFEF]">
+                <span className="w-[96px] sm:w-[114px] shrink-0 font-bold text-[#171717] whitespace-nowrap">
+                  Date And Time
+                </span>
+                <span className="shrink-0 text-[#767676] font-semibold">:</span>
+                <span className="flex-1 min-w-0 text-[#555555] tabular-nums truncate">
+                  {dateTimeText}
+                </span>
+              </div>
+
+              {/* From */}
+              <div className="flex items-start gap-2 sm:gap-2.5 py-2.5 sm:py-3 border-b border-[#EFEFEF]">
+                <span className="w-[96px] sm:w-[114px] shrink-0 font-bold text-[#171717] whitespace-nowrap">
+                  From
+                </span>
+                <span className="shrink-0 text-[#767676] font-semibold">:</span>
+                <div className="flex-1 flex flex-col text-[#555555] min-w-0">
+                  {paidReceipt?.payerName && (
+                    <span className="truncate">{paidReceipt.payerName}</span>
+                  )}
+                  {fromInfo.handle && (
+                    <span className="break-all">{fromInfo.handle}</span>
+                  )}
+                  <span className="text-[#666666]">
+                    {fromInfo.bank || 'Bakong KHQR'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 3-Second Auto-Navigate Progress Bar (Primary Color) */}
+              <div className="pt-3.5 sm:pt-4 flex flex-col items-center gap-2 text-center">
+                <p className="text-[12px] sm:text-[12.5px] text-[#767676]">
+                  {allCompleted
+                    ? 'Redirecting to your orders...'
+                    : 'Opening the next store KHQR...'}
+                </p>
+                <div className="w-48 sm:w-56 h-1 rounded-full bg-[#ececec] overflow-hidden">
+                  <div className="khqr-redirect-bar block h-full w-full rounded-full bg-[#ff6e20]" />
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Bakong / KHQR Branded Strip */}
+            <div className="bg-[#F2F3F5] px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-center">
+              <img
+                src="/assets/KHQR - asset/KHQR Logo red.svg"
+                alt="Bakong KHQR"
+                className="h-[22px] sm:h-[26px] w-auto select-none pointer-events-none"
+                draggable={false}
+              />
+            </div>
+          </div>
+
+          {/* Authentic Serrated Zigzag Bottom Edge */}
+          <svg
+            viewBox="0 0 360 12"
+            preserveAspectRatio="none"
+            className="w-full h-[10px] sm:h-[11px] block -mt-px"
+            aria-hidden="true"
+          >
+            <polygon
+              fill="#F2F3F5"
+              points="0,0 360,0 360,2 351,12 342,2 333,12 324,2 315,12 306,2 297,12 288,2 279,12 270,2 261,12 252,2 243,12 234,2 225,12 216,2 207,12 198,2 189,12 180,2 171,12 162,2 153,12 144,2 135,12 126,2 117,12 108,2 99,12 90,2 81,12 72,2 63,12 54,2 45,12 36,2 27,12 18,2 9,12 0,2"
+            />
+          </svg>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[4px] flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[4px] overflow-y-auto flex flex-col px-3.5 sm:px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
       onClick={() => {
-        if (allowBackdropClose && statusTone !== 'paid' && !cancelling) {
+        if (allowBackdropClose && !cancelling) {
           onClose();
         }
       }}
     >
       <div
         className={`w-full ${
-          isCompactState ? 'max-w-[460px]' : 'max-w-[700px]'
-        } bg-white rounded-[24px] shadow-[0_24px_64px_rgba(0,0,0,0.22)] px-6 py-7 sm:px-10 sm:py-9 my-auto transition-[max-width] duration-300`}
+          isTimeoutState ? 'max-w-[460px]' : 'max-w-[700px]'
+        } bg-white rounded-[22px] sm:rounded-[24px] shadow-[0_24px_64px_rgba(0,0,0,0.22)] px-5 py-6 sm:px-10 sm:py-9 mx-auto my-auto transition-[max-width] duration-300`}
         onClick={(e) => e.stopPropagation()}
       >
-        {statusTone === 'paid' ? (
-          <div className="py-6 sm:py-8 flex flex-col items-center justify-center text-center">
-            {/* Animated Success Icon: Expanding Pulse Rings + Spark Burst + Pop Circle + Drawn Checkmark */}
-            <div className="relative w-[104px] h-[104px] flex items-center justify-center">
-              <span
-                className="khqr-success-ring absolute inset-0 rounded-full bg-[#029500]/18 pointer-events-none"
-                aria-hidden="true"
-              />
-              <span
-                className="khqr-success-ring-delay absolute inset-0 rounded-full border-2 border-[#029500]/30 pointer-events-none"
-                aria-hidden="true"
-              />
-
-              {SUCCESS_SPARKS.map((spark) => (
-                <span
-                  key={spark.angle}
-                  className="khqr-success-spark absolute rounded-full pointer-events-none"
-                  style={
-                    {
-                      width: `${spark.size}px`,
-                      height: `${spark.size}px`,
-                      backgroundColor: spark.color,
-                      '--spark-angle': spark.angle,
-                    } as CSSProperties
-                  }
-                  aria-hidden="true"
-                />
-              ))}
-
-              <div className="khqr-success-circle relative w-[84px] h-[84px] rounded-full bg-[#029500] shadow-[0_12px_28px_rgba(2, 149, 0,0.28)] flex items-center justify-center">
-                <svg
-                  width="42"
-                  height="42"
-                  viewBox="0 0 42 42"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M11 21.8L17.8 28.6L31.5 14.5"
-                    stroke="#FFFFFF"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="khqr-success-check"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <h3
-              className="khqr-fade-up mt-7 text-[24px] sm:text-[26px] font-bold text-[#111111] tracking-[-0.02em]"
-              style={{ animationDelay: '0.28s' }}
-            >
-              Payment Complete
-            </h3>
-
-            <div
-              className="khqr-fade-up mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#e7f6e7] text-[#029500] text-[14.5px] font-semibold tabular-nums"
-              style={{ animationDelay: '0.38s' }}
-            >
-              <span>
-                {currencySymbol} {formattedAmount}
-              </span>
-              <span className="opacity-45">·</span>
-              <span className="max-w-[180px] truncate">{merchantName}</span>
-            </div>
-
-            <p
-              className="khqr-fade-up mt-3.5 text-[13.5px] text-[#767676] leading-[1.5] max-w-[300px]"
-              style={{ animationDelay: '0.46s' }}
-            >
-              {allCompleted
-                ? 'Your order has been confirmed. Redirecting to your orders...'
-                : 'Payment confirmed! Opening the next store KHQR...'}
-            </p>
-
-            {/* Smooth Redirect Progress Bar */}
-            <div
-              className="khqr-fade-up mt-7 w-full max-w-[220px] h-[4px] rounded-full bg-[#ececec] overflow-hidden"
-              style={{ animationDelay: '0.52s' }}
-            >
-              <div className="khqr-redirect-bar h-full w-full rounded-full bg-[#029500]" />
-            </div>
-          </div>
-        ) : statusTone === 'timeout' ? (
+        {isTimeoutState ? (
           <div className="py-6 sm:py-8 flex flex-col items-center justify-center text-center">
             <div className="w-[76px] h-[76px] rounded-full bg-[#ffefe6] flex items-center justify-center">
               <FigmaIcon name="clock" className="w-8 h-8 text-[#ff6e20]" />

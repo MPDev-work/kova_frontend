@@ -75,7 +75,7 @@ export function FloatingSideDock() {
             to="/"
             state={{ allowStorefront: true }}
             aria-label="Kova Home"
-            className="group relative w-9 h-9 rounded-[11px] bg-[#ff6e20] hover:bg-[#e85d12] text-white flex items-center justify-center transition-colors mb-1 shadow-[0_4px_12px_rgba(255,110,32,0.28)]"
+            className="group relative w-9 h-9 rounded-[11px] bg-[#ff6e20] hover:bg-[#e85d12] text-white flex items-center justify-center transition-colors mb-1"
           >
             <FigmaIcon name="fire-filled" className="w-5 h-5 text-white" />
             <DockTooltip label="Kova Home" />
