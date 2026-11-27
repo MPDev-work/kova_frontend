@@ -1811,7 +1811,7 @@ export function MessengerWorkspace({
 
             {/* Bottom Composer Bar OR Blocked Banner */}
             {headerTicket.is_blocked ? (
-              <div className="bg-white border-t border-[#ececec] px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="bg-white border-t border-[#ececec] px-4 sm:px-5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2 text-[13px] text-[#767676]">
                   <Ban className="w-4 h-4 text-[#d93025] shrink-0" />
                   <span>
@@ -1836,7 +1836,7 @@ export function MessengerWorkspace({
             ) : (
               <form
                 onSubmit={handleSendReply}
-                className="bg-white border-t border-[#ececec] px-4 py-3 flex flex-col gap-2 shrink-0"
+                className="bg-white border-t border-[#ececec] px-3 sm:px-4 pt-2.5 sm:pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2 shrink-0"
               >
                 <PendingContextCardBar
                   card={pendingContextCard}
@@ -1946,7 +1946,7 @@ export function MessengerWorkspace({
                           ? 'Sending voice message...'
                           : uploadingImage
                             ? 'Uploading photo...'
-                            : 'Write a message or drop photos...'
+                            : 'Message'
                       }
                       className="flex-1 bg-[#f4f4f4] focus:bg-white border border-transparent focus:border-[#ff6e20] rounded-[20px] px-4 py-2.5 text-[14px] leading-[1.45] text-black placeholder:text-[#8a8a8a] outline-none transition-colors min-w-0 resize-none max-h-[140px] overflow-y-auto no-scrollbar"
                     />

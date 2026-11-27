@@ -302,9 +302,7 @@ export function ChatThreadModal({
                   }
                 }}
                 placeholder={
-                  uploadingImage
-                    ? 'Uploading photo...'
-                    : 'Write your reply... (Shift + Enter for new line)'
+                  uploadingImage ? 'Uploading photo...' : 'Message'
                 }
                 className="flex-1 bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-[20px] px-4 py-2.5 text-[13.5px] leading-[1.45] text-black outline-none min-w-0 resize-none max-h-[132px] overflow-y-auto no-scrollbar"
               />

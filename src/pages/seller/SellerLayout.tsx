@@ -384,6 +384,8 @@ export function SellerLayout() {
   const bellCount =
     unreadNotificationsCount > 0 ? unreadNotificationsCount : openMessagesCount;
   const isFullBleedPage = location.pathname.startsWith('/seller/messages');
+  const isMobileActiveChat =
+    isFullBleedPage && Boolean(new URLSearchParams(location.search).get('chat'));
 
   const renderSidebarBody = (isMobile: boolean) => (
     <>
@@ -496,8 +498,10 @@ export function SellerLayout() {
 
   return (
     <div
-      className={`relative w-full overflow-x-clip bg-[#f7f7f7] text-black flex ${
-        isFullBleedPage ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'
+      className={`w-full overflow-x-clip bg-[#f7f7f7] text-black flex ${
+        isFullBleedPage
+          ? 'fixed inset-0 h-full overflow-hidden'
+          : 'relative min-h-screen'
       }`}
     >
       {/* Mobile Push Sidebar (240px) */}
@@ -541,7 +545,11 @@ export function SellerLayout() {
           />
         )}
 
-        <header className="h-[68px] bg-white border-b border-[#ececec] px-4 lg:px-7 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
+        <header
+          className={`${
+            isMobileActiveChat ? 'hidden lg:flex' : 'flex'
+          } h-[68px] bg-white border-b border-[#ececec] px-4 lg:px-7 items-center justify-between gap-3 sticky top-0 z-30 shrink-0`}
+        >
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"

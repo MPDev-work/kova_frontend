@@ -182,7 +182,7 @@ export function SupportTicketsPage() {
   };
 
   return (
-    <div className="h-[100dvh] w-full overflow-hidden bg-white flex flex-col">
+    <div className="fixed inset-0 w-full h-full overflow-hidden bg-white flex flex-col">
       {!isSignedIn ? (
         <div className="flex-1 flex flex-col bg-[#f7f7f7]">
           <div className="px-4 pt-4 pb-2 flex items-center gap-1.5">

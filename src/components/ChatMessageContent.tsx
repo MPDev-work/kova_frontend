@@ -475,22 +475,22 @@ export function ChatMessageBody({
       {previewUrl &&
         createPortal(
           <div
-            className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/92 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
             onClick={() => setPreviewUrl(null)}
           >
             <button
               type="button"
               onClick={() => setPreviewUrl(null)}
               aria-label="Close image preview"
-              className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
+              className="fixed top-[max(1rem,env(safe-area-inset-top))] right-4 z-10 w-11 h-11 rounded-full bg-[#171717] hover:bg-black text-white border-2 border-white shadow-[0_6px_24px_rgba(0,0,0,0.65)] flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" strokeWidth={2.5} />
             </button>
             <img
               src={previewUrl}
               alt="Full size attachment"
               onClick={(e) => e.stopPropagation()}
-              className="max-w-[92vw] max-h-[88vh] rounded-[16px] object-contain shadow-2xl"
+              className="max-w-[96vw] max-h-[92dvh] rounded-[12px] sm:rounded-[16px] object-contain shadow-2xl"
             />
           </div>,
           document.body,

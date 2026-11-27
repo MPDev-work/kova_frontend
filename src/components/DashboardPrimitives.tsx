@@ -664,7 +664,7 @@ export function SlideOverDrawer({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ececec] text-[#555555] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full bg-[#e8e8e8] hover:bg-[#dcdcdc] border border-[#d4d4d4] text-[#171717] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
           >
             <FigmaIcon name="x" className="w-4 h-4" />
           </button>
