@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
   ExternalLink,
+  Mic,
   Package,
+  Pause,
+  Play,
   ShoppingBag,
   X,
 } from 'lucide-react';
@@ -12,6 +15,7 @@ import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import type {
   ChatContextCard,
   ChatMessageMetadata,
+  ChatVoiceMessage,
 } from '../types/marketplace';
 
 function getCardDestination(
@@ -218,6 +222,168 @@ function renderLinkedText(text: string, isOwn: boolean) {
   });
 }
 
+const VOICE_BAR_HEIGHTS = [35, 62, 48, 84, 56, 95, 72, 44, 88, 66, 52, 78, 42, 68, 54, 80, 46, 60];
+
+function formatAudioSeconds(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const total = Math.floor(seconds);
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+}
+
+function VoiceMessagePlayer({
+  voice,
+  isOwn,
+}: {
+  voice: ChatVoiceMessage;
+  isOwn: boolean;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState<number>(
+    typeof voice.duration === 'number' && voice.duration > 0
+      ? voice.duration
+      : 0,
+  );
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onLoaded = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+    };
+    const onTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+    const onEnded = () => {
+      setPlaying(false);
+      setCurrentTime(0);
+    };
+    const onPause = () => setPlaying(false);
+    const onPlay = () => setPlaying(true);
+
+    audio.addEventListener('loadedmetadata', onLoaded);
+    audio.addEventListener('durationchange', onLoaded);
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('play', onPlay);
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener('loadedmetadata', onLoaded);
+      audio.removeEventListener('durationchange', onLoaded);
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('play', onPlay);
+    };
+  }, [voice.url]);
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+    } else {
+      void audio.play().catch(() => setPlaying(false));
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * duration;
+    setCurrentTime(audio.currentTime);
+  };
+
+  const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
+
+  return (
+    <div
+      className={`w-[244px] sm:w-[270px] max-w-full rounded-[20px] px-3 py-2.5 flex items-center gap-2.5 ${
+        isOwn
+          ? 'bg-[#ff6e20] text-white rounded-br-[6px] shadow-[0_4px_14px_rgba(255,110,32,0.22)]'
+          : 'bg-white border border-[#ececec] text-black rounded-bl-[6px] shadow-[0_1px_3px_rgba(0,0,0,0.04)]'
+      }`}
+    >
+      <audio ref={audioRef} src={voice.url} preload="metadata" />
+      <button
+        type="button"
+        onClick={togglePlay}
+        aria-label={playing ? 'Pause voice message' : 'Play voice message'}
+        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+          isOwn
+            ? 'bg-white text-[#ff6e20] hover:bg-[#ffefe6]'
+            : 'bg-[#ffefe6] text-[#ff6e20] hover:bg-[#ff6e20] hover:text-white'
+        }`}
+      >
+        {playing ? (
+          <Pause className="w-4 h-4 fill-current" />
+        ) : (
+          <Play className="w-4 h-4 fill-current ml-0.5" />
+        )}
+      </button>
+
+      <div className="flex-1 min-w-0 flex flex-col gap-1">
+        <div
+          role="slider"
+          aria-label="Voice message progress"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(currentTime)}
+          tabIndex={0}
+          onClick={handleSeek}
+          className="h-6 flex items-center gap-[3px] cursor-pointer"
+        >
+          {VOICE_BAR_HEIGHTS.map((pct, idx) => {
+            const barRatio = (idx + 1) / VOICE_BAR_HEIGHTS.length;
+            const active = progress >= barRatio - 0.03;
+            return (
+              <span
+                key={idx}
+                style={{ height: `${Math.round((pct / 100) * 20)}px` }}
+                className={`flex-1 rounded-full transition-colors ${
+                  isOwn
+                    ? active
+                      ? 'bg-white'
+                      : 'bg-white/40'
+                    : active
+                      ? 'bg-[#ff6e20]'
+                      : 'bg-[#dcdcdc]'
+                }`}
+              />
+            );
+          })}
+        </div>
+
+        <div
+          className={`flex items-center justify-between text-[10.5px] font-medium tabular-nums ${
+            isOwn ? 'text-white/85' : 'text-[#8a8a8a]'
+          }`}
+        >
+          <span className="inline-flex items-center gap-1">
+            <Mic className="w-3 h-3" />
+            <span>Voice</span>
+          </span>
+          <span>
+            {playing || currentTime > 0
+              ? `${formatAudioSeconds(currentTime)} / ${formatAudioSeconds(duration)}`
+              : formatAudioSeconds(duration)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ChatMessageBody({
   message,
   attachments,
@@ -248,6 +414,7 @@ export function ChatMessageBody({
   const images = (attachments || []).filter(Boolean);
   const text = (message || '').trim();
   const contextCard = metadata?.context_card ?? null;
+  const voiceMessage = metadata?.voice?.url ? metadata.voice : null;
 
   return (
     <>
@@ -262,6 +429,10 @@ export function ChatMessageBody({
             viewerMode={viewerMode}
             onNavigate={onCardNavigate}
           />
+        )}
+
+        {voiceMessage && (
+          <VoiceMessagePlayer voice={voiceMessage} isOwn={isOwn} />
         )}
 
         {images.length > 0 && (

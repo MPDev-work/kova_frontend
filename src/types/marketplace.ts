@@ -314,8 +314,15 @@ export interface ChatContextCard {
   store_name?: string | null;
 }
 
+export interface ChatVoiceMessage {
+  url: string;
+  duration?: number | null;
+  mime_type?: string | null;
+}
+
 export interface ChatMessageMetadata {
   context_card?: ChatContextCard | null;
+  voice?: ChatVoiceMessage | null;
 }
 
 export interface SupportTicketMessage {

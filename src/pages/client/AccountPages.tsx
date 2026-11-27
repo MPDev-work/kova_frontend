@@ -19,6 +19,8 @@ import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
 import { ToggleSwitch } from '../../components/ToggleSwitch';
 import { PasswordInput } from '../../components/PasswordInput';
+import { AvatarCropModal } from '../../components/AvatarCropModal';
+import { validateUploadFile } from '../../utils/mediaUpload';
 
 // My Profile (with real Cloudinary avatar upload + real API update)
 export function MyProfilePage() {
@@ -28,6 +30,7 @@ export function MyProfilePage() {
   const [phone, setPhone] = useState(user?.phone || '');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (!user) return null;
@@ -53,12 +56,23 @@ export function MyProfilePage() {
     }
   };
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    const err = validateUploadFile(file, 'image');
+    if (err) {
+      showToast(err);
+      return;
+    }
+    setPendingAvatarFile(file);
+  };
+
+  const handleConfirmCroppedAvatar = async (croppedFile: File) => {
     setUploading(true);
     try {
-      await uploadAvatar(file);
+      await uploadAvatar(croppedFile);
+      setPendingAvatarFile(null);
     } catch (err) {
       showToast(
         err instanceof ApiError
@@ -67,7 +81,6 @@ export function MyProfilePage() {
       );
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
 
@@ -119,7 +132,7 @@ export function MyProfilePage() {
             <input
               ref={fileRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp"
+              accept="image/*"
               onChange={handleAvatarChange}
               className="hidden"
             />
@@ -133,6 +146,14 @@ export function MyProfilePage() {
             </button>
           </div>
         </div>
+
+        <AvatarCropModal
+          open={Boolean(pendingAvatarFile)}
+          file={pendingAvatarFile}
+          uploading={uploading}
+          onCancel={() => setPendingAvatarFile(null)}
+          onConfirm={handleConfirmCroppedAvatar}
+        />
 
         <h2 className="text-[15px] font-semibold text-black">
           Personal information

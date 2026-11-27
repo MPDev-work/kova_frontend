@@ -1,4 +1,9 @@
-import { apiRequest } from './api';
+import { ApiError, apiRequest } from './api';
+import {
+  prepareImageForUpload,
+  validateUploadFile,
+  type ImageResizePreset,
+} from '../utils/mediaUpload';
 import type { ChatMessageMetadata } from '../types/marketplace';
 
 export interface PaginatedResult<T> {
@@ -514,6 +519,17 @@ export const adminApi = {
     };
   },
 
+  async startConversation(payload: { order_id: number }) {
+    const res = await apiRequest<DashboardTicketItem>(
+      '/store-owner/tickets/start',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+    return res.data;
+  },
+
   async getTicket(id: number) {
     const res = await apiRequest<DashboardTicketItem>(`/admin/tickets/${id}`);
     return res.data;
@@ -580,9 +596,13 @@ export const adminApi = {
   },
 
   async uploadBrandingAsset(file: File) {
+    const err = validateUploadFile(file, 'image');
+    if (err) throw new ApiError(err, 422);
+    const prepared = await prepareImageForUpload(file, 'standard');
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', prepared);
     fd.append('folder', 'branding');
+    fd.append('preset', 'standard');
     const res = await apiRequest<{ id: number; secure_url: string }>('/media/upload', {
       method: 'POST',
       body: fd,
@@ -668,10 +688,18 @@ export const adminApi = {
     });
   },
 
-  async uploadMedia(file: File, folder: 'categories' | 'products' | 'stores') {
+  async uploadMedia(
+    file: File,
+    folder: 'categories' | 'products' | 'stores',
+    preset: ImageResizePreset = 'standard',
+  ) {
+    const err = validateUploadFile(file, 'image');
+    if (err) throw new ApiError(err, 422);
+    const prepared = await prepareImageForUpload(file, preset);
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', prepared);
     fd.append('folder', folder);
+    fd.append('preset', preset);
     const res = await apiRequest<{ id: number; secure_url: string }>('/media/upload', {
       method: 'POST',
       body: fd,
@@ -830,6 +858,8 @@ export interface InventoryMovementItem {
 
 export interface SellerOrderItem {
   id: number;
+  user_id?: number;
+  store_id?: number;
   order_number: string;
   parent_order_number?: string;
   child_order_number?: string;
@@ -1066,8 +1096,18 @@ export const storeOwnerApi = {
 
   async updateBranding(payload: { logo?: File; banner?: File }) {
     const fd = new FormData();
-    if (payload.logo) fd.append('logo', payload.logo);
-    if (payload.banner) fd.append('banner', payload.banner);
+    if (payload.logo) {
+      const err = validateUploadFile(payload.logo, 'image');
+      if (err) throw new ApiError(err, 422);
+      const preparedLogo = await prepareImageForUpload(payload.logo, 'logo');
+      fd.append('logo', preparedLogo);
+    }
+    if (payload.banner) {
+      const err = validateUploadFile(payload.banner, 'image');
+      if (err) throw new ApiError(err, 422);
+      // Keep full resolution for store banner
+      fd.append('banner', payload.banner);
+    }
     return apiRequest<{ logo: string | null; banner: string | null }>(
       '/store-owner/branding',
       {
@@ -1444,6 +1484,17 @@ export const storeOwnerApi = {
     };
   },
 
+  async startConversation(payload: { order_id: number }) {
+    const res = await apiRequest<DashboardTicketItem>(
+      '/store-owner/tickets/start',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+    return res.data;
+  },
+
   async getTicket(id: number) {
     const res = await apiRequest<DashboardTicketItem>(`/store-owner/tickets/${id}`);
     return res.data;
@@ -1504,9 +1555,13 @@ export const storeOwnerApi = {
   },
 
   async uploadProductImage(file: File) {
+    const err = validateUploadFile(file, 'image');
+    if (err) throw new ApiError(err, 422);
+    const prepared = await prepareImageForUpload(file, 'standard');
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', prepared);
     fd.append('folder', 'products');
+    fd.append('preset', 'standard');
     const res = await apiRequest<{ id: number; secure_url: string }>('/media/upload', {
       method: 'POST',
       body: fd,

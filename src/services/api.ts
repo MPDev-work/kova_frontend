@@ -1,3 +1,8 @@
+import {
+  prepareImageForUpload,
+  validateUploadFile,
+  type ImageResizePreset,
+} from '../utils/mediaUpload';
 import type {
   Address,
   AppliedCoupon,
@@ -902,8 +907,11 @@ export const customerApi = {
   },
 
   async uploadAvatar(file: File) {
+    const err = validateUploadFile(file, 'image');
+    if (err) throw new ApiError(err, 422);
+    const prepared = await prepareImageForUpload(file, 'avatar');
     const fd = new FormData();
-    fd.append('avatar', file);
+    fd.append('avatar', prepared);
     return apiRequest<{ avatar_url: string }>('/users/avatar', {
       method: 'POST',
       body: fd,
@@ -914,10 +922,15 @@ export const customerApi = {
   async uploadMedia(
     file: File,
     folder: 'users' | 'reviews' | 'documents' = 'reviews',
+    preset: ImageResizePreset = 'standard',
   ) {
+    const err = validateUploadFile(file, 'image');
+    if (err) throw new ApiError(err, 422);
+    const prepared = await prepareImageForUpload(file, preset);
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', prepared);
     fd.append('folder', folder);
+    fd.append('preset', preset);
     return apiRequest<{ id: number; secure_url: string }>('/media/upload', {
       method: 'POST',
       body: fd,
@@ -1184,7 +1197,31 @@ export const customerApi = {
     });
   },
 
-  async uploadChatImage(file: File) {
+  async uploadChatImage(
+    file: File,
+    preset: ImageResizePreset = 'standard',
+  ) {
+    const err = validateUploadFile(file, 'image');
+    if (err) throw new ApiError(err, 422);
+    const prepared = await prepareImageForUpload(file, preset);
+    const fd = new FormData();
+    fd.append('file', prepared);
+    fd.append('folder', 'messages');
+    fd.append('preset', preset);
+    const res = await apiRequest<{ id: number; secure_url: string }>(
+      '/media/upload',
+      {
+        method: 'POST',
+        body: fd,
+        isFormData: true,
+      },
+    );
+    return res.data.secure_url;
+  },
+
+  async uploadChatAudio(file: File) {
+    const err = validateUploadFile(file, 'audio');
+    if (err) throw new ApiError(err, 422);
     const fd = new FormData();
     fd.append('file', file);
     fd.append('folder', 'messages');
