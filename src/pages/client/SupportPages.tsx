@@ -6,7 +6,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import { ChevronLeft, MessageCircle } from 'lucide-react';
+import { FigmaIcon } from '../../components/FigmaIcon';
 import { MessengerWorkspace } from '../../components/MessengerWorkspace';
 import { useStore } from '../../context/StoreContext';
 
@@ -192,7 +192,7 @@ export function SupportTicketsPage() {
               aria-label="Back to store"
               className="-ml-1.5 w-9 h-9 rounded-full hover:bg-white text-black flex items-center justify-center transition-colors shrink-0"
             >
-              <ChevronLeft className="w-6 h-6" strokeWidth={2.25} />
+              <FigmaIcon name="chevron-left" className="w-5 h-5" />
             </button>
             <h1 className="text-[22px] font-bold text-black tracking-tight">
               Chats
@@ -201,7 +201,7 @@ export function SupportTicketsPage() {
           <div className="flex-1 flex items-center justify-center p-4">
             <div className="bg-white border border-[#ececec] p-10 max-w-[420px] w-full text-center flex flex-col items-center gap-3 rounded-[24px]">
               <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-                <MessageCircle className="w-6 h-6" />
+                <FigmaIcon name="message-circle" className="w-6 h-6" />
               </span>
               <h2 className="text-[20px] font-bold text-black">
                 Sign in to view your messages

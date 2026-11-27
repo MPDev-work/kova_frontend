@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Loader2, Move, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { FigmaIcon, ICON_STROKE_WIDTH } from './FigmaIcon';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 export interface AvatarCropModalProps {
@@ -272,7 +273,7 @@ function AvatarCropModalDialog({
               Adjust profile photo
             </h2>
             <p className="text-[12px] text-[#8a8a8a] mt-0.5 inline-flex items-center gap-1">
-              <Move className="w-3 h-3 shrink-0" />
+              <FigmaIcon name="move" className="w-3 h-3 shrink-0" />
               <span>Drag to reposition · 1:1 square</span>
             </p>
           </div>
@@ -283,7 +284,7 @@ function AvatarCropModalDialog({
             aria-label="Close cropper"
             className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center transition-colors shrink-0 disabled:opacity-50"
           >
-            <X className="w-4 h-4" />
+            <FigmaIcon name="x" className="w-4 h-4" />
           </button>
         </div>
 
@@ -348,7 +349,7 @@ function AvatarCropModalDialog({
             aria-label="Zoom out"
             className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center transition-colors shrink-0 disabled:opacity-40"
           >
-            <ZoomOut className="w-4 h-4" />
+            <FigmaIcon name="zoom-out" className="w-4 h-4" />
           </button>
           <input
             type="range"
@@ -368,7 +369,7 @@ function AvatarCropModalDialog({
             aria-label="Zoom in"
             className="w-8 h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center transition-colors shrink-0 disabled:opacity-40"
           >
-            <ZoomIn className="w-4 h-4" />
+            <FigmaIcon name="zoom-in" className="w-4 h-4" />
           </button>
         </div>
 
@@ -382,7 +383,7 @@ function AvatarCropModalDialog({
             title="Cancel"
             className="w-12 h-12 rounded-full bg-[#f7f7f7] hover:bg-[#fff0f0] border border-[#ececec] hover:border-[#e5322d]/40 text-[#555555] hover:text-[#e5322d] flex items-center justify-center transition-colors disabled:opacity-50"
           >
-            <X className="w-5 h-5" strokeWidth={2.4} />
+            <FigmaIcon name="x" className="w-5 h-5" />
           </button>
           <button
             type="button"
@@ -393,9 +394,12 @@ function AvatarCropModalDialog({
             className="w-12 h-12 rounded-full bg-[#ff6e20] hover:bg-[#e85d12] text-white shadow-[0_6px_18px_rgba(255,110,32,0.32)] flex items-center justify-center transition-colors disabled:opacity-50"
           >
             {busy ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2
+                className="w-5 h-5 animate-spin"
+                strokeWidth={ICON_STROKE_WIDTH}
+              />
             ) : (
-              <Check className="w-5 h-5" strokeWidth={2.6} />
+              <FigmaIcon name="check" className="w-5 h-5" />
             )}
           </button>
         </div>

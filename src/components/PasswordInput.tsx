@@ -4,7 +4,7 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { FigmaIcon } from './FigmaIcon';
 
 /**
  * Triggers a re-playable horizontal shake animation whenever `triggerKey` increments
@@ -107,9 +107,9 @@ export function PasswordInput({
           className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[#767676] hover:text-black transition-colors cursor-pointer"
         >
           {visible ? (
-            <EyeOff className="w-4 h-4" />
+            <FigmaIcon name="eye-off" className="w-4 h-4" />
           ) : (
-            <Eye className="w-4 h-4" />
+            <FigmaIcon name="eye" className="w-4 h-4" />
           )}
         </button>
       </div>

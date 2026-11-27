@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock } from 'lucide-react';
 import { FigmaIcon } from './FigmaIcon';
 import { VerifiedBadge } from './VerifiedBadge';
 import type { Promotion } from '../types/marketplace';
@@ -152,7 +151,7 @@ export function VoucherCard({
                 countdown.urgent ? 'text-[#e5322d]' : 'text-[#ff6e20]'
               }`}
             >
-              <Clock className="w-3 h-3 shrink-0" />
+              <FigmaIcon name="clock" className="w-3 h-3 shrink-0" />
               <span>{countdown.label}</span>
             </p>
           )}

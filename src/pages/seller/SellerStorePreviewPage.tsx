@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Plus } from 'lucide-react';
 import { DashboardModal } from '../../components/DashboardPrimitives';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { ProductCard } from '../../components/ProductCard';
@@ -99,7 +98,7 @@ export function StorefrontPreviewModal({
               onClick={() => setPreviewProduct(null)}
               className="inline-flex items-center gap-1.5 bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-black text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <FigmaIcon name="arrow-left" className="w-3.5 h-3.5" />
               <span>Back to storefront</span>
             </button>
           ) : (
@@ -109,7 +108,7 @@ export function StorefrontPreviewModal({
                 onClick={onClose}
                 className="inline-flex items-center gap-1.5 bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
               >
-                <Pencil className="w-3.5 h-3.5" />
+                <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                 <span>Edit storefront</span>
               </Link>
               <Link
@@ -117,7 +116,7 @@ export function StorefrontPreviewModal({
                 onClick={onClose}
                 className="inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12.5px] font-semibold px-4 py-2 rounded-full transition-colors"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <FigmaIcon name="plus" className="w-3.5 h-3.5" />
                 <span>Add product</span>
               </Link>
             </div>

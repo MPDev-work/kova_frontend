@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, MapPin, Receipt } from 'lucide-react';
+import { Receipt } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError, customerApi } from '../../services/api';
@@ -26,7 +26,7 @@ import {
   StatusPill,
   TablePagination,
 } from '../../components/DashboardPrimitives';
-import { FigmaIcon } from '../../components/FigmaIcon';
+import { FigmaIcon, ICON_STROKE_WIDTH } from '../../components/FigmaIcon';
 import {
   DashboardKpiSkeleton,
   DashboardTableSkeleton,
@@ -520,7 +520,10 @@ export function SellerOrdersPage() {
               onClick={() => setReceiptOpen(true)}
               className="inline-flex items-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer"
             >
-              <Receipt className="w-3.5 h-3.5" />
+              <Receipt
+                className="w-3.5 h-3.5"
+                strokeWidth={ICON_STROKE_WIDTH}
+              />
               Generate receipt
             </button>
             <button
@@ -2875,7 +2878,10 @@ export function SellerStorefrontPage() {
                   return (
                     <div className="bg-[#f7f7f7] border border-[#ececec] px-4 py-3 flex flex-wrap items-center justify-between gap-2 rounded-[14px]">
                       <div className="flex items-center gap-2 min-w-0 text-[13px] text-[#555555]">
-                        <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
+                        <FigmaIcon
+                          name="map-pin"
+                          className="w-4 h-4 text-[#ff6e20] shrink-0"
+                        />
                         <span className="truncate">
                           <strong className="text-black">
                             Location preview:
@@ -2915,7 +2921,7 @@ export function SellerStorefrontPage() {
                   <span>Save</span>
                 ) : (
                   <>
-                    <Check className="w-3.5 h-3.5" />
+                    <FigmaIcon name="check" className="w-3.5 h-3.5" />
                     <span>Saved</span>
                   </>
                 )}
@@ -2978,7 +2984,7 @@ export function SellerStorefrontPage() {
                   <span>Save</span>
                 ) : (
                   <>
-                    <Check className="w-3.5 h-3.5" />
+                    <FigmaIcon name="check" className="w-3.5 h-3.5" />
                     <span>Saved</span>
                   </>
                 )}

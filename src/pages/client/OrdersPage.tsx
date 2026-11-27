@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Receipt } from 'lucide-react';
-import { FigmaIcon } from '../../components/FigmaIcon';
+import { FigmaIcon, ICON_STROKE_WIDTH } from '../../components/FigmaIcon';
 import { DashboardModal, StatusPill } from '../../components/DashboardPrimitives';
 import { useStore } from '../../context/StoreContext';
 import { ApiError, customerApi, orderApi } from '../../services/api';
@@ -686,7 +686,10 @@ export function MyOrdersPage() {
                         }
                         className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] hover:border-[#ff6e20] hover:text-[#ff6e20] border border-[#ececec] text-[#444444] text-[11.5px] font-semibold px-3 py-1 rounded-full transition-colors"
                       >
-                        <Receipt className="w-3.5 h-3.5" />
+                        <Receipt
+                          className="w-3.5 h-3.5"
+                          strokeWidth={ICON_STROKE_WIDTH}
+                        />
                         <span>Generate receipt</span>
                       </button>
                       {pkg.store && (
@@ -1125,7 +1128,10 @@ export function OrderDetailsPage() {
                     onClick={() => setReceiptTarget({ order, pkg })}
                     className="inline-flex items-center gap-1.5 bg-white hover:bg-[#ffefe6] hover:border-[#ff6e20] hover:text-[#ff6e20] border border-[#ececec] text-[#444444] text-[12px] font-semibold px-3.5 py-1 rounded-full transition-colors"
                   >
-                    <Receipt className="w-3.5 h-3.5" />
+                    <Receipt
+                      className="w-3.5 h-3.5"
+                      strokeWidth={ICON_STROKE_WIDTH}
+                    />
                     <span>Generate receipt</span>
                   </button>
                   {pkg.store && (

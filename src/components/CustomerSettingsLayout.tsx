@@ -6,7 +6,6 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import { LogOut, MessageCircle, X } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { getUserDashboardPath } from '../utils/authRedirect';
 import { FigmaIcon, type FigmaIconName } from './FigmaIcon';
@@ -255,7 +254,7 @@ export function CustomerSettingsLayout() {
               aria-label="Close sidebar"
               className="w-8 h-8 rounded-[10px] bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] flex items-center justify-center transition-colors shrink-0"
             >
-              <X className="w-4 h-4" />
+              <FigmaIcon name="x" className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -349,7 +348,7 @@ export function CustomerSettingsLayout() {
           }}
           className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
+          <FigmaIcon name="log-out" className="w-4 h-4 shrink-0" />
           <span>Log out</span>
         </button>
       </div>
@@ -468,7 +467,7 @@ export function CustomerSettingsLayout() {
               aria-label="Messages"
               className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
             >
-              <MessageCircle className="w-4 h-4" />
+              <FigmaIcon name="message-circle" className="w-4 h-4" />
               {unreadMessagesCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[10px] font-semibold flex items-center justify-center">
                   {unreadMessagesCount}

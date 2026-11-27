@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, Moon, Sun, X } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useDashboardTheme } from '../../utils/useDashboardTheme';
 import { adminApi } from '../../services/dashboardApi';
@@ -302,7 +301,7 @@ export function AdminLayout() {
               aria-label="Close sidebar"
               className="w-8 h-8 rounded-[10px] bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] flex items-center justify-center transition-colors shrink-0"
             >
-              <X className="w-4 h-4" />
+              <FigmaIcon name="x" className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -367,7 +366,7 @@ export function AdminLayout() {
           }}
           className="w-full h-[42px] bg-[#f7f7f7] hover:bg-[#fdecec] border border-[#ececec] hover:border-[#e5322d]/30 text-[#555555] hover:text-[#e5322d] rounded-full px-4 flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors cursor-pointer"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
+          <FigmaIcon name="log-out" className="w-4 h-4 shrink-0" />
           <span>Log out</span>
         </button>
       </div>
@@ -502,9 +501,9 @@ export function AdminLayout() {
               className="inline-flex items-center justify-center bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-black w-9 h-9 rounded-full transition-colors cursor-pointer"
             >
               {isDark ? (
-                <Sun className="w-4 h-4 text-[#ff6e20]" />
+                <FigmaIcon name="sun" className="w-4 h-4 text-[#ff6e20]" />
               ) : (
-                <Moon className="w-4 h-4" />
+                <FigmaIcon name="moon" className="w-4 h-4" />
               )}
             </button>
 

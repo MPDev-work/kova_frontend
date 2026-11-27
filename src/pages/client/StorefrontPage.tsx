@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check } from 'lucide-react';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
 import { catalogApi } from '../../services/api';
@@ -174,7 +173,7 @@ export function StorefrontPage() {
             >
               {(followedStoreIds.includes(store.id) ||
                 (isSignedIn && store.is_following)) && (
-                <Check className="w-3.5 h-3.5 stroke-[2.6]" />
+                <FigmaIcon name="check" className="w-3.5 h-3.5" />
               )}
               <span>
                 {followedStoreIds.includes(store.id) ||

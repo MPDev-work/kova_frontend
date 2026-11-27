@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Store as StoreIcon } from 'lucide-react';
+import { Store as StoreIcon } from 'lucide-react';
+import { FigmaIcon, ICON_STROKE_WIDTH } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
 import { StoreTagCard } from '../../components/StoreTagCard';
 import { StoreTagCardSkeleton } from '../../components/Skeleton';
@@ -69,7 +70,10 @@ export function FollowingStoresPage() {
 
       {followedStores.length > 0 && (
         <div className="relative w-full sm:max-w-[380px]">
-          <Search className="w-4 h-4 text-[#979797] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <FigmaIcon
+            name="search"
+            className="w-4 h-4 text-[#979797] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+          />
           <input
             type="text"
             value={search}
@@ -89,7 +93,7 @@ export function FollowingStoresPage() {
       ) : followedStores.length === 0 ? (
         <div className="bg-white border border-[#ececec] py-14 px-6 text-center flex flex-col items-center gap-3 rounded-[24px]">
           <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-            <StoreIcon className="w-6 h-6" />
+            <StoreIcon className="w-6 h-6" strokeWidth={ICON_STROKE_WIDTH} />
           </span>
           <h2 className="text-[18px] font-bold text-black">
             You&apos;re not following any stores yet

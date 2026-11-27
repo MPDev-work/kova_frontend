@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check, MessageCircle, ShoppingBag } from 'lucide-react';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { groupNotifications } from '../../components/NotificationModal';
 import { useStore } from '../../context/StoreContext';
@@ -134,9 +133,9 @@ export function NotificationsPage() {
                           className="w-full h-full object-cover"
                         />
                       ) : isOrder ? (
-                        <ShoppingBag className="w-4 h-4" />
+                        <FigmaIcon name="shopping-bag" className="w-4 h-4" />
                       ) : (
-                        <MessageCircle className="w-4 h-4" />
+                        <FigmaIcon name="message-circle" className="w-4 h-4" />
                       )}
                     </span>
                     {countBadge && (
@@ -174,7 +173,7 @@ export function NotificationsPage() {
                             }}
                             className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] border border-[#ececec] text-[#555555] hover:text-[#ff6e20] text-[12px] font-semibold px-3 py-1.5 rounded-full transition-colors"
                           >
-                            <Check className="w-3.5 h-3.5" />
+                            <FigmaIcon name="check" className="w-3.5 h-3.5" />
                             <span>Mark read</span>
                           </button>
                         )}

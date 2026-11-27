@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { FigmaIcon } from './FigmaIcon';
 
 export interface OrderStatusStepperProps {
   status: string;
@@ -71,7 +71,7 @@ export function OrderStatusStepper({
     >
       {(isCancelled || isRefunded) && (
         <div className="mb-3.5 flex items-center gap-2 rounded-[10px] bg-[#fdecec] border border-[#fad8d8] px-3 py-2 text-[12px] font-semibold text-[#e5322d]">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+          <FigmaIcon name="alert-circle" className="w-4 h-4 shrink-0" />
           <span>
             {isCancelled
               ? 'This order was cancelled and will not proceed further.'

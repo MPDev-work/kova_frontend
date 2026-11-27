@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ban, ImagePlus, MessageCircle, Send } from 'lucide-react';
 import {
   ChatMessageBody,
   PendingAttachmentsBar,
@@ -220,7 +219,10 @@ export function ChatThreadModal({
         (ticket.is_blocked ? (
           <div className="w-full flex items-center justify-between gap-3 py-1">
             <div className="flex items-center gap-2 text-[13px] text-[#767676]">
-              <Ban className="w-4 h-4 text-[#d93025] shrink-0" />
+              <FigmaIcon
+                name="slash"
+                className="w-4 h-4 text-[#d93025] shrink-0"
+              />
               <span>
                 {ticket.blocked_by_me
                   ? 'You blocked this conversation.'
@@ -280,7 +282,7 @@ export function ChatThreadModal({
                 aria-label="Send photo"
                 className="w-10 h-10 rounded-full bg-white hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-[#555555] flex items-center justify-center shrink-0 transition-colors disabled:opacity-50"
               >
-                <ImagePlus className="w-4 h-4" />
+                <FigmaIcon name="image-plus" className="w-4 h-4" />
               </button>
               <textarea
                 ref={replyTextareaRef}
@@ -315,7 +317,7 @@ export function ChatThreadModal({
                 }
                 className="inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[13px] font-semibold px-5 py-2.5 rounded-full transition-colors shrink-0"
               >
-                <Send className="w-3.5 h-3.5" />
+                <FigmaIcon name="send" className="w-3.5 h-3.5" />
                 <span>{sending ? 'Sending...' : 'Send'}</span>
               </button>
             </div>
@@ -348,7 +350,7 @@ export function ChatThreadModal({
                 ) : ticket.store ? (
                   <FigmaIcon name="home" className="w-4 h-4" />
                 ) : (
-                  <MessageCircle className="w-4 h-4" />
+                  <FigmaIcon name="message-circle" className="w-4 h-4" />
                 )}
               </span>
               <div className="min-w-0">

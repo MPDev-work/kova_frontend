@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import QRCode from 'qrcode';
+import { FigmaIcon } from './FigmaIcon';
 import { ApiError, checkoutApi } from '../services/api';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import type { ChildOrderRecord } from '../types/marketplace';
@@ -401,29 +402,7 @@ function KhqrModalContent({
         ) : statusTone === 'timeout' ? (
           <div className="py-6 sm:py-8 flex flex-col items-center justify-center text-center">
             <div className="w-[76px] h-[76px] rounded-full bg-[#ffefe6] flex items-center justify-center">
-              <svg
-                width="34"
-                height="34"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                  stroke="#ff6e20"
-                  strokeWidth="2.2"
-                />
-                <path
-                  d="M12 7.5V12.5L15 14.5"
-                  stroke="#ff6e20"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <FigmaIcon name="clock" className="w-8 h-8 text-[#ff6e20]" />
             </div>
 
             <span className="mt-5 px-3.5 py-1 rounded-full bg-[#ffefe6] text-[#ff6e20] text-[12px] font-semibold">

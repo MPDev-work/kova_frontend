@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Check, MessageCircle, ShoppingBag } from 'lucide-react';
 import { DashboardModal } from './DashboardPrimitives';
 import { FigmaIcon } from './FigmaIcon';
 import { useStore } from '../context/StoreContext';
@@ -258,7 +257,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
       ) : grouped.length === 0 ? (
         <div className="py-12 text-center flex flex-col items-center gap-2">
           <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-            <MessageCircle className="w-5 h-5" />
+            <FigmaIcon name="message-circle" className="w-5 h-5" />
           </span>
           <p className="text-[15px] font-semibold text-black">
             No notifications yet
@@ -298,9 +297,9 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                         className="w-full h-full object-cover"
                       />
                     ) : isOrder ? (
-                      <ShoppingBag className="w-4 h-4" />
+                      <FigmaIcon name="shopping-bag" className="w-4 h-4" />
                     ) : (
-                      <MessageCircle className="w-4 h-4" />
+                      <FigmaIcon name="message-circle" className="w-4 h-4" />
                     )}
                   </span>
                   {countBadge && (
@@ -342,7 +341,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                           aria-label="Mark as read"
                           className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ffdfcd] text-[#555555] hover:text-[#ff6e20] text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors"
                         >
-                          <Check className="w-3 h-3" />
+                          <FigmaIcon name="check" className="w-3 h-3" />
                           <span>Mark read</span>
                         </button>
                       )}

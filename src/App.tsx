@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MessageCircle } from 'lucide-react';
+import { FigmaIcon } from './components/FigmaIcon';
 import {
   BrowserRouter,
   Navigate,
@@ -168,9 +168,9 @@ function GlobalToast() {
       className="kova-toast-in fixed bottom-[68px] md:bottom-6 right-3 md:right-6 z-50 max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-2rem)] bg-[#ff6e20] text-white pl-1.5 pr-3.5 py-1.5 sm:pl-2.5 sm:pr-5 sm:py-2.5 rounded-full shadow-[0_8px_24px_rgba(255,110,32,0.3)] sm:shadow-[0_12px_32px_rgba(255,110,32,0.34)] border border-white/15 text-[12px] sm:text-[13.5px] font-medium flex items-center gap-1.5 sm:gap-2.5"
     >
       <span className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-        <MessageCircle
+        <FigmaIcon
+          name="message-circle"
           className="w-3 h-3 sm:w-4 sm:h-4 text-white"
-          strokeWidth={2.2}
         />
       </span>
       <span className="leading-snug">{toast}</span>

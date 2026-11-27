@@ -1,21 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  AlertTriangle,
-  Camera,
-  Check,
-  KeyRound,
-  Loader2,
-  LogOut,
-  Mail,
-  PauseCircle,
-  Phone,
-  ShieldCheck,
-  Trash2,
-} from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
 import { ContactVerificationCard } from './ContactVerificationCard';
 import { AvatarCropModal } from './AvatarCropModal';
 import { DashboardPageHeader } from './DashboardPrimitives';
+import { FigmaIcon, ICON_STROKE_WIDTH } from './FigmaIcon';
 import { PasswordInput } from './PasswordInput';
 import { VerifiedBadge } from './VerifiedBadge';
 import { useStore } from '../context/StoreContext';
@@ -493,7 +482,7 @@ export function DashboardAccountSettingsPage({
                     onClick={() => fileRef.current?.click()}
                     className="inline-flex items-center gap-1.5 bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-[12px] font-semibold text-black px-3.5 py-1.5 rounded-full transition-colors disabled:opacity-50"
                   >
-                    <Camera className="w-3.5 h-3.5" />
+                    <FigmaIcon name="camera" className="w-3.5 h-3.5" />
                     <span>
                       {uploadingAvatar ? 'Uploading...' : 'Change photo'}
                     </span>
@@ -576,7 +565,7 @@ export function DashboardAccountSettingsPage({
                       <span>Save profile</span>
                     ) : (
                       <>
-                        <Check className="w-3.5 h-3.5" />
+                        <FigmaIcon name="check" className="w-3.5 h-3.5" />
                         <span>Saved</span>
                       </>
                     )}
@@ -607,7 +596,7 @@ export function DashboardAccountSettingsPage({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="w-8 h-8 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0">
-                    <Mail className="w-4 h-4" />
+                    <FigmaIcon name="mail" className="w-4 h-4" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold text-black">
@@ -687,7 +676,7 @@ export function DashboardAccountSettingsPage({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="w-8 h-8 rounded-full bg-[#e7f6e7] text-[#029500] flex items-center justify-center shrink-0">
-                    <Phone className="w-4 h-4" />
+                    <FigmaIcon name="phone" className="w-4 h-4" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold text-black">
@@ -776,7 +765,7 @@ export function DashboardAccountSettingsPage({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <span className="w-9 h-9 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0">
-                  <KeyRound className="w-4 h-4" />
+                  <FigmaIcon name="key" className="w-4 h-4" />
                 </span>
                 <div>
                   <h2 className="text-[15.5px] font-bold text-black">
@@ -794,7 +783,10 @@ export function DashboardAccountSettingsPage({
                 className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
               >
                 {sendingResetLink && (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <Loader2
+                    className="w-3.5 h-3.5 animate-spin shrink-0"
+                    strokeWidth={ICON_STROKE_WIDTH}
+                  />
                 )}
                 <span>
                   {sendingResetLink
@@ -910,7 +902,7 @@ export function DashboardAccountSettingsPage({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className="w-8 h-8 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0">
-                      <PauseCircle className="w-4 h-4" />
+                      <FigmaIcon name="pause-circle" className="w-4 h-4" />
                     </span>
                     <div>
                       <p className="text-[13px] font-semibold text-black">
@@ -1012,7 +1004,7 @@ export function DashboardAccountSettingsPage({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className="w-8 h-8 rounded-full bg-[#fdecec] text-[#e5322d] flex items-center justify-center shrink-0">
-                      <Trash2 className="w-4 h-4" />
+                      <FigmaIcon name="trash" className="w-4 h-4" />
                     </span>
                     <div>
                       <p className="text-[13px] font-semibold text-[#e5322d]">
@@ -1124,7 +1116,10 @@ export function DashboardAccountSettingsPage({
         <div className="flex flex-col gap-4">
           <section className="bg-white border border-[#ececec] p-4 sm:p-5 flex flex-col gap-3 rounded-[24px]">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[#ff6e20]" />
+              <ShieldCheck
+                className="w-4 h-4 text-[#ff6e20]"
+                strokeWidth={ICON_STROKE_WIDTH}
+              />
               <h2 className="text-[15px] font-bold text-black">
                 Account overview
               </h2>
@@ -1188,7 +1183,10 @@ export function DashboardAccountSettingsPage({
 
           {isAdminWorkspace && (
             <section className="bg-white border border-[#ececec] p-4 sm:p-5 flex items-start gap-2.5 rounded-[24px]">
-              <AlertTriangle className="w-4 h-4 text-[#ff6e20] shrink-0 mt-0.5" />
+              <FigmaIcon
+                name="alert-triangle"
+                className="w-4 h-4 text-[#ff6e20] shrink-0 mt-0.5"
+              />
               <p className="text-[12px] text-[#767676] leading-relaxed">
                 Root Administrator accounts are isolated from customer pages and
                 protected against self-deletion to prevent platform lockout.
@@ -1208,7 +1206,7 @@ export function DashboardAccountSettingsPage({
               onClick={() => void signOut().then(() => navigate('/login'))}
               className="inline-flex items-center justify-center gap-2 bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[13px] font-semibold px-4 py-2.5 rounded-full transition-colors cursor-pointer"
             >
-              <LogOut className="w-4 h-4" />
+              <FigmaIcon name="log-out" className="w-4 h-4" />
               <span>Log out</span>
             </button>
           </section>

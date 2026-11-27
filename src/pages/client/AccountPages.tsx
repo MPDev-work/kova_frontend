@@ -6,7 +6,8 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import { Check, Loader2, Package, Star, Trash2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { FigmaIcon, ICON_STROKE_WIDTH } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError, authApi, customerApi } from '../../services/api';
@@ -215,7 +216,7 @@ export function MyProfilePage() {
               <span>Save changes</span>
             ) : (
               <>
-                <Check className="w-3.5 h-3.5" />
+                <FigmaIcon name="check" className="w-3.5 h-3.5" />
                 <span>Saved</span>
               </>
             )}
@@ -859,7 +860,7 @@ export function MyReviewsPage() {
         visibleReviews.length === 0 ? (
           <div className="bg-white border border-[#ececec] p-12 text-center flex flex-col items-center gap-2 rounded-[24px]">
             <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-              <Star className="w-5 h-5" />
+              <FigmaIcon name="star" className="w-5 h-5" />
             </span>
             <p className="text-[15px] font-semibold text-black">
               No reviews yet
@@ -886,7 +887,10 @@ export function MyReviewsPage() {
                       className="w-full h-full group-hover:scale-[1.03] transition-transform duration-300"
                     />
                   ) : (
-                    <Package className="w-8 h-8 text-[#c4c4c4]" />
+                    <FigmaIcon
+                      name="package"
+                      className="w-8 h-8 text-[#c4c4c4]"
+                    />
                   )}
                 </div>
                 <div className="p-2.5 flex-1 flex flex-col gap-1">
@@ -927,7 +931,7 @@ export function MyReviewsPage() {
       ) : toReviewItems.length === 0 ? (
         <div className="bg-white border border-[#ececec] p-12 text-center flex flex-col items-center gap-2 rounded-[24px]">
           <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-            <Package className="w-5 h-5" />
+            <FigmaIcon name="package" className="w-5 h-5" />
           </span>
           <p className="text-[15px] font-semibold text-black">All caught up!</p>
           <p className="text-[13px] text-[#767676]">
@@ -952,7 +956,10 @@ export function MyReviewsPage() {
                     className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
                   />
                 ) : (
-                  <Package className="w-8 h-8 text-[#c4c4c4]" />
+                  <FigmaIcon
+                    name="package"
+                    className="w-8 h-8 text-[#c4c4c4]"
+                  />
                 )}
               </div>
 
@@ -1008,7 +1015,7 @@ export function MyReviewsPage() {
                 onClick={() => handleDelete(selectedReview)}
                 className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#e5322d] hover:bg-[#fdecec] px-3.5 py-2 rounded-full transition-colors"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <FigmaIcon name="trash" className="w-3.5 h-3.5" />
                 <span>Delete review</span>
               </button>
             </div>
@@ -1026,7 +1033,10 @@ export function MyReviewsPage() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <Package className="w-6 h-6 text-[#979797]" />
+                  <FigmaIcon
+                    name="package"
+                    className="w-6 h-6 text-[#979797]"
+                  />
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -1099,7 +1109,10 @@ export function MyReviewsPage() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <Package className="w-5 h-5 text-[#979797]" />
+                  <FigmaIcon
+                    name="package"
+                    className="w-5 h-5 text-[#979797]"
+                  />
                 )}
               </div>
               <div className="min-w-0">
@@ -2117,7 +2130,10 @@ export function ChangePasswordPage() {
               className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#ff6e20] hover:underline disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               {sendingReset && (
-                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                <Loader2
+                  className="w-3.5 h-3.5 animate-spin shrink-0"
+                  strokeWidth={ICON_STROKE_WIDTH}
+                />
               )}
               <span>
                 {sendingReset

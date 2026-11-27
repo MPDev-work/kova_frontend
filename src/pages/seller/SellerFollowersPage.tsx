@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Search, ShoppingBag, UserPlus, Users } from 'lucide-react';
+import { FigmaIcon } from '../../components/FigmaIcon';
 import {
   storeOwnerApi,
   type PaginatedResult,
@@ -83,7 +83,8 @@ export function SellerFollowersPage() {
           disabled={loading}
           className="self-start sm:self-auto inline-flex items-center gap-2 bg-white border border-[#ececec] hover:border-[#ff6e20] text-black text-[13px] font-semibold px-4 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-50"
         >
-          <RefreshCw
+          <FigmaIcon
+            name="refresh-cw"
             className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
           />
           <span>Refresh</span>
@@ -94,7 +95,7 @@ export function SellerFollowersPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
         <div className="bg-white border border-[#ececec] p-3.5 flex items-center gap-3.5 rounded-[24px]">
           <span className="w-11 h-11 bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0 rounded-[10px]">
-            <Users className="w-5 h-5" />
+            <FigmaIcon name="users" className="w-5 h-5" />
           </span>
           <div className="min-w-0">
             <p className="text-[12px] font-medium text-[#767676]">
@@ -108,7 +109,7 @@ export function SellerFollowersPage() {
 
         <div className="bg-white border border-[#ececec] p-3.5 flex items-center gap-3.5 rounded-[24px]">
           <span className="w-11 h-11 bg-[#eaf7ee] text-[#189a45] flex items-center justify-center shrink-0 rounded-[10px]">
-            <UserPlus className="w-5 h-5" />
+            <FigmaIcon name="user-plus" className="w-5 h-5" />
           </span>
           <div className="min-w-0">
             <p className="text-[12px] font-medium text-[#767676]">
@@ -122,7 +123,7 @@ export function SellerFollowersPage() {
 
         <div className="bg-white border border-[#ececec] p-3.5 flex items-center gap-3.5 rounded-[24px]">
           <span className="w-11 h-11 bg-[#eef4ff] text-[#2563eb] flex items-center justify-center shrink-0 rounded-[10px]">
-            <ShoppingBag className="w-5 h-5" />
+            <FigmaIcon name="shopping-bag" className="w-5 h-5" />
           </span>
           <div className="min-w-0">
             <p className="text-[12px] font-medium text-[#767676]">
@@ -139,7 +140,10 @@ export function SellerFollowersPage() {
       <div className="bg-white border border-[#ececec] overflow-hidden rounded-[24px]">
         <div className="p-3.5 border-b border-[#ececec] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="relative w-full sm:flex-1 sm:max-w-[360px]">
-            <Search className="w-4 h-4 text-[#979797] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <FigmaIcon
+              name="search"
+              className="w-4 h-4 text-[#979797] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            />
             <input
               type="text"
               value={search}
@@ -176,7 +180,7 @@ export function SellerFollowersPage() {
         ) : followers.data.length === 0 ? (
           <div className="py-14 px-6 text-center flex flex-col items-center gap-2.5">
             <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-              <Users className="w-5 h-5" />
+              <FigmaIcon name="users" className="w-5 h-5" />
             </span>
             <p className="text-[16px] font-semibold text-black">
               {debouncedSearch ? 'No matching followers' : 'No followers yet'}

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Check } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { FigmaIcon } from './FigmaIcon';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -207,7 +206,7 @@ export function StoreTagCard({
                 : 'bg-[#ff6e20] hover:bg-[#e85d12] text-white'
             }`}
           >
-            {isFollowing && <Check className="w-3.5 h-3.5 stroke-[2.6]" />}
+            {isFollowing && <FigmaIcon name="check" className="w-3.5 h-3.5" />}
             <span>{isFollowing ? 'Following' : 'Follow'}</span>
           </button>
 
@@ -218,7 +217,7 @@ export function StoreTagCard({
               aria-label={`Visit ${store.name}`}
               className="w-[38px] h-[38px] sm:w-[40px] sm:h-[40px] rounded-full bg-[#ff6e20] hover:bg-[#e85d12] text-white inline-flex items-center justify-center shrink-0 transition-colors"
             >
-              <ArrowUpRight className="w-[19px] h-[19px]" strokeWidth={2.25} />
+              <FigmaIcon name="arrow-up-right" className="w-[18px] h-[18px]" />
             </Link>
           )}
 

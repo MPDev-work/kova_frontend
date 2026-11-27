@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Download, Loader2, Printer, Send } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import type { SellerOrderItem } from '../services/dashboardApi';
 import { DashboardModal } from './DashboardPrimitives';
+import { FigmaIcon, ICON_STROKE_WIDTH } from './FigmaIcon';
 import { formatKhr, formatRiel } from '../utils/currency';
 
 export interface PosReceiptStoreInfo {
@@ -1080,7 +1081,7 @@ export function PosOrderReceiptModal({
             onClick={() => printPosSlip(model)}
             className="inline-flex items-center justify-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[12px] sm:text-[12.5px] font-semibold text-black px-3 sm:px-3.5 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
           >
-            <Printer className="w-3.5 h-3.5 shrink-0" />
+            <FigmaIcon name="printer" className="w-3.5 h-3.5 shrink-0" />
             <span>Print</span>
           </button>
           <button
@@ -1090,9 +1091,12 @@ export function PosOrderReceiptModal({
             className="inline-flex items-center justify-center gap-1.5 bg-[#ffefe6] hover:bg-[#ffdfcd] disabled:opacity-60 text-[#ff6e20] text-[12px] sm:text-[12.5px] font-semibold px-3 sm:px-3.5 py-2 rounded-full transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             {exporting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              <Loader2
+                className="w-3.5 h-3.5 animate-spin shrink-0"
+                strokeWidth={ICON_STROKE_WIDTH}
+              />
             ) : (
-              <Download className="w-3.5 h-3.5 shrink-0" />
+              <FigmaIcon name="download" className="w-3.5 h-3.5 shrink-0" />
             )}
             <span>{exporting ? 'Exporting...' : 'Download PDF'}</span>
           </button>
@@ -1104,9 +1108,12 @@ export function PosOrderReceiptModal({
               className="inline-flex items-center justify-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12px] sm:text-[12.5px] font-semibold px-3.5 sm:px-4 py-2 rounded-full transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               {sendingToChat ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                <Loader2
+                  className="w-3.5 h-3.5 animate-spin shrink-0"
+                  strokeWidth={ICON_STROKE_WIDTH}
+                />
               ) : (
-                <Send className="w-3.5 h-3.5 shrink-0" />
+                <FigmaIcon name="send" className="w-3.5 h-3.5 shrink-0" />
               )}
               <span>{sendingToChat ? 'Sending...' : chatButtonLabel}</span>
             </button>

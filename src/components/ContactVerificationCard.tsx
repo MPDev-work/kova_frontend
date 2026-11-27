@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ApiError, customerApi } from '../services/api';
+import { FigmaIcon, ICON_STROKE_WIDTH } from './FigmaIcon';
 import { useShakeAnimation } from './PasswordInput';
 
 interface ContactVerificationCardProps {
@@ -165,7 +166,7 @@ export function ContactVerificationCard({
     <section className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3 rounded-[24px]">
       <div className="flex items-center gap-2.5">
         <span className="w-9 h-9 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-4 h-4" />
+          <ShieldCheck className="w-4 h-4" strokeWidth={ICON_STROKE_WIDTH} />
         </span>
         <div>
           <h2 className="text-[15.5px] font-bold text-black">
@@ -183,7 +184,7 @@ export function ContactVerificationCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-9 h-9 rounded-full bg-white border border-[#ececec] text-[#555555] flex items-center justify-center shrink-0">
-              <Mail className="w-4 h-4" />
+              <FigmaIcon name="mail" className="w-4 h-4" />
             </span>
             <div className="min-w-0">
               <p className="text-[13.5px] font-semibold text-black">
@@ -197,7 +198,7 @@ export function ContactVerificationCard({
 
           {emailVerified ? (
             <span className="inline-flex items-center gap-1.5 bg-[#e7f6e7] text-[#029500] text-[12px] font-semibold px-3 py-1 rounded-full shrink-0">
-              <CheckCircle2 className="w-3.5 h-3.5" />
+              <FigmaIcon name="check-circle" className="w-3.5 h-3.5" />
               <span>Verified</span>
             </span>
           ) : (
@@ -272,7 +273,7 @@ export function ContactVerificationCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-9 h-9 rounded-full bg-white border border-[#ececec] text-[#555555] flex items-center justify-center shrink-0">
-              <Phone className="w-4 h-4" />
+              <FigmaIcon name="phone" className="w-4 h-4" />
             </span>
             <div className="min-w-0">
               <p className="text-[13.5px] font-semibold text-black">
@@ -286,7 +287,7 @@ export function ContactVerificationCard({
 
           {phoneVerified && effectivePhone === (user.phone || '').trim() ? (
             <span className="inline-flex items-center gap-1.5 bg-[#e7f6e7] text-[#029500] text-[12px] font-semibold px-3 py-1 rounded-full shrink-0">
-              <CheckCircle2 className="w-3.5 h-3.5" />
+              <FigmaIcon name="check-circle" className="w-3.5 h-3.5" />
               <span>Verified</span>
             </span>
           ) : (

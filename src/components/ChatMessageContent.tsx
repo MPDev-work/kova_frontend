@@ -1,15 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import {
-  ArrowUpRight,
-  ExternalLink,
-  Package,
-  Pause,
-  Play,
-  ShoppingBag,
-  X,
-} from 'lucide-react';
+import { FigmaIcon } from './FigmaIcon';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import type {
   ChatContextCard,
@@ -94,9 +86,15 @@ function ChatContextCardView({
       <div className="bg-[#fafafa] border-b border-[#f0f0f0] px-3 py-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {isOrder ? (
-            <Package className="w-3.5 h-3.5 text-[#ff6e20] shrink-0" />
+            <FigmaIcon
+              name="package"
+              className="w-3.5 h-3.5 text-[#ff6e20] shrink-0"
+            />
           ) : (
-            <ShoppingBag className="w-3.5 h-3.5 text-[#ff6e20] shrink-0" />
+            <FigmaIcon
+              name="shopping-bag"
+              className="w-3.5 h-3.5 text-[#ff6e20] shrink-0"
+            />
           )}
           <span className="text-[11.5px] font-semibold text-black truncate">
             {isOrder && card.order_number
@@ -124,7 +122,7 @@ function ChatContextCardView({
               className="w-full h-full object-cover"
             />
           ) : (
-            <Package className="w-5 h-5 text-[#979797]" />
+            <FigmaIcon name="package" className="w-5 h-5 text-[#979797]" />
           )}
         </div>
 
@@ -159,7 +157,7 @@ function ChatContextCardView({
             className="w-full inline-flex items-center justify-center gap-1.5 bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold py-2 px-3 rounded-full transition-colors"
           >
             <span>{destination.label}</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
+            <FigmaIcon name="arrow-up-right" className="w-3.5 h-3.5" />
           </Link>
         </div>
       )}
@@ -213,7 +211,10 @@ function renderLinkedText(text: string, isOwn: boolean) {
           }`}
         >
           <span>{cleanText}</span>
-          <ExternalLink className="w-3 h-3 shrink-0 inline" />
+          <FigmaIcon
+            name="external-link"
+            className="w-3 h-3 shrink-0 inline-block"
+          />
         </a>
         {trailing}
       </span>
@@ -325,9 +326,9 @@ function VoiceMessagePlayer({
         }`}
       >
         {playing ? (
-          <Pause className="w-4 h-4 fill-current" />
+          <FigmaIcon name="pause-filled" className="w-4 h-4" />
         ) : (
-          <Play className="w-4 h-4 fill-current ml-0.5" />
+          <FigmaIcon name="play-filled" className="w-4 h-4 ml-0.5" />
         )}
       </button>
 
@@ -484,7 +485,7 @@ export function ChatMessageBody({
               aria-label="Close image preview"
               className="fixed top-[max(1rem,env(safe-area-inset-top))] right-4 z-10 w-11 h-11 rounded-full bg-[#171717] hover:bg-black text-white border-2 border-white shadow-[0_6px_24px_rgba(0,0,0,0.65)] flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
             >
-              <X className="w-5 h-5" strokeWidth={2.5} />
+              <FigmaIcon name="x" className="w-5 h-5" />
             </button>
             <img
               src={previewUrl}
@@ -530,7 +531,7 @@ export function PendingContextCardBar({
             className="w-full h-full object-cover"
           />
         ) : (
-          <Package className="w-5 h-5 text-[#979797]" />
+          <FigmaIcon name="package" className="w-5 h-5 text-[#979797]" />
         )}
       </div>
 
@@ -569,7 +570,7 @@ export function PendingContextCardBar({
         title="Remove attached item"
         className="w-7 h-7 rounded-full bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[#767676] flex items-center justify-center shrink-0 transition-colors"
       >
-        <X className="w-3.5 h-3.5" />
+        <FigmaIcon name="x" className="w-3.5 h-3.5" />
       </button>
     </div>
   );
@@ -601,7 +602,7 @@ export function PendingAttachmentsBar({
             aria-label="Remove image"
             className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center"
           >
-            <X className="w-3 h-3" />
+            <FigmaIcon name="x" className="w-3 h-3" />
           </button>
         </div>
       ))}

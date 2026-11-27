@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check, Minus, Trash2 } from 'lucide-react';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
@@ -38,9 +37,9 @@ function SelectionCheckbox({
       }`}
     >
       {indeterminate ? (
-        <Minus className="w-3.5 h-3.5 stroke-[2.75]" />
+        <FigmaIcon name="minus" className="w-3.5 h-3.5" />
       ) : (
-        <Check className="w-3.5 h-3.5 stroke-[2.75]" />
+        <FigmaIcon name="check" className="w-3.5 h-3.5" />
       )}
     </button>
   );
@@ -296,7 +295,7 @@ export function CartPage() {
             onClick={() => void handleDeleteSelected()}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-[#ececec] text-[13px] font-semibold text-[#e5322d] hover:bg-[#fdecec] hover:border-[#e5322d]/30 disabled:opacity-50 transition-colors cursor-pointer"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <FigmaIcon name="trash" className="w-3.5 h-3.5" />
             <span>
               {deletingSelected
                 ? 'Deleting...'

@@ -1,18 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  ArrowUpToLine,
-  Bell,
-  Headset,
-  Heart,
-  Home,
-  MessagesSquare,
-  ShoppingCart,
-  Store,
-  User,
-} from 'lucide-react';
+import { ArrowUpToLine, Store } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { FigmaIcon } from './FigmaIcon';
+import { FigmaIcon, ICON_STROKE_WIDTH } from './FigmaIcon';
 import { NotificationModal } from './NotificationModal';
 
 function DockTooltip({ label }: { label: string }) {
@@ -101,7 +91,7 @@ export function FloatingSideDock() {
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
           >
-            <Heart className="w-[20px] h-[20px]" strokeWidth={1.85} />
+            <FigmaIcon name="heart" className="w-[20px] h-[20px]" />
             {!bootstrapping && isSignedIn && (
               <DockBadge count={wishlistIds.length} />
             )}
@@ -118,7 +108,7 @@ export function FloatingSideDock() {
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
           >
-            <ShoppingCart className="w-[20px] h-[20px]" strokeWidth={1.85} />
+            <FigmaIcon name="shopping-cart" className="w-[20px] h-[20px]" />
             {!bootstrapping && <DockBadge count={cartCount} />}
             <DockTooltip label="Cart" />
           </Link>
@@ -129,7 +119,7 @@ export function FloatingSideDock() {
             aria-label="Messenger"
             className={`${itemBase} text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]`}
           >
-            <MessagesSquare className="w-[20px] h-[20px]" strokeWidth={1.85} />
+            <FigmaIcon name="message-square" className="w-[20px] h-[20px]" />
             {!bootstrapping && isSignedIn && (
               <DockBadge count={unreadMessagesCount} />
             )}
@@ -147,7 +137,7 @@ export function FloatingSideDock() {
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
           >
-            <Bell className="w-[20px] h-[20px]" strokeWidth={1.85} />
+            <FigmaIcon name="bell" className="w-[20px] h-[20px]" />
             {!bootstrapping && isSignedIn && (
               <DockBadge count={unreadNotificationsCount} />
             )}
@@ -164,7 +154,7 @@ export function FloatingSideDock() {
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
           >
-            <Headset className="w-[20px] h-[20px]" strokeWidth={1.85} />
+            <FigmaIcon name="headphones" className="w-[20px] h-[20px]" />
             <DockTooltip label="Support" />
           </Link>
         </div>
@@ -176,7 +166,10 @@ export function FloatingSideDock() {
           aria-label="Back to top"
           className="group relative w-[48px] sm:w-[50px] h-[50px] bg-white border border-r-0 border-[#ececec] rounded-l-[20px] shadow-[0_8px_28px_rgba(0,0,0,0.08)] flex items-center justify-center text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20] transition-colors"
         >
-          <ArrowUpToLine className="w-[20px] h-[20px]" strokeWidth={1.9} />
+          <ArrowUpToLine
+            className="w-[20px] h-[20px]"
+            strokeWidth={ICON_STROKE_WIDTH}
+          />
           <DockTooltip label="Back to top" />
         </button>
       </aside>
@@ -194,9 +187,9 @@ export function FloatingSideDock() {
               isHomeActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
             }`}
           >
-            <Home
+            <FigmaIcon
+              name={isHomeActive ? 'home-filled' : 'home'}
               className="w-[21px] h-[21px]"
-              strokeWidth={isHomeActive ? 2.25 : 1.85}
             />
             <span
               className={`text-[10.5px] leading-tight ${
@@ -214,9 +207,11 @@ export function FloatingSideDock() {
             }`}
           >
             <span className="relative inline-flex">
-              <MessagesSquare
+              <FigmaIcon
+                name={
+                  isMessengerActive ? 'message-square-filled' : 'message-square'
+                }
                 className="w-[21px] h-[21px]"
-                strokeWidth={isMessengerActive ? 2.25 : 1.85}
               />
               {!bootstrapping && isSignedIn && unreadMessagesCount > 0 && (
                 <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
@@ -240,9 +235,9 @@ export function FloatingSideDock() {
             }`}
           >
             <span className="relative inline-flex">
-              <ShoppingCart
+              <FigmaIcon
+                name={isCartActive ? 'shopping-cart-filled' : 'shopping-cart'}
                 className="w-[21px] h-[21px]"
-                strokeWidth={isCartActive ? 2.25 : 1.85}
               />
               {!bootstrapping && cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
@@ -268,7 +263,7 @@ export function FloatingSideDock() {
             <span className="relative inline-flex">
               <Store
                 className="w-[21px] h-[21px]"
-                strokeWidth={isFollowingActive ? 2.25 : 1.85}
+                strokeWidth={ICON_STROKE_WIDTH}
               />
               {!bootstrapping && isSignedIn && followedStores.length > 0 && (
                 <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
@@ -302,9 +297,9 @@ export function FloatingSideDock() {
                 }`}
               />
             ) : (
-              <User
+              <FigmaIcon
+                name={isProfileActive ? 'user-filled' : 'user'}
                 className="w-[21px] h-[21px]"
-                strokeWidth={isProfileActive ? 2.25 : 1.85}
               />
             )}
             <span

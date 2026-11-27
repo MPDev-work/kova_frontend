@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { FigmaIcon } from '../../components/FigmaIcon';
 import { useStore } from '../../context/StoreContext';
 import { ApiError, customerApi, toFriendlyErrorMessage } from '../../services/api';
 import { CambodiaLocationSelector } from '../../components/CambodiaLocationSelector';
@@ -308,7 +308,10 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
 
             {composedAddress && (
               <div className="sm:col-span-2 bg-[#f7f7f7] border border-[#ececec] px-4 py-2.5 flex items-center gap-2 text-[13px] text-[#555555] rounded-[14px]">
-                <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
+                <FigmaIcon
+                  name="map-pin"
+                  className="w-4 h-4 text-[#ff6e20] shrink-0"
+                />
                 <span className="truncate">
                   <strong className="text-black">Location preview:</strong>{' '}
                   {composedAddress}
@@ -509,7 +512,10 @@ export function AboutPage({ mode = 'about' }: { mode?: 'about' | 'seller' }) {
 
             {composedAddress && (
               <div className="sm:col-span-2 bg-[#f7f7f7] border border-[#ececec] px-4 py-2.5 flex items-center gap-2 text-[13px] text-[#555555] rounded-[14px]">
-                <MapPin className="w-4 h-4 text-[#ff6e20] shrink-0" />
+                <FigmaIcon
+                  name="map-pin"
+                  className="w-4 h-4 text-[#ff6e20] shrink-0"
+                />
                 <span className="truncate">
                   <strong className="text-black">Location preview:</strong>{' '}
                   {composedAddress}

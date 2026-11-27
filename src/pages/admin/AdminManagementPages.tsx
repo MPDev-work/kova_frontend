@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Check, Image } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError } from '../../services/api';
@@ -1961,7 +1960,10 @@ export function AdminSettingsPage() {
                                     className="max-w-full max-h-full object-contain"
                                   />
                                 ) : (
-                                  <Image className="w-5 h-5 text-[#ababab]" />
+                                  <FigmaIcon
+                                    name="image"
+                                    className="w-5 h-5 text-[#ababab]"
+                                  />
                                 )}
                               </div>
 
@@ -2304,7 +2306,7 @@ export function AdminSettingsPage() {
                           <span>Save</span>
                         ) : (
                           <>
-                            <Check className="w-3.5 h-3.5" />
+                            <FigmaIcon name="check" className="w-3.5 h-3.5" />
                             <span>Saved</span>
                           </>
                         )}

@@ -1,26 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  ArrowDown,
-  ArrowLeft,
-  Ban,
-  Check,
-  CheckCheck,
-  CheckSquare,
-  ChevronLeft,
-  ImagePlus,
-  Loader2,
-  MessageCircle,
-  MessageCircleMore,
-  Mic,
-  MoreHorizontal,
-  RefreshCw,
-  Search,
-  Send,
-  SquarePen,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { CheckCheck, Loader2 } from 'lucide-react';
 import {
   ChatMessageBody,
   PendingAttachmentsBar,
@@ -28,7 +8,7 @@ import {
 } from './ChatMessageContent';
 import { consumePendingChatCard } from '../utils/chatContextCard';
 import { validateUploadFile } from '../utils/mediaUpload';
-import { FigmaIcon } from './FigmaIcon';
+import { FigmaIcon, ICON_STROKE_WIDTH } from './FigmaIcon';
 import { VerifiedBadge } from './VerifiedBadge';
 import { useStore } from '../context/StoreContext';
 import { useConfirmDelete } from '../context/ConfirmDeleteContext';
@@ -1068,7 +1048,7 @@ export function MessengerWorkspace({
                 aria-label="Back to store"
                 className="-ml-2 w-9 h-9 rounded-full hover:bg-[#f4f4f4] text-black flex items-center justify-center transition-colors shrink-0 cursor-pointer"
               >
-                <ChevronLeft className="w-6 h-6" strokeWidth={2.25} />
+                <FigmaIcon name="chevron-left" className="w-5 h-5" />
               </button>
             )}
             <h1 className="text-[22px] font-bold text-black tracking-tight">
@@ -1083,7 +1063,7 @@ export function MessengerWorkspace({
               aria-label="Refresh chats"
               className="w-9 h-9 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center transition-colors"
             >
-              <RefreshCw className="w-4 h-4" />
+              <FigmaIcon name="refresh-cw" className="w-4 h-4" />
             </button>
 
             <div ref={menuRef} className="relative">
@@ -1100,7 +1080,7 @@ export function MessengerWorkspace({
                     : 'bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555]'
                 }`}
               >
-                <MoreHorizontal className="w-4 h-4" />
+                <FigmaIcon name="more-horizontal" className="w-4 h-4" />
               </button>
 
               {menuOpen && (
@@ -1122,7 +1102,10 @@ export function MessengerWorkspace({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-black hover:bg-[#f7f7f7] flex items-center gap-2.5 transition-colors"
                   >
-                    <CheckSquare className="w-4 h-4 text-[#ff6e20] shrink-0" />
+                    <FigmaIcon
+                      name="check-square"
+                      className="w-4 h-4 text-[#ff6e20] shrink-0"
+                    />
                     <span>
                       {selectionMode ? 'Cancel selection' : 'Select messages'}
                     </span>
@@ -1135,7 +1118,10 @@ export function MessengerWorkspace({
                     onClick={() => void handleMarkAllAsRead()}
                     className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-black hover:bg-[#f7f7f7] flex items-center gap-2.5 transition-colors disabled:opacity-50"
                   >
-                    <CheckCheck className="w-4 h-4 text-[#ff6e20] shrink-0" />
+                    <CheckCheck
+                      className="w-4 h-4 text-[#ff6e20] shrink-0"
+                      strokeWidth={ICON_STROKE_WIDTH}
+                    />
                     <span>Mark all as read</span>
                   </button>
 
@@ -1151,7 +1137,10 @@ export function MessengerWorkspace({
                         }}
                         className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-black hover:bg-[#f7f7f7] flex items-center gap-2.5 transition-colors"
                       >
-                        <SquarePen className="w-4 h-4 text-[#767676] shrink-0" />
+                        <FigmaIcon
+                          name="edit"
+                          className="w-4 h-4 text-[#767676] shrink-0"
+                        />
                         <span>Message Kova Support</span>
                       </button>
                     </>
@@ -1165,7 +1154,10 @@ export function MessengerWorkspace({
         {/* Search Input Pill */}
         <div className="px-4 pb-3 shrink-0">
           <div className="flex items-center gap-2 bg-[#f4f4f4] focus-within:bg-white border border-transparent focus-within:border-[#ff6e20] rounded-full px-3.5 h-[38px] transition-colors">
-            <Search className="w-4 h-4 text-[#8a8a8a] shrink-0" />
+            <FigmaIcon
+              name="search"
+              className="w-4 h-4 text-[#8a8a8a] shrink-0"
+            />
             <input
               type="text"
               value={search}
@@ -1192,7 +1184,7 @@ export function MessengerWorkspace({
                 }`}
               >
                 {allVisibleSelected && (
-                  <Check className="w-3 h-3" strokeWidth={3} />
+                  <FigmaIcon name="check" className="w-3 h-3" />
                 )}
               </span>
               <span>
@@ -1246,7 +1238,7 @@ export function MessengerWorkspace({
           ) : filteredTickets.length === 0 ? (
             <div className="py-12 px-4 text-center flex flex-col items-center gap-2">
               <span className="w-11 h-11 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-                <MessageCircle className="w-5 h-5" />
+                <FigmaIcon name="message-circle" className="w-5 h-5" />
               </span>
               <p className="text-[13.5px] font-semibold text-black">
                 No conversations
@@ -1297,7 +1289,7 @@ export function MessengerWorkspace({
                       }`}
                     >
                       {isChecked && (
-                        <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                        <FigmaIcon name="check" className="w-3.5 h-3.5" />
                       )}
                     </span>
                   )}
@@ -1313,7 +1305,7 @@ export function MessengerWorkspace({
                       ) : peer.isStore ? (
                         <FigmaIcon name="home" className="w-5 h-5" />
                       ) : mode === 'customer' && !peer.isStore ? (
-                        <MessageCircle className="w-5 h-5" />
+                        <FigmaIcon name="message-circle" className="w-5 h-5" />
                       ) : (
                         peer.name.charAt(0).toUpperCase()
                       )}
@@ -1373,7 +1365,10 @@ export function MessengerWorkspace({
               onClick={() => void runBulkAction('mark_read', selectedChatIds)}
               className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] disabled:opacity-45 text-black text-[12px] font-semibold py-2 px-2.5 rounded-full transition-colors"
             >
-              <CheckCheck className="w-3.5 h-3.5 shrink-0" />
+              <CheckCheck
+                className="w-3.5 h-3.5 shrink-0"
+                strokeWidth={ICON_STROKE_WIDTH}
+              />
               <span>Mark read</span>
             </button>
             <button
@@ -1387,7 +1382,7 @@ export function MessengerWorkspace({
               }
               className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#f4f4f4] hover:bg-[#fff0f0] hover:text-[#d93025] disabled:opacity-45 text-black text-[12px] font-semibold py-2 px-2.5 rounded-full transition-colors"
             >
-              <Ban className="w-3.5 h-3.5 shrink-0" />
+              <FigmaIcon name="slash" className="w-3.5 h-3.5 shrink-0" />
               <span>{shouldUnblockSelected ? 'Unblock' : 'Block'}</span>
             </button>
             <button
@@ -1396,7 +1391,7 @@ export function MessengerWorkspace({
               onClick={() => requestDeleteConversations(selectedChatIds)}
               className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#fff0f0] hover:bg-[#d93025] text-[#d93025] hover:text-white disabled:opacity-45 text-[12px] font-semibold py-2 px-2.5 rounded-full transition-colors"
             >
-              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              <FigmaIcon name="trash" className="w-3.5 h-3.5 shrink-0" />
               <span>Delete</span>
             </button>
           </div>
@@ -1416,7 +1411,7 @@ export function MessengerWorkspace({
         {isDraggingFiles && matchedActiveTicket && !headerTicket?.is_blocked && (
           <div className="pointer-events-none absolute inset-2.5 z-40 rounded-[24px] border-2 border-dashed border-[#ff6e20] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-center p-6">
             <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-              <ImagePlus className="w-6 h-6" />
+              <FigmaIcon name="image-plus" className="w-6 h-6" />
             </span>
             <p className="text-[15px] font-bold text-black">
               Drop images to attach
@@ -1429,7 +1424,7 @@ export function MessengerWorkspace({
         {!selectedId ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none">
             <div className="w-20 h-20 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center mb-4">
-              <MessageCircleMore className="w-10 h-10" strokeWidth={1.8} />
+              <FigmaIcon name="message-circle" className="w-10 h-10" />
             </div>
             <h2 className="text-[19px] font-bold text-black">
               No chats selected
@@ -1467,7 +1462,7 @@ export function MessengerWorkspace({
                   aria-label="Back to chats"
                   className="lg:hidden w-8 h-8 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-black flex items-center justify-center shrink-0"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <FigmaIcon name="arrow-left" className="w-4 h-4" />
                 </button>
 
                 <div className="relative shrink-0">
@@ -1481,7 +1476,7 @@ export function MessengerWorkspace({
                     ) : activePeer.isStore ? (
                       <FigmaIcon name="home" className="w-4 h-4" />
                     ) : mode === 'customer' && !activePeer.isStore ? (
-                      <MessageCircle className="w-4 h-4" />
+                      <FigmaIcon name="message-circle" className="w-4 h-4" />
                     ) : (
                       activePeer.name.charAt(0).toUpperCase()
                     )}
@@ -1537,7 +1532,7 @@ export function MessengerWorkspace({
                       : 'bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555]'
                   }`}
                 >
-                  <MoreHorizontal className="w-4 h-4" />
+                  <FigmaIcon name="more-horizontal" className="w-4 h-4" />
                 </button>
 
                 {chatMenuOpen && (
@@ -1561,7 +1556,10 @@ export function MessengerWorkspace({
                         }}
                         className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-black hover:bg-[#f7f7f7] flex items-center gap-2.5 transition-colors disabled:opacity-50"
                       >
-                        <Ban className="w-4 h-4 text-[#767676] shrink-0" />
+                        <FigmaIcon
+                          name="slash"
+                          className="w-4 h-4 text-[#767676] shrink-0"
+                        />
                         <span>
                           {headerTicket.is_blocked ? 'Unblock' : 'Block'}
                         </span>
@@ -1581,7 +1579,7 @@ export function MessengerWorkspace({
                       }}
                       className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-[#d93025] hover:bg-[#fff0f0] flex items-center gap-2.5 transition-colors disabled:opacity-50"
                     >
-                      <Trash2 className="w-4 h-4 shrink-0" />
+                      <FigmaIcon name="trash" className="w-4 h-4 shrink-0" />
                       <span>Delete</span>
                     </button>
                   </div>
@@ -1618,7 +1616,10 @@ export function MessengerWorkspace({
                           ) : activePeer.isStore ? (
                             <FigmaIcon name="home" className="w-7 h-7" />
                           ) : (
-                            <MessageCircle className="w-7 h-7" />
+                            <FigmaIcon
+                              name="message-circle"
+                              className="w-7 h-7"
+                            />
                           )}
                         </span>
                         <p className="text-[16px] font-bold text-black flex items-center gap-1.5">
@@ -1760,7 +1761,10 @@ export function MessengerWorkspace({
                                   className="w-full h-full object-cover"
                                 />
                               ) : item.isSupportFallback ? (
-                                <MessageCircle className="w-4 h-4" />
+                                <FigmaIcon
+                                  name="message-circle"
+                                  className="w-4 h-4"
+                                />
                               ) : (
                                 item.senderName.charAt(0).toUpperCase()
                               )}
@@ -1803,7 +1807,7 @@ export function MessengerWorkspace({
                   title="Jump to latest"
                   className="absolute bottom-4 right-5 w-9 h-9 rounded-full bg-white hover:bg-[#ffefe6] text-[#ff6e20] border border-[#ececec] shadow-[0_6px_18px_rgba(0,0,0,0.12)] flex items-center justify-center transition-colors"
                 >
-                  <ArrowDown className="w-4 h-4" />
+                  <FigmaIcon name="arrow-down" className="w-4 h-4" />
                 </button>
               )}
               </div>
@@ -1813,7 +1817,10 @@ export function MessengerWorkspace({
             {headerTicket.is_blocked ? (
               <div className="bg-white border-t border-[#ececec] px-4 sm:px-5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2 text-[13px] text-[#767676]">
-                  <Ban className="w-4 h-4 text-[#d93025] shrink-0" />
+                  <FigmaIcon
+                    name="slash"
+                    className="w-4 h-4 text-[#d93025] shrink-0"
+                  />
                   <span>
                     {headerTicket.blocked_by_me
                       ? 'You blocked this conversation.'
@@ -1860,7 +1867,7 @@ export function MessengerWorkspace({
                       title="Cancel recording"
                       className="w-9 h-9 rounded-full bg-white hover:bg-[#fff0f0] border border-[#ececec] text-[#555555] hover:text-[#e5322d] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                     >
-                      <X className="w-4 h-4" />
+                      <FigmaIcon name="x" className="w-4 h-4" />
                     </button>
 
                     <div className="flex items-center gap-2 min-w-0">
@@ -1879,7 +1886,7 @@ export function MessengerWorkspace({
                       aria-label="Send voice message"
                       className="inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] text-white px-4 py-2 rounded-full text-[13px] font-semibold transition-colors shrink-0 cursor-pointer"
                     >
-                      <Send className="w-3.5 h-3.5" />
+                      <FigmaIcon name="send" className="w-3.5 h-3.5" />
                       <span>Send</span>
                     </button>
                   </div>
@@ -1901,7 +1908,7 @@ export function MessengerWorkspace({
                       aria-label="Send photo"
                       className="w-9 h-9 mb-0.5 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 cursor-pointer"
                     >
-                      <ImagePlus className="w-4 h-4" />
+                      <FigmaIcon name="image-plus" className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
@@ -1917,9 +1924,12 @@ export function MessengerWorkspace({
                       className="w-9 h-9 mb-0.5 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       {uploadingVoice ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-[#ff6e20]" />
+                        <Loader2
+                          className="w-4 h-4 animate-spin text-[#ff6e20]"
+                          strokeWidth={ICON_STROKE_WIDTH}
+                        />
                       ) : (
-                        <Mic className="w-4 h-4" />
+                        <FigmaIcon name="mic" className="w-4 h-4" />
                       )}
                     </button>
                     <textarea
@@ -1963,7 +1973,7 @@ export function MessengerWorkspace({
                       }
                       className="mb-0.5 inline-flex items-center gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-45 text-white px-4.5 py-2 rounded-full text-[13px] font-semibold transition-colors shrink-0 cursor-pointer"
                     >
-                      <Send className="w-3.5 h-3.5" />
+                      <FigmaIcon name="send" className="w-3.5 h-3.5" />
                       <span>{sending ? 'Sending...' : 'Send'}</span>
                     </button>
                   </div>
