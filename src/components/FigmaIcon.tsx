@@ -46,6 +46,7 @@ export type FigmaIconName =
   | 'lock'
   | 'log-out'
   | 'mail'
+  | 'map'
   | 'map-pin'
   | 'menu'
   | 'message-circle'

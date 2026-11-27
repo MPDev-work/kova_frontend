@@ -7,7 +7,6 @@ import { ProductCard } from '../../components/ProductCard';
 import { StorefrontSkeleton } from '../../components/Skeleton';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { VoucherCard } from '../../components/VoucherCard';
-import { GoogleMapsPinIcon } from '../../components/StoreTagCard';
 import { getStoreGoogleMapsHref } from '../../utils/storeLocation';
 import type { Product, Promotion, Store } from '../../types/marketplace';
 
@@ -136,7 +135,7 @@ export function StorefrontPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 md:mr-14 min-[1580px]:mr-0">
             <button
               type="button"
               disabled={followBusy}
@@ -187,17 +186,19 @@ export function StorefrontPage() {
               href={getStoreGoogleMapsHref(store)}
               target="_blank"
               rel="noopener noreferrer"
-              title="View store location on Google Maps"
-              aria-label="Open store location on Google Maps"
-              className="w-9 h-9 rounded-full bg-white hover:bg-[#f7f7f7] border border-[#ececec] hover:border-[#ff6e20]/50 flex items-center justify-center transition-colors shrink-0"
+              title="View store location on Maps"
+              aria-label="Open store location on Maps"
+              className="w-9 h-9 rounded-full bg-white hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ff6e20]/50 text-[#333333] hover:text-[#ff6e20] flex items-center justify-center transition-colors shrink-0"
             >
-              <GoogleMapsPinIcon className="w-4.5 h-4.5" />
+              <FigmaIcon name="map" className="w-4 h-4" />
             </a>
             <Link
               to={`/help/contact?storeId=${store.id}&storeName=${encodeURIComponent(store.name)}&storeSlug=${encodeURIComponent(store.slug)}`}
-              className="bg-[#ffefe6] hover:bg-[#ffdfcd] text-[#ff6e20] text-[13px] font-semibold px-4 py-2 rounded-full transition-colors"
+              title="Contact store"
+              aria-label={`Contact ${store.name}`}
+              className="w-9 h-9 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors shrink-0"
             >
-              Contact store
+              <FigmaIcon name="message-circle" className="w-4 h-4" />
             </Link>
           </div>
         </div>

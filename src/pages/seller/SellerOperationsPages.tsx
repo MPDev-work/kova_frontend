@@ -983,20 +983,24 @@ export function SellerShippingPage() {
                       ? 'Free delivery'
                       : `From $${Number(m.base_cost).toFixed(2)}`}
                   </span>
-                  <div className="flex items-center gap-2.5 text-[12px] font-semibold">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={() => openEditDrawer(m)}
-                      className="text-black hover:text-[#ff6e20]"
+                      title="Edit shipping method"
+                      aria-label={`Edit ${m.name}`}
+                      className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                     >
-                      Edit
+                      <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => void handleDelete(m.id)}
-                      className="text-[#e5322d] hover:underline"
+                      title="Delete shipping method"
+                      aria-label={`Delete ${m.name}`}
+                      className="w-8 h-8 rounded-full bg-red-500/15 hover:bg-red-500 border border-red-300 hover:border-red-500 text-red-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                     >
-                      Delete
+                      <FigmaIcon name="trash" className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -1618,20 +1622,24 @@ export function SellerPromotionsPage() {
                       />
                     </td>
                     <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-3">
+                      <div className="inline-flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => openEditDrawer(pr)}
-                          className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline"
+                          title="Edit promotion"
+                          aria-label={`Edit ${pr.code}`}
+                          className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                         >
-                          Edit
+                          <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleDelete(pr.id)}
-                          className="text-[12.5px] font-semibold text-[#e5322d] hover:underline"
+                          title="Delete promotion"
+                          aria-label={`Delete ${pr.code}`}
+                          className="w-8 h-8 rounded-full bg-red-500/15 hover:bg-red-500 border border-red-300 hover:border-red-500 text-red-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                         >
-                          Delete
+                          <FigmaIcon name="trash" className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

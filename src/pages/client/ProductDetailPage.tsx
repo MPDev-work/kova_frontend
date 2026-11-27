@@ -225,16 +225,19 @@ function ProductDetailContent({
                   store_name: product.store_name,
                 });
               }}
-              className="bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[12.5px] font-semibold px-4 py-1.5 rounded-full transition-colors"
+              title="Contact store"
+              aria-label={`Contact ${product.store_name}`}
+              className="w-9 h-9 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors shrink-0"
             >
-              Contact store
+              <FigmaIcon name="message-circle" className="w-4 h-4" />
             </Link>
           )}
           <Link
             to={`/store/${product.store_slug}`}
-            className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-black text-[12.5px] font-semibold px-4 py-1.5 rounded-full transition-colors"
+            className="inline-flex items-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-black text-[12.5px] font-semibold px-3.5 h-9 rounded-full transition-colors"
           >
-            View store
+            <span>Visit store</span>
+            <FigmaIcon name="arrow-up-right" className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>

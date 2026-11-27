@@ -375,9 +375,10 @@ export function CartPage() {
                   </div>
                   <Link
                     to={`/store/${group.store.slug}`}
-                    className="text-[13px] font-semibold text-[#ff6e20] hover:underline shrink-0"
+                    className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#ff6e20] hover:underline shrink-0"
                   >
-                    View store
+                    <span>Visit store</span>
+                    <FigmaIcon name="arrow-up-right" className="w-3.5 h-3.5" />
                   </Link>
                 </div>
 

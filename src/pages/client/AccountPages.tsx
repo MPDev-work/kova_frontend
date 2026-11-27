@@ -530,20 +530,24 @@ export function AddressBookPage() {
                     </span>
                   )}
                 </p>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => openEditModal(addr)}
-                    className="text-[12px] font-semibold text-[#ff6e20] hover:underline cursor-pointer"
+                    title="Edit address"
+                    aria-label={`Edit address for ${addr.full_name}`}
+                    className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                   >
-                    Edit
+                    <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDeleteAddress(addr)}
-                    className="text-[12px] font-semibold text-[#e5322d] hover:underline cursor-pointer"
+                    title="Delete address"
+                    aria-label={`Delete address for ${addr.full_name}`}
+                    className="w-8 h-8 rounded-full bg-red-500/15 hover:bg-red-500 border border-red-300 hover:border-red-500 text-red-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                   >
-                    Delete
+                    <FigmaIcon name="trash" className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -919,8 +923,12 @@ export function MyReviewsPage() {
                     <span className="text-[#8a8a8a]">
                       {formatShortDate(rev.created_at)}
                     </span>
-                    <span className="font-semibold text-[#ff6e20] group-hover:underline">
-                      View detail
+                    <span
+                      title="Detail"
+                      className="inline-flex items-center gap-1.5 bg-[#ffefe6] group-hover:bg-[#ff6e20] border border-[#ff6e20]/35 group-hover:border-[#ff6e20] text-[#ff6e20] group-hover:text-white text-[11.5px] font-semibold px-3 py-1 rounded-full transition-colors shrink-0"
+                    >
+                      <FigmaIcon name="eye" className="w-3.5 h-3.5 shrink-0" />
+                      <span>Detail</span>
                     </span>
                   </div>
                 </div>

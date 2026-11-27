@@ -114,7 +114,7 @@ function ChatContextCardView({
       </div>
 
       <div className="p-3 flex items-center gap-3">
-        <div className="w-[56px] h-[56px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center rounded-[14px]">
+        <div className="w-[56px] h-[56px] overflow-hidden border border-[#ececec] bg-[#f7f7f7] shrink-0 flex items-center justify-center rounded-[12px]">
           {card.product_image ? (
             <img
               src={card.product_image}
@@ -676,8 +676,8 @@ export function PendingContextCardBar({
         : null;
 
   return (
-    <div className="flex items-center gap-3 bg-[#fafafa] border border-[#ececec] p-2.5 pr-3 rounded-[14px]">
-      <div className="w-[48px] h-[48px] rounded-[10px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
+    <div className="flex items-center gap-3 bg-[#fafafa] border border-[#ececec] p-2.5 pr-3.5 rounded-[24px]">
+      <div className="w-[58px] h-[58px] rounded-[14px] overflow-hidden border border-[#ececec] bg-white shrink-0 flex items-center justify-center">
         {card.product_image ? (
           <img
             src={card.product_image}
@@ -689,8 +689,8 @@ export function PendingContextCardBar({
         )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="flex flex-wrap items-center gap-1.5 leading-tight">
           <span className="text-[11px] font-semibold text-[#ff6e20]">
             {isOrder && card.order_number
               ? `Asking about Order #${card.order_number.replace(/^#/, '')}`
@@ -702,10 +702,10 @@ export function PendingContextCardBar({
             </span>
           )}
         </div>
-        <p className="text-[13px] font-semibold text-black truncate mt-0.5">
+        <p className="text-[13px] font-semibold text-black truncate leading-snug mt-0.5">
           {card.product_name}
         </p>
-        <p className="text-[11.5px] text-[#767676] truncate">
+        <p className="text-[11.5px] text-[#767676] truncate leading-snug">
           {isOrder && card.quantity != null
             ? `Qty ${card.quantity}${
                 card.unit_price != null

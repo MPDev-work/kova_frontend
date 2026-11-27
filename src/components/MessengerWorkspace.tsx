@@ -108,6 +108,24 @@ export function MessengerWorkspace({
   const [replyAttachments, setReplyAttachments] = useState<string[]>([]);
   const [pendingContextCard, setPendingContextCard] =
     useState<ChatContextCard | null>(null);
+  const replyTextRef = useRef(replyText);
+  const replyAttachmentsRef = useRef<string[]>(replyAttachments);
+  const pendingContextCardRef = useRef<ChatContextCard | null>(
+    pendingContextCard,
+  );
+  const lastInitializedChatIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    replyTextRef.current = replyText;
+  }, [replyText]);
+
+  useEffect(() => {
+    replyAttachmentsRef.current = replyAttachments;
+  }, [replyAttachments]);
+
+  useEffect(() => {
+    pendingContextCardRef.current = pendingContextCard;
+  }, [pendingContextCard]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [sending, setSending] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -282,6 +300,7 @@ export function MessengerWorkspace({
           started.store_id ?? opts.storeId ?? null,
         );
         if (queuedCard) {
+          pendingContextCardRef.current = queuedCard;
           setPendingContextCard(queuedCard);
         }
         setSearchParams({ chat: String(started.id) }, { replace: true });
@@ -340,6 +359,7 @@ export function MessengerWorkspace({
 
   useEffect(() => {
     if (!selectedId) {
+      lastInitializedChatIdRef.current = null;
       const t = window.setTimeout(() => {
         setActiveTicket(null);
         setLoadingThread(false);
@@ -347,11 +367,15 @@ export function MessengerWorkspace({
       return () => window.clearTimeout(t);
     }
     const alreadyLoaded = activeTicketRef.current?.id === selectedId;
+    const switchedToNewChat = lastInitializedChatIdRef.current !== selectedId;
+    lastInitializedChatIdRef.current = selectedId;
     const initTimer = window.setTimeout(() => {
-      setReplyText('');
-      setReplyAttachments([]);
-      if (replyTextareaRef.current) {
-        replyTextareaRef.current.style.height = 'auto';
+      if (switchedToNewChat) {
+        setReplyText('');
+        setReplyAttachments([]);
+        if (replyTextareaRef.current) {
+          replyTextareaRef.current.style.height = 'auto';
+        }
       }
       void fetchThread(selectedId, alreadyLoaded);
     }, 0);
@@ -686,7 +710,14 @@ export function MessengerWorkspace({
         const url = await customerApi.uploadChatImage(file, 'standard');
         uploadedUrls.push(url);
       }
-      setReplyAttachments((prev) => [...prev, ...uploadedUrls]);
+      setReplyAttachments((prev) => {
+        const next = [...prev, ...uploadedUrls];
+        replyAttachmentsRef.current = next;
+        return next;
+      });
+      window.setTimeout(() => {
+        replyTextareaRef.current?.focus();
+      }, 40);
     } catch (err) {
       showToast(
         err instanceof ApiError
@@ -928,19 +959,27 @@ export function MessengerWorkspace({
           const audioUrl = await customerApi.uploadChatAudio(audioFile);
           forceScrollBottomRef.current = true;
           setShowScrollBottom(false);
+
+          // Include any tagged order/product card (and optional text/photos) with the voice message
+          const attachedCard = pendingContextCardRef.current;
+          const attachedImages = [...replyAttachmentsRef.current];
+          const attachedText = replyTextRef.current.trim();
           const voiceMeta: ChatMessageMetadata = {
             voice: {
               url: audioUrl,
               duration: elapsedSeconds,
               mime_type: actualMime,
             },
+            ...(attachedCard ? { context_card: attachedCard } : {}),
           };
+          const attachmentsArg =
+            attachedImages.length > 0 ? attachedImages : undefined;
 
           if (mode === 'admin') {
             const res = await adminApi.replyTicket(
               targetTicketId,
-              '',
-              undefined,
+              attachedText,
+              attachmentsArg,
               voiceMeta,
             );
             if (selectedIdRef.current === targetTicketId) {
@@ -949,8 +988,8 @@ export function MessengerWorkspace({
           } else if (mode === 'seller') {
             const res = await storeOwnerApi.replyTicket(
               targetTicketId,
-              '',
-              undefined,
+              attachedText,
+              attachmentsArg,
               voiceMeta,
             );
             if (selectedIdRef.current === targetTicketId) {
@@ -959,13 +998,29 @@ export function MessengerWorkspace({
           } else {
             await customerApi.replyTicket(
               targetTicketId,
-              '',
-              undefined,
+              attachedText,
+              attachmentsArg,
               voiceMeta,
             );
             const fresh = await customerApi.getTicket(targetTicketId);
             if (selectedIdRef.current === targetTicketId) {
               setActiveTicket(fresh);
+            }
+          }
+
+          if (attachedCard) {
+            pendingContextCardRef.current = null;
+            setPendingContextCard(null);
+          }
+          if (attachedImages.length > 0) {
+            replyAttachmentsRef.current = [];
+            setReplyAttachments([]);
+          }
+          if (attachedText) {
+            replyTextRef.current = '';
+            setReplyText('');
+            if (replyTextareaRef.current) {
+              replyTextareaRef.current.style.height = 'auto';
             }
           }
 
@@ -1048,11 +1103,16 @@ export function MessengerWorkspace({
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
+    const textToSend = (replyTextRef.current || replyText).trim();
+    const attachmentsToSend =
+      replyAttachmentsRef.current.length > 0
+        ? [...replyAttachmentsRef.current]
+        : [...replyAttachments];
+    const cardToSend = pendingContextCardRef.current ?? pendingContextCard;
+
     if (
       !activeTicket ||
-      (!replyText.trim() &&
-        replyAttachments.length === 0 &&
-        !pendingContextCard)
+      (!textToSend && attachmentsToSend.length === 0 && !cardToSend)
     ) {
       return;
     }
@@ -1060,35 +1120,38 @@ export function MessengerWorkspace({
     try {
       forceScrollBottomRef.current = true;
       setShowScrollBottom(false);
-      const metadataPayload = pendingContextCard
-        ? { context_card: pendingContextCard }
+      const metadataPayload = cardToSend
+        ? { context_card: cardToSend }
         : undefined;
       if (mode === 'admin') {
         const res = await adminApi.replyTicket(
           activeTicket.id,
-          replyText.trim(),
-          replyAttachments,
+          textToSend,
+          attachmentsToSend,
           metadataPayload,
         );
         setActiveTicket(res.ticket);
       } else if (mode === 'seller') {
         const res = await storeOwnerApi.replyTicket(
           activeTicket.id,
-          replyText.trim(),
-          replyAttachments,
+          textToSend,
+          attachmentsToSend,
           metadataPayload,
         );
         setActiveTicket(res.ticket);
       } else {
         await customerApi.replyTicket(
           activeTicket.id,
-          replyText.trim(),
-          replyAttachments,
+          textToSend,
+          attachmentsToSend,
           metadataPayload,
         );
         const fresh = await customerApi.getTicket(activeTicket.id);
         setActiveTicket(fresh);
       }
+      replyTextRef.current = '';
+      replyAttachmentsRef.current = [];
+      pendingContextCardRef.current = null;
       setReplyText('');
       setReplyAttachments([]);
       setPendingContextCard(null);
@@ -1950,14 +2013,19 @@ export function MessengerWorkspace({
               >
                 <PendingContextCardBar
                   card={pendingContextCard}
-                  onRemove={() => setPendingContextCard(null)}
+                  onRemove={() => {
+                    pendingContextCardRef.current = null;
+                    setPendingContextCard(null);
+                  }}
                 />
                 <PendingAttachmentsBar
                   attachments={replyAttachments}
                   onRemove={(idx) =>
-                    setReplyAttachments((prev) =>
-                      prev.filter((_, i) => i !== idx),
-                    )
+                    setReplyAttachments((prev) => {
+                      const next = prev.filter((_, i) => i !== idx);
+                      replyAttachmentsRef.current = next;
+                      return next;
+                    })
                   }
                 />
 

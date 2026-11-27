@@ -1275,29 +1275,25 @@ export function SellerProductsPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1 sm:gap-1.5 pt-2 mt-1 border-t border-[#f1f1f1]">
+                    <div className="flex items-center gap-1.5 pt-2 mt-1 border-t border-[#f1f1f1]">
                       <button
                         type="button"
                         onClick={() => void openProductDetail(p)}
-                        className="flex-1 min-w-0 inline-flex items-center justify-center gap-1 bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white text-[11px] sm:text-[12px] font-semibold py-1.5 px-2 sm:px-3 rounded-full transition-colors cursor-pointer"
+                        title="Detail"
+                        aria-label={`View detail for ${p.name}`}
+                        className="flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 h-8 bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ff6e20]/35 hover:border-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold px-3 rounded-full transition-colors cursor-pointer"
                       >
                         <FigmaIcon name="eye" className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate sm:hidden">View</span>
-                        <span className="hidden sm:inline truncate">
-                          View detail
-                        </span>
+                        <span>Detail</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => openEditProductModal(p.id)}
                         title="Edit product"
                         aria-label={`Edit ${p.name}`}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f7f7f7] hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ff6e20]/40 text-[#555555] hover:text-[#ff6e20] flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                        className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                       >
-                        <FigmaIcon
-                          name="edit-2"
-                          className="w-3 h-3 sm:w-3.5 sm:h-3.5"
-                        />
+                        <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
@@ -1305,12 +1301,9 @@ export function SellerProductsPage() {
                         onClick={() => void handleDelete(p)}
                         title="Delete product"
                         aria-label={`Delete ${p.name}`}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f7f7f7] hover:bg-[#fff0f0] border border-[#ececec] hover:border-[#e5322d]/40 text-[#767676] hover:text-[#e5322d] flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer shrink-0"
+                        className="w-8 h-8 rounded-full bg-red-500/15 hover:bg-red-500 border border-red-300 hover:border-red-500 text-red-600 hover:text-white inline-flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer shrink-0"
                       >
-                        <FigmaIcon
-                          name="trash"
-                          className="w-3 h-3 sm:w-3.5 sm:h-3.5"
-                        />
+                        <FigmaIcon name="trash" className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1436,28 +1429,38 @@ export function SellerProductsPage() {
                         {formatShortDate(p.created_at)}
                       </td>
                       <td className="py-3.5 px-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2.5">
+                        <div className="inline-flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => void openProductDetail(p)}
-                            className="text-[12.5px] font-semibold text-black hover:text-[#ff6e20] transition-colors cursor-pointer"
+                            title="Detail"
+                            aria-label={`View detail for ${p.name}`}
+                            className="inline-flex items-center justify-center gap-1.5 h-8 bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ff6e20]/35 hover:border-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold px-3 rounded-full transition-colors shrink-0 cursor-pointer"
                           >
-                            View detail
+                            <FigmaIcon
+                              name="eye"
+                              className="w-3.5 h-3.5 shrink-0"
+                            />
+                            <span>Detail</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => openEditProductModal(p.id)}
-                            className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline cursor-pointer"
+                            title="Edit product"
+                            aria-label={`Edit ${p.name}`}
+                            className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                           >
-                            Edit
+                            <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             disabled={deletingId === p.id}
                             onClick={() => void handleDelete(p)}
-                            className="text-[12.5px] font-semibold text-[#e5322d] hover:underline disabled:opacity-50 cursor-pointer"
+                            title="Delete product"
+                            aria-label={`Delete ${p.name}`}
+                            className="w-8 h-8 rounded-full bg-red-500/15 hover:bg-red-500 border border-red-300 hover:border-red-500 text-red-600 hover:text-white inline-flex items-center justify-center transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
                           >
-                            Delete
+                            <FigmaIcon name="trash" className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
