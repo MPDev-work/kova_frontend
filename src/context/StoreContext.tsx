@@ -23,9 +23,16 @@ import {
   wishlistApi,
 } from '../services/api';
 import { DEFAULT_KHR_RATE } from '../utils/currency';
+import {
+  clearOfflineQueue,
+  runOptimisticMutation,
+  subscribeSyncReconcile,
+} from '../utils/optimisticSync';
 import type {
   Address,
   AppliedCoupon,
+  CartItem,
+  CartStoreGroup,
   CartSummary,
   Category,
   ChatMessageMetadata,
@@ -403,64 +410,120 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [showToast],
   );
 
-  const markNotificationRead = useCallback(async (id: number) => {
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === id && !n.read_at
-          ? { ...n, read_at: new Date().toISOString() }
-          : n,
-      ),
-    );
-    setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
-    try {
-      await customerApi.markNotificationRead(id);
-    } catch {
-      // Ignore transient errors
-    }
-  }, []);
+  const markNotificationRead = useCallback(
+    async (id: number) => {
+      const prevNotifications = notifications;
+      const prevUnread = unreadNotificationsCount;
+      void runOptimisticMutation({
+        label: 'Mark notification read',
+        applyOptimistic: () => {
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n.id === id && !n.read_at
+                ? { ...n, read_at: new Date().toISOString() }
+                : n,
+            ),
+          );
+          setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
+        },
+        commit: () => customerApi.markNotificationRead(id),
+        rollback: () => {
+          setNotifications(prevNotifications);
+          setUnreadNotificationsCount(prevUnread);
+        },
+        offlineRequest: {
+          path: `/notifications/${id}/read`,
+          method: 'POST',
+          dedupeKey: `notif-read-${id}`,
+        },
+      });
+    },
+    [notifications, unreadNotificationsCount],
+  );
 
   const markAllNotificationsRead = useCallback(async () => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })),
-    );
-    setUnreadNotificationsCount(0);
-    try {
-      await customerApi.markAllNotificationsRead();
-    } catch {
-      // Ignore transient errors
-    }
-  }, []);
+    const prevNotifications = notifications;
+    const prevUnread = unreadNotificationsCount;
+    void runOptimisticMutation({
+      label: 'Mark all notifications read',
+      applyOptimistic: () => {
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.read_at ? n : { ...n, read_at: new Date().toISOString() },
+          ),
+        );
+        setUnreadNotificationsCount(0);
+      },
+      commit: () => customerApi.markAllNotificationsRead(),
+      rollback: () => {
+        setNotifications(prevNotifications);
+        setUnreadNotificationsCount(prevUnread);
+      },
+      offlineRequest: {
+        path: '/notifications/read-all',
+        method: 'POST',
+        dedupeKey: 'notif-read-all',
+      },
+    });
+  }, [notifications, unreadNotificationsCount]);
 
   const deleteNotification = useCallback(
     async (ids: number | number[]) => {
       const idList = Array.isArray(ids) ? ids : [ids];
       if (idList.length === 0) return;
       const idSet = new Set(idList);
-      setNotifications((prev) => {
-        const next = prev.filter((n) => !idSet.has(n.id));
-        setUnreadNotificationsCount(next.filter((n) => !n.read_at).length);
-        return next;
+      const prevNotifications = notifications;
+      const prevUnread = unreadNotificationsCount;
+      void runOptimisticMutation({
+        label: 'Delete notification',
+        applyOptimistic: () => {
+          setNotifications((prev) => {
+            const next = prev.filter((n) => !idSet.has(n.id));
+            setUnreadNotificationsCount(next.filter((n) => !n.read_at).length);
+            return next;
+          });
+        },
+        commit: () =>
+          Promise.all(idList.map((id) => customerApi.deleteNotification(id))),
+        rollback: () => {
+          setNotifications(prevNotifications);
+          setUnreadNotificationsCount(prevUnread);
+          void refreshNotifications(false);
+        },
+        offlineRequest:
+          idList.length === 1
+            ? {
+                path: `/notifications/${idList[0]}`,
+                method: 'DELETE',
+              }
+            : undefined,
       });
-      try {
-        await Promise.all(
-          idList.map((id) => customerApi.deleteNotification(id)),
-        );
-      } catch {
-        void refreshNotifications(false);
-      }
     },
-    [refreshNotifications],
+    [notifications, unreadNotificationsCount, refreshNotifications],
   );
 
   const clearAllNotifications = useCallback(async () => {
-    setNotifications([]);
-    setUnreadNotificationsCount(0);
-    try {
-      await customerApi.clearAllNotifications();
-    } catch {
-      void refreshNotifications(false);
-    }
-  }, [refreshNotifications]);
+    const prevNotifications = notifications;
+    const prevUnread = unreadNotificationsCount;
+    void runOptimisticMutation({
+      label: 'Clear notifications',
+      applyOptimistic: () => {
+        setNotifications([]);
+        setUnreadNotificationsCount(0);
+      },
+      commit: () => customerApi.clearAllNotifications(),
+      rollback: () => {
+        setNotifications(prevNotifications);
+        setUnreadNotificationsCount(prevUnread);
+        void refreshNotifications(false);
+      },
+      offlineRequest: {
+        path: '/notifications',
+        method: 'DELETE',
+        dedupeKey: 'notif-clear-all',
+      },
+    });
+  }, [notifications, unreadNotificationsCount, refreshNotifications]);
 
   const refreshCatalog = useCallback(async () => {
     const [
@@ -840,6 +903,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // ignore network error on logout
     }
     setAuthToken(null);
+    clearOfflineQueue();
     setUser(null);
     setWishlist([]);
     setFollowedStores([]);
@@ -854,16 +918,115 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const recalculateCart = (
+    groups: CartStoreGroup[],
+    cartId: number | null,
+  ): CartSummary => {
+    const cleaned = groups
+      .map((g) => {
+        const nextItems = g.items.filter((i) => i.quantity > 0);
+        const storeSubtotal = nextItems.reduce(
+          (sum, i) => sum + Number(i.subtotal || i.unit_price * i.quantity),
+          0,
+        );
+        return {
+          ...g,
+          items: nextItems,
+          store_subtotal: Number(storeSubtotal.toFixed(2)),
+          all_free_shipping:
+            nextItems.length > 0 &&
+            nextItems.every((i) => Boolean(i.free_shipping)),
+        };
+      })
+      .filter((g) => g.items.length > 0);
+
+    const totalItems = cleaned.reduce(
+      (sum, g) => sum + g.items.reduce((s, i) => s + i.quantity, 0),
+      0,
+    );
+    const totalAmount = cleaned.reduce((sum, g) => sum + g.store_subtotal, 0);
+    return {
+      cart_id: cartId,
+      total_items: totalItems,
+      total_amount: Number(totalAmount.toFixed(2)),
+      stores: cleaned,
+    };
+  };
+
+  // Automatically reconcile global state whenever queued offline mutations finish syncing
+  useEffect(() => {
+    return subscribeSyncReconcile(() => {
+      void refreshCart();
+      if (getAuthToken()) {
+        void refreshUser();
+        void refreshFollowing();
+        void refreshNotifications(false);
+        void customerApi
+          .getAddresses()
+          .then(setAddresses)
+          .catch(() => {});
+        void wishlistApi
+          .getWishlist()
+          .then(setWishlist)
+          .catch(() => {});
+      }
+    });
+  }, [refreshCart, refreshUser, refreshFollowing, refreshNotifications]);
+
   const updateProfile: StoreContextValue['updateProfile'] = async (patch) => {
-    const res = await customerApi.updateProfile(patch);
-    setUser((prev) => (prev ? { ...prev, ...res.data } : res.data));
+    const prevUser = user;
     showToast('Profile updated.');
+    void runOptimisticMutation({
+      label: 'Update profile',
+      applyOptimistic: () => {
+        setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+      },
+      commit: () => customerApi.updateProfile(patch),
+      onSuccess: (res) => {
+        setUser((prev) => (prev ? { ...prev, ...res.data } : res.data));
+      },
+      rollback: () => {
+        setUser(prevUser);
+      },
+      offlineRequest: {
+        path: '/customer/profile',
+        method: 'PUT',
+        body: patch,
+        dedupeKey: 'customer-profile-update',
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Unable to update profile.',
+    });
   };
 
   const uploadAvatar = async (file: File) => {
-    const res = await customerApi.uploadAvatar(file);
-    setUser((prev) => (prev ? { ...prev, avatar: res.data.avatar_url } : prev));
-    showToast('Image uploaded successfully.');
+    const prevAvatar = user?.avatar ?? null;
+    const localPreviewUrl = URL.createObjectURL(file);
+    showToast('Updating avatar...');
+    void runOptimisticMutation({
+      label: 'Upload avatar',
+      applyOptimistic: () => {
+        setUser((prev) => (prev ? { ...prev, avatar: localPreviewUrl } : prev));
+      },
+      commit: () => customerApi.uploadAvatar(file),
+      onSuccess: (res) => {
+        URL.revokeObjectURL(localPreviewUrl);
+        setUser((prev) =>
+          prev ? { ...prev, avatar: res.data.avatar_url } : prev,
+        );
+      },
+      rollback: () => {
+        URL.revokeObjectURL(localPreviewUrl);
+        setUser((prev) => (prev ? { ...prev, avatar: prevAvatar } : prev));
+      },
+      onToast: showToast,
+      successToast: 'Image uploaded successfully.',
+      errorToast: (err) =>
+        err instanceof ApiError
+          ? err.message
+          : 'Image upload failed. Please try again.',
+    });
   };
 
   const changePassword: StoreContextValue['changePassword'] = async (
@@ -876,6 +1039,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deactivateAccount = async (code: string) => {
     const res = await customerApi.deactivateAccount(code);
     setAuthToken(null);
+    clearOfflineQueue();
     setUser(null);
     setCart(EMPTY_CART);
     setWishlist([]);
@@ -894,6 +1058,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deleteAccount = async (code: string) => {
     const res = await customerApi.deleteAccount(code);
     setAuthToken(null);
+    clearOfflineQueue();
     setUser(null);
     setCart(EMPTY_CART);
     setWishlist([]);
@@ -914,68 +1079,271 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     variantId?: number | null,
     quantity = 1,
   ): Promise<boolean> => {
-    try {
-      const updated = await cartApi.addItem({
-        product_id: productId,
-        variant_id: variantId ?? null,
-        quantity,
-      });
-      setCart(updated);
-      showToast('Added to cart.');
-      return true;
-    } catch (err) {
-      showToast(
+    const prevCart = cart;
+    const normalizedVariantId = variantId ?? null;
+    const catalogProduct = products.find((p) => p.id === productId) ?? null;
+
+    showToast('Added to cart.');
+    void runOptimisticMutation({
+      label: 'Add to cart',
+      applyOptimistic: () => {
+        setCart((curr) => {
+          let matched = false;
+          const updatedStores = curr.stores.map((group) => ({
+            ...group,
+            items: group.items.map((item) => {
+              if (
+                item.product_id === productId &&
+                (item.variant_id ?? null) === normalizedVariantId
+              ) {
+                matched = true;
+                const nextQty = item.quantity + quantity;
+                return {
+                  ...item,
+                  quantity: nextQty,
+                  subtotal: Number((item.unit_price * nextQty).toFixed(2)),
+                };
+              }
+              return item;
+            }),
+          }));
+
+          if (matched) {
+            return recalculateCart(updatedStores, curr.cart_id);
+          }
+
+          if (!catalogProduct) {
+            return {
+              ...curr,
+              total_items: curr.total_items + quantity,
+            };
+          }
+
+          const variant = normalizedVariantId
+            ? catalogProduct.variants.find((v) => v.id === normalizedVariantId)
+            : null;
+          const unitPrice = Number(variant?.price ?? catalogProduct.price);
+          const optimisticItem: CartItem = {
+            id: -Date.now(),
+            product_id: catalogProduct.id,
+            product_name: catalogProduct.name,
+            product_slug: catalogProduct.slug,
+            product_image: catalogProduct.image,
+            variant_id: normalizedVariantId,
+            variant_name: variant?.name ?? null,
+            unit_price: unitPrice,
+            quantity,
+            subtotal: Number((unitPrice * quantity).toFixed(2)),
+            stock_available:
+              variant?.stock_quantity ?? catalogProduct.stock_quantity,
+            free_shipping: catalogProduct.free_shipping,
+          };
+
+          const existingGroupIdx = updatedStores.findIndex(
+            (g) => g.store.id === catalogProduct.store_id,
+          );
+          if (existingGroupIdx >= 0) {
+            updatedStores[existingGroupIdx] = {
+              ...updatedStores[existingGroupIdx],
+              items: [...updatedStores[existingGroupIdx].items, optimisticItem],
+            };
+          } else {
+            updatedStores.push({
+              store: {
+                id: catalogProduct.store_id,
+                name: catalogProduct.store_name,
+                slug: catalogProduct.store_slug,
+                logo: catalogProduct.store_logo,
+              },
+              items: [optimisticItem],
+              store_subtotal: optimisticItem.subtotal,
+              all_free_shipping: Boolean(catalogProduct.free_shipping),
+            });
+          }
+
+          return recalculateCart(updatedStores, curr.cart_id);
+        });
+      },
+      commit: () =>
+        cartApi.addItem({
+          product_id: productId,
+          variant_id: normalizedVariantId,
+          quantity,
+        }),
+      onSuccess: (updated) => {
+        setCart(updated);
+      },
+      rollback: () => {
+        setCart(prevCart);
+      },
+      offlineRequest: {
+        path: '/cart',
+        method: 'POST',
+        body: {
+          product_id: productId,
+          variant_id: normalizedVariantId,
+          quantity,
+        },
+      },
+      onReconcileAfterOffline: () => {
+        void refreshCart();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to add item to cart.',
-      );
-      return false;
-    }
+    });
+    return true;
   };
 
   const updateCartQty = async (cartItemId: number, quantity: number) => {
-    try {
-      const updated = await cartApi.updateItem(cartItemId, quantity);
-      setCart(updated);
-    } catch (err) {
-      showToast(
+    const prevCart = cart;
+    void runOptimisticMutation({
+      label: 'Update cart quantity',
+      applyOptimistic: () => {
+        setCart((curr) => {
+          const nextStores = curr.stores.map((group) => ({
+            ...group,
+            items: group.items.map((item) =>
+              item.id === cartItemId
+                ? {
+                    ...item,
+                    quantity,
+                    subtotal: Number((item.unit_price * quantity).toFixed(2)),
+                  }
+                : item,
+            ),
+          }));
+          return recalculateCart(nextStores, curr.cart_id);
+        });
+      },
+      commit: () => cartApi.updateItem(cartItemId, quantity),
+      onSuccess: (updated) => {
+        setCart(updated);
+      },
+      rollback: () => {
+        setCart(prevCart);
+      },
+      offlineRequest:
+        cartItemId > 0
+          ? {
+              path: `/cart/${cartItemId}`,
+              method: 'PUT',
+              body: { quantity },
+              dedupeKey: `cart-qty-${cartItemId}`,
+            }
+          : undefined,
+      onReconcileAfterOffline: () => {
+        void refreshCart();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to update quantity.',
-      );
-    }
+    });
   };
 
   const removeFromCart = async (cartItemId: number) => {
-    try {
-      const updated = await cartApi.removeItem(cartItemId);
-      setCart(updated);
-      showToast('Item removed from cart.');
-    } catch (err) {
-      showToast(
+    const prevCart = cart;
+    showToast('Item removed from cart.');
+    void runOptimisticMutation({
+      label: 'Remove cart item',
+      applyOptimistic: () => {
+        setCart((curr) => {
+          const nextStores = curr.stores.map((group) => ({
+            ...group,
+            items: group.items.filter((item) => item.id !== cartItemId),
+          }));
+          return recalculateCart(nextStores, curr.cart_id);
+        });
+      },
+      commit: () => cartApi.removeItem(cartItemId),
+      onSuccess: (updated) => {
+        setCart(updated);
+      },
+      rollback: () => {
+        setCart(prevCart);
+      },
+      offlineRequest:
+        cartItemId > 0
+          ? {
+              path: `/cart/${cartItemId}`,
+              method: 'DELETE',
+            }
+          : undefined,
+      onReconcileAfterOffline: () => {
+        void refreshCart();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to remove item.',
-      );
-    }
+    });
   };
 
   const removeMultipleFromCart = async (cartItemIds: number[]) => {
     if (cartItemIds.length === 0) return;
-    try {
-      const updated = await cartApi.removeItems(cartItemIds);
-      setCart(updated);
-      showToast(
-        cartItemIds.length === 1
-          ? '1 item removed from cart.'
-          : `${cartItemIds.length} items removed from cart.`,
-      );
-    } catch (err) {
-      showToast(
+    const prevCart = cart;
+    const idSet = new Set(cartItemIds);
+    showToast(
+      cartItemIds.length === 1
+        ? '1 item removed from cart.'
+        : `${cartItemIds.length} items removed from cart.`,
+    );
+    void runOptimisticMutation({
+      label: 'Remove selected cart items',
+      applyOptimistic: () => {
+        setCart((curr) => {
+          const nextStores = curr.stores.map((group) => ({
+            ...group,
+            items: group.items.filter((item) => !idSet.has(item.id)),
+          }));
+          return recalculateCart(nextStores, curr.cart_id);
+        });
+      },
+      commit: () => cartApi.removeItems(cartItemIds),
+      onSuccess: (updated) => {
+        setCart(updated);
+      },
+      rollback: () => {
+        setCart(prevCart);
+      },
+      offlineRequest: {
+        path: '/cart/bulk-delete',
+        method: 'POST',
+        body: { item_ids: cartItemIds },
+      },
+      onReconcileAfterOffline: () => {
+        void refreshCart();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError
           ? err.message
           : 'Unable to remove selected items.',
-      );
-    }
+    });
   };
 
   const clearCart = async () => {
-    await cartApi.clearCart();
-    setCart(EMPTY_CART);
+    const prevCart = cart;
+    void runOptimisticMutation({
+      label: 'Clear cart',
+      applyOptimistic: () => {
+        setCart(EMPTY_CART);
+      },
+      commit: () => cartApi.clearCart(),
+      rollback: () => {
+        setCart(prevCart);
+      },
+      offlineRequest: {
+        path: '/cart',
+        method: 'DELETE',
+        dedupeKey: 'cart-clear',
+      },
+      onReconcileAfterOffline: () => {
+        void refreshCart();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Unable to clear cart.',
+    });
   };
 
   const applyCoupon: StoreContextValue['applyCoupon'] = async (
@@ -1079,38 +1447,99 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
     const currentlyFollowing = followedStores.some((s) => s.id === storeId);
-    try {
-      const res = currentlyFollowing
-        ? await customerApi.unfollowStore(storeId)
-        : await customerApi.followStore(storeId);
-      const { is_following, followers_count } = res.data;
+    const nextFollowing = !currentlyFollowing;
+    const prevStores = stores;
+    const prevFollowed = followedStores;
+    const targetStore =
+      stores.find((s) => s.id === storeId) ||
+      followedStores.find((s) => s.id === storeId);
+    const currentCount = Number(targetStore?.followers_count ?? 0);
+    const optimisticCount = Math.max(0, currentCount + (nextFollowing ? 1 : -1));
 
-      setStores((prev) =>
-        prev.map((s) =>
-          s.id === storeId ? { ...s, is_following, followers_count } : s,
-        ),
-      );
-
-      const fresh = await customerApi.getFollowingStores().catch(() => null);
-      if (fresh) {
-        setFollowedStores(fresh);
-      } else if (!is_following) {
-        setFollowedStores((prev) => prev.filter((s) => s.id !== storeId));
-      }
-
-      showToast(
-        res.message ||
-          (is_following ? 'Store followed.' : 'Store unfollowed.'),
-      );
-      return { is_following, followers_count };
-    } catch (err) {
-      showToast(
+    showToast(nextFollowing ? 'Store followed.' : 'Store unfollowed.');
+    void runOptimisticMutation({
+      label: nextFollowing ? 'Follow store' : 'Unfollow store',
+      applyOptimistic: () => {
+        setStores((prev) =>
+          prev.map((s) =>
+            s.id === storeId
+              ? {
+                  ...s,
+                  is_following: nextFollowing,
+                  followers_count: optimisticCount,
+                }
+              : s,
+          ),
+        );
+        setFollowedStores((prev) => {
+          if (!nextFollowing) {
+            return prev.filter((s) => s.id !== storeId);
+          }
+          if (prev.some((s) => s.id === storeId)) {
+            return prev.map((s) =>
+              s.id === storeId
+                ? {
+                    ...s,
+                    is_following: true,
+                    followers_count: optimisticCount,
+                  }
+                : s,
+            );
+          }
+          return targetStore
+            ? [
+                {
+                  ...targetStore,
+                  is_following: true,
+                  followers_count: optimisticCount,
+                },
+                ...prev,
+              ]
+            : prev;
+        });
+      },
+      commit: () =>
+        nextFollowing
+          ? customerApi.followStore(storeId)
+          : customerApi.unfollowStore(storeId),
+      onSuccess: (res) => {
+        const { is_following, followers_count } = res.data;
+        setStores((prev) =>
+          prev.map((s) =>
+            s.id === storeId ? { ...s, is_following, followers_count } : s,
+          ),
+        );
+        void customerApi
+          .getFollowingStores()
+          .then((fresh) => {
+            setFollowedStores(fresh);
+          })
+          .catch(() => {
+            if (!is_following) {
+              setFollowedStores((prev) => prev.filter((s) => s.id !== storeId));
+            }
+          });
+      },
+      rollback: () => {
+        setStores(prevStores);
+        setFollowedStores(prevFollowed);
+      },
+      offlineRequest: {
+        path: `/stores/${storeId}/follow`,
+        method: nextFollowing ? 'POST' : 'DELETE',
+        dedupeKey: `follow-store-${storeId}`,
+      },
+      onReconcileAfterOffline: () => {
+        void refreshFollowing();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError
           ? err.message
           : 'Unable to update follow status.',
-      );
-      return null;
-    }
+    });
+
+    return { is_following: nextFollowing, followers_count: optimisticCount };
   };
 
   const toggleWishlist = async (productId: number) => {
@@ -1118,20 +1547,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       showToast('Please sign in to save items to your wishlist.');
       return;
     }
-    try {
-      const res = await wishlistApi.toggle(productId);
-      const fresh = await wishlistApi.getWishlist();
-      setWishlist(fresh);
-      showToast(
-        res.data.is_in_wishlist
-          ? 'Saved to wishlist.'
-          : 'Removed from wishlist.',
-      );
-    } catch (err) {
-      showToast(
+    const prevWishlist = wishlist;
+    const isCurrentlySaved = wishlist.some((p) => p.id === productId);
+    const nextSaved = !isCurrentlySaved;
+    const catalogProduct = products.find((p) => p.id === productId) ?? null;
+
+    showToast(nextSaved ? 'Saved to wishlist.' : 'Removed from wishlist.');
+    void runOptimisticMutation({
+      label: nextSaved ? 'Save to wishlist' : 'Remove from wishlist',
+      applyOptimistic: () => {
+        setWishlist((prev) => {
+          if (!nextSaved) {
+            return prev.filter((p) => p.id !== productId);
+          }
+          if (prev.some((p) => p.id === productId)) return prev;
+          return catalogProduct ? [catalogProduct, ...prev] : prev;
+        });
+      },
+      commit: () => wishlistApi.toggle(productId),
+      onSuccess: () => {
+        void wishlistApi
+          .getWishlist()
+          .then(setWishlist)
+          .catch(() => {});
+      },
+      rollback: () => {
+        setWishlist(prevWishlist);
+      },
+      offlineRequest: {
+        path: '/wishlist/toggle',
+        method: 'POST',
+        body: { product_id: productId },
+      },
+      onReconcileAfterOffline: () => {
+        void wishlistApi
+          .getWishlist()
+          .then(setWishlist)
+          .catch(() => {});
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to update wishlist.',
-      );
-    }
+    });
   };
 
   const trackProductView = useCallback((productId: number) => {
@@ -1146,35 +1603,174 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addAddress = async (addr: Omit<Address, 'id'>): Promise<Address> => {
-    const created = await customerApi.createAddress(addr);
-    const all = await customerApi.getAddresses();
-    setAddresses(all);
+    const prevAddresses = addresses;
+    const tempAddress: Address = {
+      ...addr,
+      id: -Date.now(),
+    };
     showToast('Address saved.');
-    return created;
+    void runOptimisticMutation({
+      label: 'Save address',
+      applyOptimistic: () => {
+        setAddresses((prev) => {
+          const base = addr.is_default
+            ? prev.map((a) => ({ ...a, is_default: false }))
+            : prev;
+          return [tempAddress, ...base];
+        });
+      },
+      commit: () => customerApi.createAddress(addr),
+      onSuccess: () => {
+        void customerApi
+          .getAddresses()
+          .then(setAddresses)
+          .catch(() => {});
+      },
+      rollback: () => {
+        setAddresses(prevAddresses);
+      },
+      offlineRequest: {
+        path: '/customer/addresses',
+        method: 'POST',
+        body: addr,
+      },
+      onReconcileAfterOffline: () => {
+        void customerApi
+          .getAddresses()
+          .then(setAddresses)
+          .catch(() => {});
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError
+          ? err.message
+          : 'We could not save this address right now.',
+    });
+    return tempAddress;
   };
 
   const updateAddress = async (
     id: number,
     addr: Omit<Address, 'id'>,
   ): Promise<Address> => {
-    const updated = await customerApi.updateAddress(id, addr);
-    const all = await customerApi.getAddresses();
-    setAddresses(all);
+    const prevAddresses = addresses;
+    const optimistic: Address = { ...addr, id };
     showToast('Address updated.');
-    return updated;
+    void runOptimisticMutation({
+      label: 'Update address',
+      applyOptimistic: () => {
+        setAddresses((prev) =>
+          prev.map((a) => {
+            if (a.id === id) return optimistic;
+            return addr.is_default ? { ...a, is_default: false } : a;
+          }),
+        );
+      },
+      commit: () => customerApi.updateAddress(id, addr),
+      onSuccess: () => {
+        void customerApi
+          .getAddresses()
+          .then(setAddresses)
+          .catch(() => {});
+      },
+      rollback: () => {
+        setAddresses(prevAddresses);
+      },
+      offlineRequest:
+        id > 0
+          ? {
+              path: `/customer/addresses/${id}`,
+              method: 'PUT',
+              body: addr,
+              dedupeKey: `address-update-${id}`,
+            }
+          : undefined,
+      onReconcileAfterOffline: () => {
+        void customerApi
+          .getAddresses()
+          .then(setAddresses)
+          .catch(() => {});
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError
+          ? err.message
+          : 'We could not update this address right now.',
+    });
+    return optimistic;
   };
 
   const setDefaultAddress = async (id: number) => {
-    await customerApi.setDefaultAddress(id);
-    const all = await customerApi.getAddresses();
-    setAddresses(all);
+    const prevAddresses = addresses;
     showToast('Default address updated.');
+    void runOptimisticMutation({
+      label: 'Set default address',
+      applyOptimistic: () => {
+        setAddresses((prev) =>
+          prev.map((a) => ({ ...a, is_default: a.id === id })),
+        );
+      },
+      commit: () => customerApi.setDefaultAddress(id),
+      onSuccess: () => {
+        void customerApi
+          .getAddresses()
+          .then(setAddresses)
+          .catch(() => {});
+      },
+      rollback: () => {
+        setAddresses(prevAddresses);
+      },
+      offlineRequest:
+        id > 0
+          ? {
+              path: `/customer/addresses/${id}/default`,
+              method: 'PATCH',
+              dedupeKey: 'address-default',
+            }
+          : undefined,
+      onReconcileAfterOffline: () => {
+        void customerApi
+          .getAddresses()
+          .then(setAddresses)
+          .catch(() => {});
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to update default address.',
+    });
   };
 
   const deleteAddress = async (id: number) => {
-    await customerApi.deleteAddress(id);
-    setAddresses((prev) => prev.filter((a) => a.id !== id));
+    const prevAddresses = addresses;
     showToast('Address removed.');
+    void runOptimisticMutation({
+      label: 'Delete address',
+      applyOptimistic: () => {
+        setAddresses((prev) => prev.filter((a) => a.id !== id));
+      },
+      commit: () => customerApi.deleteAddress(id),
+      rollback: () => {
+        setAddresses(prevAddresses);
+      },
+      offlineRequest:
+        id > 0
+          ? {
+              path: `/customer/addresses/${id}`,
+              method: 'DELETE',
+            }
+          : undefined,
+      onReconcileAfterOffline: () => {
+        void customerApi
+          .getAddresses()
+          .then(setAddresses)
+          .catch(() => {});
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Unable to remove address.',
+    });
   };
 
   const submitCheckout: StoreContextValue['submitCheckout'] = async (
@@ -1236,9 +1832,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteReview: StoreContextValue['deleteReview'] = async (reviewId) => {
-    await customerApi.deleteReview(reviewId);
-    setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    const prevReviews = reviews;
     showToast('Review deleted.');
+    void runOptimisticMutation({
+      label: 'Delete review',
+      applyOptimistic: () => {
+        setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+      },
+      commit: () => customerApi.deleteReview(reviewId),
+      rollback: () => {
+        setReviews(prevReviews);
+      },
+      offlineRequest: {
+        path: `/reviews/${reviewId}`,
+        method: 'DELETE',
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Unable to delete review.',
+    });
   };
 
   const createTicket: StoreContextValue['createTicket'] = async (payload) => {

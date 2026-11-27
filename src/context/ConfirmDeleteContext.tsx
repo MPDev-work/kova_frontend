@@ -3,7 +3,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -24,16 +23,6 @@ export interface ConfirmDeleteRequest {
   onCommit: () => Promise<void> | void;
 }
 
-interface PendingDeletion {
-  id: number;
-  label: string;
-  durationMs: number;
-  startedAt: number;
-  expiresAt: number;
-  onUndo?: () => void;
-  onCommit: () => Promise<void> | void;
-}
-
 interface ConfirmDeleteContextValue {
   confirmDelete: (request: ConfirmDeleteRequest) => void;
 }
@@ -42,19 +31,11 @@ const ConfirmDeleteContext = createContext<ConfirmDeleteContextValue | null>(
   null,
 );
 
-const DEFAULT_UNDO_DELAY_MS = 5000;
-
 export function ConfirmDeleteProvider({ children }: { children: ReactNode }) {
   const { showToast } = useStore();
   const [modalRequest, setModalRequest] = useState<ConfirmDeleteRequest | null>(
     null,
   );
-  const [pendingList, setPendingList] = useState<PendingDeletion[]>([]);
-  const [nowTs, setNowTs] = useState(() => Date.now());
-
-  const nextIdRef = useRef(1);
-  const timersRef = useRef<Map<number, number>>(new Map());
-  const pendingMapRef = useRef<Map<number, PendingDeletion>>(new Map());
 
   useBodyScrollLock(Boolean(modalRequest));
 
@@ -68,37 +49,15 @@ export function ConfirmDeleteProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [modalRequest]);
 
-  // Smooth tick for countdown numbers and shrinking progress bar while any deletion is pending
-  useEffect(() => {
-    if (pendingList.length === 0) return;
-    const interval = window.setInterval(() => {
-      setNowTs(Date.now());
-    }, 100);
-    return () => window.clearInterval(interval);
-  }, [pendingList.length]);
-
-  // Clear timers on provider unmount
-  useEffect(() => {
-    const timers = timersRef.current;
-    return () => {
-      timers.forEach((timerId) => window.clearTimeout(timerId));
-      timers.clear();
-    };
-  }, []);
-
   const confirmDelete = useCallback((request: ConfirmDeleteRequest) => {
     setModalRequest(request);
   }, []);
 
-  const handleConfirmModal = useCallback(() => {
+  const handleConfirmModal = useCallback(async () => {
     if (!modalRequest) return;
     const req = modalRequest;
     setModalRequest(null);
 
-    const id = nextIdRef.current++;
-    const durationMs = req.undoDelayMs ?? DEFAULT_UNDO_DELAY_MS;
-    const startedAt = Date.now();
-    const expiresAt = startedAt + durationMs;
     const label = req.itemLabel?.trim() || req.title.replace(/\?$/, '');
 
     try {
@@ -107,68 +66,21 @@ export function ConfirmDeleteProvider({ children }: { children: ReactNode }) {
       /* non-blocking */
     }
 
-    const entry: PendingDeletion = {
-      id,
-      label,
-      durationMs,
-      startedAt,
-      expiresAt,
-      onUndo: req.onUndo,
-      onCommit: req.onCommit,
-    };
-
-    pendingMapRef.current.set(id, entry);
-    setNowTs(startedAt);
-    setPendingList((prev) => [entry, ...prev]);
-
-    const timerId = window.setTimeout(async () => {
-      timersRef.current.delete(id);
-      const current = pendingMapRef.current.get(id);
-      if (!current) return;
-      pendingMapRef.current.delete(id);
-      setPendingList((prev) => prev.filter((item) => item.id !== id));
-
+    try {
+      await req.onCommit();
+    } catch (err) {
       try {
-        await current.onCommit();
-      } catch (err) {
-        try {
-          current.onUndo?.();
-        } catch {
-          /* ignore */
-        }
-        showToast(
-          err instanceof ApiError
-            ? err.message
-            : `Unable to delete "${current.label}".`,
-        );
+        req.onUndo?.();
+      } catch {
+        /* ignore */
       }
-    }, durationMs);
-
-    timersRef.current.set(id, timerId);
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : `Unable to delete "${label}".`,
+      );
+    }
   }, [modalRequest, showToast]);
-
-  const handleUndo = useCallback(
-    (id: number) => {
-      const timerId = timersRef.current.get(id);
-      if (timerId !== undefined) {
-        window.clearTimeout(timerId);
-        timersRef.current.delete(id);
-      }
-      const entry = pendingMapRef.current.get(id);
-      pendingMapRef.current.delete(id);
-      setPendingList((prev) => prev.filter((item) => item.id !== id));
-
-      if (entry) {
-        try {
-          entry.onUndo?.();
-        } catch {
-          /* ignore */
-        }
-        showToast('Deletion cancelled.');
-      }
-    },
-    [showToast],
-  );
 
   return (
     <ConfirmDeleteContext.Provider value={{ confirmDelete }}>
@@ -205,10 +117,6 @@ export function ConfirmDeleteProvider({ children }: { children: ReactNode }) {
                       {modalRequest.description ||
                         'Are you sure you want to delete this item?'}
                     </p>
-                    <p className="text-[11.5px] text-[#8a8a8a] mt-2">
-                      After clicking Delete, you will still have 5 seconds to
-                      undo.
-                    </p>
                   </div>
                 </div>
                 <button
@@ -224,7 +132,7 @@ export function ConfirmDeleteProvider({ children }: { children: ReactNode }) {
               <div className="px-6 py-4 bg-[#fafafa] border-t border-[#ececec] flex items-center justify-end gap-2.5">
                 <button
                   type="button"
-                  onClick={handleConfirmModal}
+                  onClick={() => void handleConfirmModal()}
                   className="inline-flex items-center gap-1.5 bg-[#e5322d] hover:bg-[#c8231e] text-white text-[13px] font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer"
                 >
                   <FigmaIcon name="trash" className="w-3.5 h-3.5" />
@@ -232,70 +140,6 @@ export function ConfirmDeleteProvider({ children }: { children: ReactNode }) {
                 </button>
               </div>
             </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Bottom 5-Second Undo Snackbar Queue */}
-      {pendingList.length > 0 &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div className="fixed bottom-[68px] sm:bottom-6 left-1/2 -translate-x-1/2 z-[95] flex flex-col items-center gap-2 sm:gap-2.5 w-[calc(100vw-1.5rem)] max-w-[340px] sm:max-w-[460px] pointer-events-none">
-            {pendingList.map((item) => {
-              const remainingMs = Math.max(0, item.expiresAt - nowTs);
-              const remainingSec = Math.max(1, Math.ceil(remainingMs / 1000));
-              const progressPct = Math.max(
-                0,
-                Math.min(100, (remainingMs / item.durationMs) * 100),
-              );
-
-              return (
-                <div
-                  key={item.id}
-                  role="status"
-                  aria-live="polite"
-                  className="kova-toast-in pointer-events-auto w-full bg-[#171717] text-[#EDEDED] border border-[#2E2E2E] rounded-[14px] sm:rounded-[16px] shadow-[0_10px_28px_rgba(0,0,0,0.42)] overflow-hidden"
-                >
-                  <div className="px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
-                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                      <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[#e5484d]/20 text-[#e5484d] flex items-center justify-center shrink-0">
-                        <FigmaIcon
-                          name="trash"
-                          className="w-3 h-3 sm:w-3.5 sm:h-3.5"
-                        />
-                      </span>
-                      <p className="text-[12px] sm:text-[13px] font-medium text-[#EDEDED] truncate">
-                        Deleting{' '}
-                        <span className="font-semibold text-white">
-                          &ldquo;{item.label}&rdquo;
-                        </span>{' '}
-                        in{' '}
-                        <span className="font-bold text-[#ff6e20] tabular-nums">
-                          {remainingSec}s
-                        </span>
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleUndo(item.id)}
-                      className="inline-flex items-center gap-1 sm:gap-1.5 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11px] sm:text-[12px] font-bold px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full transition-colors shrink-0 cursor-pointer"
-                    >
-                      <FigmaIcon
-                        name="rotate-ccw"
-                        className="w-3 h-3 sm:w-3.5 sm:h-3.5"
-                      />
-                      <span>Undo</span>
-                    </button>
-                  </div>
-                  <div className="h-[3px] w-full bg-white/10">
-                    <div
-                      className="h-full bg-[#ff6e20] transition-[width] duration-100 ease-linear"
-                      style={{ width: `${progressPct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
           </div>,
           document.body,
         )}

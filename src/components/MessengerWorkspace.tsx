@@ -19,6 +19,7 @@ import {
   type DashboardTicketItem,
 } from '../services/dashboardApi';
 import { formatChatTimestamp, formatShortDate } from '../utils/currency';
+import { runOptimisticMutation } from '../utils/optimisticSync';
 import type {
   ChatContextCard,
   ChatMessageMetadata,
@@ -127,7 +128,7 @@ export function MessengerWorkspace({
     pendingContextCardRef.current = pendingContextCard;
   }, [pendingContextCard]);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [sending, setSending] = useState(false);
+  const sending = false;
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
@@ -657,26 +658,41 @@ export function MessengerWorkspace({
 
   const handleMarkAllAsRead = async () => {
     setMenuOpen(false);
-    setBulkBusy(true);
-    try {
-      const res =
+    const prevTickets = tickets;
+    showToast('All conversations marked as read.');
+    void runOptimisticMutation({
+      label: 'Mark all conversations read',
+      applyOptimistic: () => {
+        setTickets((prev) => prev.map((t) => ({ ...t, is_unread: false })));
+      },
+      commit: () =>
         mode === 'admin'
-          ? await adminApi.markAllTicketsRead()
+          ? adminApi.markAllTicketsRead()
           : mode === 'seller'
-            ? await storeOwnerApi.markAllTicketsRead()
-            : await customerApi.markAllTicketsRead();
-      setTickets((prev) => prev.map((t) => ({ ...t, is_unread: false })));
-      showToast(res.message || 'All conversations marked as read.');
-      void refreshNotifications(false);
-    } catch (err) {
-      showToast(
+            ? storeOwnerApi.markAllTicketsRead()
+            : customerApi.markAllTicketsRead(),
+      onSuccess: () => {
+        void refreshNotifications(false);
+      },
+      rollback: () => {
+        setTickets(prevTickets);
+      },
+      offlineRequest: {
+        path:
+          mode === 'admin'
+            ? '/admin/tickets/mark-all-read'
+            : mode === 'seller'
+              ? '/store-owner/tickets/mark-all-read'
+              : '/customer/tickets/mark-all-read',
+        method: 'POST',
+        dedupeKey: `mark-all-read-${mode}`,
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError
           ? err.message
           : 'Unable to mark all conversations as read.',
-      );
-    } finally {
-      setBulkBusy(false);
-    }
+    });
   };
 
   const handleImageUpload = async (files: FileList | File[] | null) => {
@@ -1116,57 +1132,155 @@ export function MessengerWorkspace({
     ) {
       return;
     }
-    setSending(true);
-    try {
-      forceScrollBottomRef.current = true;
-      setShowScrollBottom(false);
-      const metadataPayload = cardToSend
-        ? { context_card: cardToSend }
-        : undefined;
-      if (mode === 'admin') {
-        const res = await adminApi.replyTicket(
-          activeTicket.id,
-          textToSend,
-          attachmentsToSend,
-          metadataPayload,
-        );
-        setActiveTicket(res.ticket);
-      } else if (mode === 'seller') {
-        const res = await storeOwnerApi.replyTicket(
-          activeTicket.id,
-          textToSend,
-          attachmentsToSend,
-          metadataPayload,
-        );
-        setActiveTicket(res.ticket);
-      } else {
-        await customerApi.replyTicket(
-          activeTicket.id,
-          textToSend,
-          attachmentsToSend,
-          metadataPayload,
-        );
-        const fresh = await customerApi.getTicket(activeTicket.id);
-        setActiveTicket(fresh);
-      }
-      replyTextRef.current = '';
-      replyAttachmentsRef.current = [];
-      pendingContextCardRef.current = null;
-      setReplyText('');
-      setReplyAttachments([]);
-      setPendingContextCard(null);
-      if (replyTextareaRef.current) {
-        replyTextareaRef.current.style.height = 'auto';
-      }
-      void fetchList(true);
-      void refreshNotifications(false);
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to send message.',
+
+    const targetTicketId = activeTicket.id;
+    const isStaffReply =
+      mode !== 'customer' ||
+      Boolean(
+        user && activeTicket.user_id && activeTicket.user_id !== user.id,
       );
-    } finally {
-      setSending(false);
-    }
+    const metadataPayload = cardToSend
+      ? { context_card: cardToSend }
+      : undefined;
+    const tempMsgId = -Date.now();
+    const optimisticMsg = {
+      id: tempMsgId,
+      ticket_id: targetTicketId,
+      user_id: user?.id ?? 0,
+      message: textToSend,
+      attachments: attachmentsToSend.length > 0 ? attachmentsToSend : null,
+      metadata: metadataPayload ?? null,
+      is_admin_reply: isStaffReply,
+      created_at: new Date().toISOString(),
+      user: user
+        ? { id: user.id, name: user.name, avatar: user.avatar }
+        : undefined,
+    };
+
+    const replyPath =
+      mode === 'admin'
+        ? `/admin/tickets/${targetTicketId}/reply`
+        : mode === 'seller'
+          ? `/store-owner/tickets/${targetTicketId}/reply`
+          : `/customer/tickets/${targetTicketId}/reply`;
+
+    void runOptimisticMutation({
+      label: 'Send message',
+      applyOptimistic: () => {
+        forceScrollBottomRef.current = true;
+        setShowScrollBottom(false);
+        replyTextRef.current = '';
+        replyAttachmentsRef.current = [];
+        pendingContextCardRef.current = null;
+        setReplyText('');
+        setReplyAttachments([]);
+        setPendingContextCard(null);
+        if (replyTextareaRef.current) {
+          replyTextareaRef.current.style.height = 'auto';
+        }
+        setActiveTicket((prev) =>
+          prev && prev.id === targetTicketId
+            ? ({
+                ...prev,
+                messages: [...(prev.messages || []), optimisticMsg],
+                latest_message: optimisticMsg,
+              } as UnifiedTicket)
+            : prev,
+        );
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === targetTicketId
+              ? ({
+                  ...t,
+                  latest_message: optimisticMsg,
+                  updated_at: optimisticMsg.created_at,
+                } as UnifiedTicket)
+              : t,
+          ),
+        );
+      },
+      commit: async () => {
+        if (mode === 'admin') {
+          const res = await adminApi.replyTicket(
+            targetTicketId,
+            textToSend,
+            attachmentsToSend,
+            metadataPayload,
+          );
+          return res.ticket;
+        }
+        if (mode === 'seller') {
+          const res = await storeOwnerApi.replyTicket(
+            targetTicketId,
+            textToSend,
+            attachmentsToSend,
+            metadataPayload,
+          );
+          return res.ticket;
+        }
+        await customerApi.replyTicket(
+          targetTicketId,
+          textToSend,
+          attachmentsToSend,
+          metadataPayload,
+        );
+        return customerApi.getTicket(targetTicketId);
+      },
+      onSuccess: (freshTicket) => {
+        if (selectedIdRef.current === targetTicketId) {
+          setActiveTicket(freshTicket);
+        }
+        void fetchList(true);
+        void refreshNotifications(false);
+      },
+      rollback: () => {
+        setActiveTicket((prev) =>
+          prev && prev.id === targetTicketId
+            ? ({
+                ...prev,
+                messages: (prev.messages || []).filter(
+                  (m) => m.id !== tempMsgId,
+                ),
+              } as UnifiedTicket)
+            : prev,
+        );
+        // Restore draft so the user never loses their message
+        if (!replyTextRef.current && textToSend) {
+          replyTextRef.current = textToSend;
+          setReplyText(textToSend);
+        }
+        if (
+          replyAttachmentsRef.current.length === 0 &&
+          attachmentsToSend.length > 0
+        ) {
+          replyAttachmentsRef.current = attachmentsToSend;
+          setReplyAttachments(attachmentsToSend);
+        }
+        if (!pendingContextCardRef.current && cardToSend) {
+          pendingContextCardRef.current = cardToSend;
+          setPendingContextCard(cardToSend);
+        }
+      },
+      offlineRequest: {
+        path: replyPath,
+        method: 'POST',
+        body: {
+          message: textToSend,
+          attachments:
+            attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
+          metadata: metadataPayload ?? undefined,
+        },
+      },
+      onReconcileAfterOffline: () => {
+        if (selectedIdRef.current === targetTicketId) {
+          void fetchThread(targetTicketId, true);
+        }
+        void fetchList(true);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Unable to send message.',
+    });
   };
 
   const matchedActiveTicket =

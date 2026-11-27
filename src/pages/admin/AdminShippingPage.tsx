@@ -11,6 +11,7 @@ import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { ApiError } from '../../services/api';
+import { runOptimisticMutation } from '../../utils/optimisticSync';
 import {
   adminApi,
   type AdminShipmentItem,
@@ -55,7 +56,7 @@ export function AdminShippingPage() {
   const [freeThreshold, setFreeThreshold] = useState('25');
   const [estDays, setEstDays] = useState('1-2 business days');
   const [isActive, setIsActive] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const saving = false;
 
   // Shipment drawer state
   const [selectedShipment, setSelectedShipment] =
@@ -66,7 +67,7 @@ export function AdminShippingPage() {
   const [shipCarrier, setShipCarrier] = useState('');
   const [shipTracking, setShipTracking] = useState('');
   const [shipNotes, setShipNotes] = useState('');
-  const [savingShipment, setSavingShipment] = useState(false);
+  const savingShipment = false;
 
   const loadData = useCallback(
     async (opts?: { status?: string; search?: string }) => {
@@ -126,58 +127,123 @@ export function AdminShippingPage() {
 
   const handleSaveMethod = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    try {
-      const payload = {
-        name: name.trim(),
-        description: description.trim() || null,
-        calculation_type: calcType,
-        base_cost: calcType === 'free' ? 0 : Number(baseCost),
-        free_shipping_threshold:
-          calcType === 'free'
-            ? null
-            : freeThreshold
-              ? Number(freeThreshold)
-              : null,
-        estimated_delivery_days: estDays.trim() || null,
-        is_active: isActive,
-      };
-      if (editing) {
-        await adminApi.updateShippingMethod(editing.id, payload);
-        showToast('Shipping method updated.');
-      } else {
-        await adminApi.createShippingMethod(payload);
-        showToast('Shipping method added.');
-      }
-      setDrawerOpen(false);
-      await loadData();
-    } catch (err) {
-      showToast(
+    const editingTarget = editing;
+    const payload = {
+      name: name.trim(),
+      description: description.trim() || null,
+      calculation_type: calcType,
+      base_cost: calcType === 'free' ? 0 : Number(baseCost),
+      free_shipping_threshold:
+        calcType === 'free'
+          ? null
+          : freeThreshold
+            ? Number(freeThreshold)
+            : null,
+      estimated_delivery_days: estDays.trim() || null,
+      is_active: isActive,
+    };
+    const prevMethods = methods;
+    const optimisticMethod: AdminShippingMethod = {
+      id: editingTarget ? editingTarget.id : -Date.now(),
+      store_id: editingTarget?.store_id ?? null,
+      name: payload.name,
+      description: payload.description,
+      calculation_type: payload.calculation_type,
+      base_cost: String(payload.base_cost),
+      free_shipping_threshold:
+        payload.free_shipping_threshold !== null
+          ? String(payload.free_shipping_threshold)
+          : null,
+      estimated_delivery_days: payload.estimated_delivery_days,
+      is_active: payload.is_active,
+    };
+
+    showToast(
+      editingTarget ? 'Shipping method updated.' : 'Shipping method added.',
+    );
+    void runOptimisticMutation({
+      label: editingTarget
+        ? 'Update shipping method'
+        : 'Create shipping method',
+      applyOptimistic: () => {
+        setMethods((prev) =>
+          editingTarget
+            ? prev.map((m) =>
+                m.id === editingTarget.id ? optimisticMethod : m,
+              )
+            : [optimisticMethod, ...prev],
+        );
+        setDrawerOpen(false);
+      },
+      commit: () =>
+        editingTarget
+          ? adminApi.updateShippingMethod(editingTarget.id, payload)
+          : adminApi.createShippingMethod(payload),
+      onSuccess: () => {
+        void loadData();
+      },
+      rollback: () => {
+        setMethods(prevMethods);
+      },
+      offlineRequest: {
+        path: editingTarget
+          ? `/admin/shipping-methods/${editingTarget.id}`
+          : '/admin/shipping-methods',
+        method: editingTarget ? 'PUT' : 'POST',
+        body: payload,
+        dedupeKey: editingTarget
+          ? `admin-ship-method-${editingTarget.id}`
+          : undefined,
+      },
+      onReconcileAfterOffline: () => {
+        void loadData();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError
           ? err.message
           : 'Unable to save shipping method.',
-      );
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleToggleActive = async (m: AdminShippingMethod) => {
-    try {
-      await adminApi.updateShippingMethod(m.id, { is_active: !m.is_active });
-      showToast(
-        !m.is_active
-          ? `${m.name} activated for checkout.`
-          : `${m.name} paused.`,
-      );
-      await loadData();
-    } catch (err) {
-      showToast(
+    const nextActive = !m.is_active;
+    const prevMethods = methods;
+    showToast(
+      nextActive ? `${m.name} activated for checkout.` : `${m.name} paused.`,
+    );
+    void runOptimisticMutation({
+      label: nextActive ? 'Activate shipping method' : 'Pause shipping method',
+      applyOptimistic: () => {
+        setMethods((prev) =>
+          prev.map((item) =>
+            item.id === m.id ? { ...item, is_active: nextActive } : item,
+          ),
+        );
+      },
+      commit: () =>
+        adminApi.updateShippingMethod(m.id, { is_active: nextActive }),
+      onSuccess: () => {
+        void loadData();
+      },
+      rollback: () => {
+        setMethods(prevMethods);
+      },
+      offlineRequest: {
+        path: `/admin/shipping-methods/${m.id}`,
+        method: 'PUT',
+        body: { is_active: nextActive },
+        dedupeKey: `admin-ship-toggle-${m.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void loadData();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError
           ? err.message
           : 'Unable to update shipping method.',
-      );
-    }
+    });
   };
 
   const handleDeleteMethod = (id: number) => {
@@ -220,26 +286,53 @@ export function AdminShippingPage() {
   const handleSaveShipment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedShipment) return;
-    setSavingShipment(true);
-    try {
-      await adminApi.updateShipment(selectedShipment.id, {
-        status: shipStatus,
-        shipping_carrier: shipCarrier.trim() || undefined,
-        tracking_number: shipTracking.trim() || undefined,
-        notes: shipNotes.trim() || undefined,
-      });
-      showToast(
-        `Shipment #${selectedShipment.order_number} updated to ${shipStatus}.`,
-      );
-      setSelectedShipment(null);
-      await loadData();
-    } catch (err) {
-      showToast(
+    const target = selectedShipment;
+    const payload = {
+      status: shipStatus,
+      shipping_carrier: shipCarrier.trim() || undefined,
+      tracking_number: shipTracking.trim() || undefined,
+      notes: shipNotes.trim() || undefined,
+    };
+    const prevShipments = shipments;
+    showToast(`Shipment #${target.order_number} updated to ${shipStatus}.`);
+    void runOptimisticMutation({
+      label: `Update shipment #${target.order_number}`,
+      applyOptimistic: () => {
+        setShipments((prev) =>
+          prev.map((s) =>
+            s.id === target.id
+              ? {
+                  ...s,
+                  status: shipStatus,
+                  shipping_carrier:
+                    payload.shipping_carrier ?? s.shipping_carrier,
+                  tracking_number: payload.tracking_number ?? s.tracking_number,
+                }
+              : s,
+          ),
+        );
+        setSelectedShipment(null);
+      },
+      commit: () => adminApi.updateShipment(target.id, payload),
+      onSuccess: () => {
+        void loadData();
+      },
+      rollback: () => {
+        setShipments(prevShipments);
+      },
+      offlineRequest: {
+        path: `/admin/shipments/${target.id}`,
+        method: 'PUT',
+        body: payload,
+        dedupeKey: `admin-shipment-${target.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void loadData();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to update shipment.',
-      );
-    } finally {
-      setSavingShipment(false);
-    }
+    });
   };
 
   return (
@@ -362,7 +455,7 @@ export function AdminShippingPage() {
                       onClick={() => openEditDrawer(m)}
                       title="Edit shipping method"
                       aria-label={`Edit ${m.name}`}
-                      className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                      className="w-8 h-8 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ffd8c2] hover:border-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                     >
                       <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                     </button>

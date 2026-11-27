@@ -16,6 +16,7 @@ import {
 } from '../../services/dashboardApi';
 import { formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
+import { runOptimisticMutation } from '../../utils/optimisticSync';
 import {
   DashboardPageHeader,
   FilterPillTabs,
@@ -47,7 +48,7 @@ export function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const busyId: number | null = null;
 
   // User Detail & Role Drawer
   const [selectedUser, setSelectedUser] = useState<AdminUserItem | null>(null);
@@ -129,34 +130,96 @@ export function AdminUsersPage() {
       showToast('A user must keep at least one role.');
       return;
     }
-    setBusyId(selectedUser.id);
-    try {
-      const res = await adminApi.updateUserRoles(selectedUser.id, draftRoles);
-      showToast(res.message || 'User roles updated.');
-      await loadUsers();
-    } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : 'Unable to save roles.',
+    const targetUser = selectedUser;
+    const nextSlugs = [...draftRoles];
+    const prevUsers = users;
+    const optimisticRoles = nextSlugs.map((slug, idx) => {
+      const existing = targetUser.roles.find((r) => r.slug === slug);
+      return (
+        existing ?? {
+          id: -(idx + 1),
+          name: slug.replace(/_/g, ' '),
+          slug,
+        }
       );
-    } finally {
-      setBusyId(null);
-    }
+    });
+    showToast('User roles updated.');
+    void runOptimisticMutation({
+      label: 'Update user roles',
+      applyOptimistic: () => {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === targetUser.id ? { ...u, roles: optimisticRoles } : u,
+          ),
+        );
+        setSelectedUser((prev) =>
+          prev && prev.id === targetUser.id
+            ? { ...prev, roles: optimisticRoles }
+            : prev,
+        );
+      },
+      commit: () => adminApi.updateUserRoles(targetUser.id, nextSlugs),
+      onSuccess: () => {
+        void loadUsers();
+      },
+      rollback: () => {
+        setUsers(prevUsers);
+        setSelectedUser(targetUser);
+      },
+      offlineRequest: {
+        path: `/admin/users/${targetUser.id}/roles`,
+        method: 'PUT',
+        body: { roles: nextSlugs },
+        dedupeKey: `admin-user-roles-${targetUser.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void loadUsers();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Unable to save roles.',
+    });
   };
 
   const handleToggleStatus = async (u: AdminUserItem) => {
-    setBusyId(u.id);
-    try {
-      const next = u.status === 'suspended' ? 'active' : 'suspended';
-      const res = await adminApi.toggleUserStatus(u.id, next);
-      showToast(res.message || `User status set to ${next}.`);
-      await loadUsers();
-    } catch (err) {
-      showToast(
+    const next = u.status === 'suspended' ? 'active' : 'suspended';
+    const prevUsers = users;
+    showToast(`User status set to ${next}.`);
+    void runOptimisticMutation({
+      label: 'Update user status',
+      applyOptimistic: () => {
+        setUsers((prev) =>
+          prev.map((item) =>
+            item.id === u.id ? { ...item, status: next } : item,
+          ),
+        );
+        setSelectedUser((prev) =>
+          prev && prev.id === u.id ? { ...prev, status: next } : prev,
+        );
+      },
+      commit: () => adminApi.toggleUserStatus(u.id, next),
+      onSuccess: () => {
+        void loadUsers();
+      },
+      rollback: () => {
+        setUsers(prevUsers);
+        setSelectedUser((prev) =>
+          prev && prev.id === u.id ? { ...prev, status: u.status } : prev,
+        );
+      },
+      offlineRequest: {
+        path: `/admin/users/${u.id}/status`,
+        method: 'PATCH',
+        body: { status: next },
+        dedupeKey: `admin-user-status-${u.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void loadUsers();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to update status.',
-      );
-    } finally {
-      setBusyId(null);
-    }
+    });
   };
 
   const handleExport = () => {
@@ -498,7 +561,7 @@ export function AdminCatalogPage() {
   // Quick inline category input bar
   const [quickName, setQuickName] = useState('');
   const [quickCommission, setQuickCommission] = useState('');
-  const [quickSaving, setQuickSaving] = useState(false);
+  const quickSaving = false;
 
   // Category drawer state (supports create + edit)
   const [catDrawerOpen, setCatDrawerOpen] = useState(false);
@@ -508,7 +571,7 @@ export function AdminCatalogPage() {
   const [catCommission, setCatCommission] = useState('');
   const [catOrder, setCatOrder] = useState('0');
   const [catActive, setCatActive] = useState(true);
-  const [savingCat, setSavingCat] = useState(false);
+  const savingCat = false;
 
   const loadCatalog = useCallback(async () => {
     try {
@@ -536,27 +599,52 @@ export function AdminCatalogPage() {
   const handleQuickAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickName.trim()) return;
-    setQuickSaving(true);
-    try {
-      await adminApi.createCategory({
-        name: quickName.trim(),
-        commission_rate: quickCommission.trim()
-          ? Number(quickCommission)
-          : null,
-        order: categories.length + 1,
-        is_active: true,
-      });
-      setQuickName('');
-      setQuickCommission('');
-      showToast('Category added.');
-      await Promise.all([loadCatalog(), refreshCatalog()]);
-    } catch (err) {
-      showToast(
+    const payload = {
+      name: quickName.trim(),
+      commission_rate: quickCommission.trim() ? Number(quickCommission) : null,
+      order: categories.length + 1,
+      is_active: true,
+    };
+    const prevCategories = categories;
+    const optimisticCat: AdminCategoryItem = {
+      id: -Date.now(),
+      name: payload.name,
+      slug: payload.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, ''),
+      description: null,
+      commission_rate: payload.commission_rate,
+      order: payload.order,
+      is_active: true,
+    };
+    showToast('Category added.');
+    void runOptimisticMutation({
+      label: 'Create category',
+      applyOptimistic: () => {
+        setCategories((prev) => [...prev, optimisticCat]);
+        setQuickName('');
+        setQuickCommission('');
+      },
+      commit: () => adminApi.createCategory(payload),
+      onSuccess: () => {
+        void Promise.all([loadCatalog(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setCategories(prevCategories);
+      },
+      offlineRequest: {
+        path: '/admin/categories',
+        method: 'POST',
+        body: payload,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadCatalog(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to add category.',
-      );
-    } finally {
-      setQuickSaving(false);
-    }
+    });
   };
 
   const openNewCategory = () => {
@@ -586,31 +674,68 @@ export function AdminCatalogPage() {
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!catName.trim()) return;
-    setSavingCat(true);
-    try {
-      const payload = {
-        name: catName.trim(),
-        description: catDesc.trim() || null,
-        commission_rate: catCommission.trim() ? Number(catCommission) : null,
-        order: Number(catOrder) || 0,
-        is_active: catActive,
-      };
-      if (editingCat) {
-        await adminApi.updateCategory(editingCat.id, payload);
-        showToast('Category updated.');
-      } else {
-        await adminApi.createCategory(payload);
-        showToast('Category created.');
-      }
-      setCatDrawerOpen(false);
-      await Promise.all([loadCatalog(), refreshCatalog()]);
-    } catch (err) {
-      showToast(
+    const editingTarget = editingCat;
+    const payload = {
+      name: catName.trim(),
+      description: catDesc.trim() || null,
+      commission_rate: catCommission.trim() ? Number(catCommission) : null,
+      order: Number(catOrder) || 0,
+      is_active: catActive,
+    };
+    const prevCategories = categories;
+    const optimisticCat: AdminCategoryItem = {
+      id: editingTarget ? editingTarget.id : -Date.now(),
+      name: payload.name,
+      slug:
+        editingTarget?.slug ||
+        payload.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, ''),
+      description: payload.description,
+      commission_rate: payload.commission_rate,
+      order: payload.order,
+      is_active: payload.is_active,
+    };
+
+    showToast(editingTarget ? 'Category updated.' : 'Category created.');
+    void runOptimisticMutation({
+      label: editingTarget ? 'Update category' : 'Create category',
+      applyOptimistic: () => {
+        setCategories((prev) =>
+          editingTarget
+            ? prev.map((c) => (c.id === editingTarget.id ? optimisticCat : c))
+            : [...prev, optimisticCat],
+        );
+        setCatDrawerOpen(false);
+      },
+      commit: () =>
+        editingTarget
+          ? adminApi.updateCategory(editingTarget.id, payload)
+          : adminApi.createCategory(payload),
+      onSuccess: () => {
+        void Promise.all([loadCatalog(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setCategories(prevCategories);
+      },
+      offlineRequest: {
+        path: editingTarget
+          ? `/admin/categories/${editingTarget.id}`
+          : '/admin/categories',
+        method: editingTarget ? 'PUT' : 'POST',
+        body: payload,
+        dedupeKey: editingTarget
+          ? `admin-cat-${editingTarget.id}`
+          : undefined,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadCatalog(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to save category.',
-      );
-    } finally {
-      setSavingCat(false);
-    }
+    });
   };
 
   const handleDeleteCategory = (c: AdminCategoryItem) => {
@@ -807,7 +932,7 @@ export function AdminCatalogPage() {
                           onClick={() => openEditCategory(c)}
                           title="Edit category"
                           aria-label={`Edit ${c.name}`}
-                          className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                          className="w-8 h-8 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ffd8c2] hover:border-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                         >
                           <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                         </button>
@@ -1256,7 +1381,7 @@ export function AdminDisputesPage() {
     'resolved_customer' | 'resolved_store' | 'closed'
   >('resolved_customer');
   const [resolutionText, setResolutionText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const submitting = false;
 
   const loadDisputes = useCallback(async () => {
     try {
@@ -1304,23 +1429,50 @@ export function AdminDisputesPage() {
   const handleResolve = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeDispute || !resolutionText.trim()) return;
-    setSubmitting(true);
-    try {
-      await adminApi.resolveDispute(activeDispute.id, {
-        status: resolutionStatus,
-        admin_resolution: resolutionText.trim(),
-      });
-      showToast('Dispute resolution recorded.');
-      setActiveDispute(null);
-      setResolutionText('');
-      await loadDisputes();
-    } catch (err) {
-      showToast(
+    const targetDispute = activeDispute;
+    const payload = {
+      status: resolutionStatus,
+      admin_resolution: resolutionText.trim(),
+    };
+    const prevDisputes = disputes;
+    showToast('Dispute resolution recorded.');
+    void runOptimisticMutation({
+      label: 'Resolve dispute',
+      applyOptimistic: () => {
+        setDisputes((prev) =>
+          prev.map((d) =>
+            d.id === targetDispute.id
+              ? {
+                  ...d,
+                  status: payload.status,
+                  admin_resolution: payload.admin_resolution,
+                }
+              : d,
+          ),
+        );
+        setActiveDispute(null);
+        setResolutionText('');
+      },
+      commit: () => adminApi.resolveDispute(targetDispute.id, payload),
+      onSuccess: () => {
+        void loadDisputes();
+      },
+      rollback: () => {
+        setDisputes(prevDisputes);
+      },
+      offlineRequest: {
+        path: `/admin/disputes/${targetDispute.id}/resolve`,
+        method: 'POST',
+        body: payload,
+        dedupeKey: `admin-dispute-${targetDispute.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void loadDisputes();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to resolve dispute.',
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -1644,8 +1796,8 @@ export function AdminSettingsPage() {
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
   const [activeGroup, setActiveGroup] = useState<string>('all');
   const [loading, setLoading] = useState(true);
-  const [savingGroup, setSavingGroup] = useState<string | null>(null);
-  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const savingGroup: string | null = null;
+  const savingKey: string | null = null;
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   const loadSettings = useCallback(async () => {
@@ -1695,30 +1847,45 @@ export function AdminSettingsPage() {
     primaryKey: string,
     successMsg?: string,
   ) => {
-    const prevSnapshot: Record<string, string> = {};
+    const prevDraft: Record<string, string> = {};
+    const prevInit: Record<string, string> = {};
     Object.keys(entries).forEach((k) => {
-      prevSnapshot[k] = draftValues[k] ?? '';
+      prevDraft[k] = draftValues[k] ?? '';
+      prevInit[k] = initialValues[k] ?? '';
     });
+    const payload = Object.entries(entries).map(([key, value]) => ({
+      key,
+      value,
+    }));
 
-    setDraftValues((prev) => ({ ...prev, ...entries }));
-    setSavingKey(primaryKey);
-    try {
-      const payload = Object.entries(entries).map(([key, value]) => ({
-        key,
-        value,
-      }));
-      await adminApi.updateSettings(payload);
-      setInitialValues((prev) => ({ ...prev, ...entries }));
-      await refreshCatalog();
-      if (successMsg) showToast(successMsg);
-    } catch (err) {
-      setDraftValues((prev) => ({ ...prev, ...prevSnapshot }));
-      showToast(
+    if (successMsg) showToast(successMsg);
+    void runOptimisticMutation({
+      label: `Update setting (${primaryKey})`,
+      applyOptimistic: () => {
+        setDraftValues((prev) => ({ ...prev, ...entries }));
+        setInitialValues((prev) => ({ ...prev, ...entries }));
+      },
+      commit: () => adminApi.updateSettings(payload),
+      onSuccess: () => {
+        void refreshCatalog();
+      },
+      rollback: () => {
+        setDraftValues((prev) => ({ ...prev, ...prevDraft }));
+        setInitialValues((prev) => ({ ...prev, ...prevInit }));
+      },
+      offlineRequest: {
+        path: '/admin/settings',
+        method: 'PUT',
+        body: { settings: payload },
+        dedupeKey: `admin-setting-${primaryKey}`,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadSettings(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to update setting.',
-      );
-    } finally {
-      setSavingKey(null);
-    }
+    });
   };
 
   const handleSaveGroup = async (
@@ -1733,22 +1900,43 @@ export function AdminSettingsPage() {
 
     if (payload.length === 0) return;
 
-    setSavingGroup(groupName);
-    try {
-      await adminApi.updateSettings(payload);
-      await Promise.all([loadSettings(), refreshCatalog()]);
-      showToast(
-        groupName === 'bakong'
-          ? 'Bakong settings saved.'
-          : `${groupName.replace(/_/g, ' ')} settings saved.`,
-      );
-    } catch (err) {
-      showToast(
+    const prevInit: Record<string, string> = {};
+    const nextInit: Record<string, string> = {};
+    payload.forEach(({ key, value }) => {
+      prevInit[key] = initialValues[key] ?? '';
+      nextInit[key] = value;
+    });
+
+    showToast(
+      groupName === 'bakong'
+        ? 'Bakong settings saved.'
+        : `${groupName.replace(/_/g, ' ')} settings saved.`,
+    );
+    void runOptimisticMutation({
+      label: `Save ${groupName} settings`,
+      applyOptimistic: () => {
+        setInitialValues((prev) => ({ ...prev, ...nextInit }));
+      },
+      commit: () => adminApi.updateSettings(payload),
+      onSuccess: () => {
+        void Promise.all([loadSettings(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setInitialValues((prev) => ({ ...prev, ...prevInit }));
+      },
+      offlineRequest: {
+        path: '/admin/settings',
+        method: 'PUT',
+        body: { settings: payload },
+        dedupeKey: `admin-settings-group-${groupName}`,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadSettings(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to save settings.',
-      );
-    } finally {
-      setSavingGroup(null);
-    }
+    });
   };
 
   const handleBrandingFileUpload = async (key: string, file: File | null) => {

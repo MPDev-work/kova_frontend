@@ -12,6 +12,7 @@ import {
 } from '../../services/dashboardApi';
 import { formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
+import { runOptimisticMutation } from '../../utils/optimisticSync';
 import {
   DashboardPageHeader,
   FilterPillTabs,
@@ -78,7 +79,7 @@ export function AdminOverviewPage() {
   const [openDisputes, setOpenDisputes] = useState<AdminDisputeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const busyId: number | null = null;
 
   const loadAuxQueues = useCallback(async () => {
     const [appsRes, bakongRes, dispRes] = await Promise.allSettled([
@@ -140,18 +141,32 @@ export function AdminOverviewPage() {
   }, [loadDashboard]);
 
   const handleQuickApprove = async (id: number) => {
-    setBusyId(id);
-    try {
-      const res = await adminApi.approveApplication(id);
-      showToast(res.message || 'Store application approved.');
-      await Promise.all([loadDashboard(), loadAuxQueues(), refreshCatalog()]);
-    } catch (err) {
-      showToast(
+    const prevApps = pendingApps;
+    showToast('Store application approved.');
+    void runOptimisticMutation({
+      label: 'Approve store application',
+      applyOptimistic: () => {
+        setPendingApps((prev) => prev.filter((a) => a.id !== id));
+      },
+      commit: () => adminApi.approveApplication(id),
+      onSuccess: () => {
+        void Promise.all([loadDashboard(), loadAuxQueues(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setPendingApps(prevApps);
+      },
+      offlineRequest: {
+        path: `/admin/store-applications/${id}/approve`,
+        method: 'POST',
+        dedupeKey: `admin-approve-app-${id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadDashboard(), loadAuxQueues(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to approve store.',
-      );
-    } finally {
-      setBusyId(null);
-    }
+    });
   };
 
   const handleSelectPreset = (next: Exclude<OverviewRange, 'custom'>) => {
@@ -776,7 +791,7 @@ export function AdminStoresPage() {
   const [stores, setStores] = useState<AdminStoreItem[]>([]);
   const [applications, setApplications] = useState<AdminStoreApplication[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const busyId: number | null = null;
 
   // Store Administration Drawer (Figma Admin · 03)
   const [selectedStore, setSelectedStore] = useState<AdminStoreItem | null>(
@@ -901,86 +916,216 @@ export function AdminStoresPage() {
   };
 
   const handleApproveApp = async (appId: number) => {
-    setBusyId(appId);
-    try {
-      const res = await adminApi.approveApplication(appId);
-      showToast(res.message || 'Store application approved.');
-      setSelectedApp(null);
-      await Promise.all([loadData(), refreshCatalog()]);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Approve failed.');
-    } finally {
-      setBusyId(null);
-    }
+    const prevApps = applications;
+    showToast('Store application approved.');
+    void runOptimisticMutation({
+      label: 'Approve store application',
+      applyOptimistic: () => {
+        setApplications((prev) =>
+          prev.map((a) => (a.id === appId ? { ...a, status: 'approved' } : a)),
+        );
+        setSelectedApp(null);
+      },
+      commit: () => adminApi.approveApplication(appId),
+      onSuccess: () => {
+        void Promise.all([loadData(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setApplications(prevApps);
+      },
+      offlineRequest: {
+        path: `/admin/store-applications/${appId}/approve`,
+        method: 'POST',
+        dedupeKey: `admin-approve-app-${appId}`,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadData(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Approve failed.',
+    });
   };
 
   const handleRejectApp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedApp || !rejectReason.trim()) return;
-    setBusyId(selectedApp.id);
-    try {
-      const res = await adminApi.rejectApplication(
-        selectedApp.id,
-        rejectReason.trim(),
-      );
-      showToast(res.message || 'Application rejected.');
-      setSelectedApp(null);
-      setRejectReason('');
-      setShowRejectBox(false);
-      await loadData();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Reject failed.');
-    } finally {
-      setBusyId(null);
-    }
+    const targetApp = selectedApp;
+    const reason = rejectReason.trim();
+    const prevApps = applications;
+    showToast('Application rejected.');
+    void runOptimisticMutation({
+      label: 'Reject store application',
+      applyOptimistic: () => {
+        setApplications((prev) =>
+          prev.map((a) =>
+            a.id === targetApp.id
+              ? { ...a, status: 'rejected', rejection_reason: reason }
+              : a,
+          ),
+        );
+        setSelectedApp(null);
+        setRejectReason('');
+        setShowRejectBox(false);
+      },
+      commit: () => adminApi.rejectApplication(targetApp.id, reason),
+      onSuccess: () => {
+        void loadData();
+      },
+      rollback: () => {
+        setApplications(prevApps);
+      },
+      offlineRequest: {
+        path: `/admin/store-applications/${targetApp.id}/reject`,
+        method: 'POST',
+        body: { rejection_reason: reason },
+        dedupeKey: `admin-reject-app-${targetApp.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void loadData();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Reject failed.',
+    });
   };
 
   const handleToggleVerify = async (store: AdminStoreItem) => {
-    setBusyId(store.id);
-    try {
-      const res = await adminApi.toggleStoreVerification(store.id);
-      showToast(res.message || 'Store verification updated.');
-      await Promise.all([loadData(), refreshCatalog()]);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Update failed.');
-    } finally {
-      setBusyId(null);
-    }
+    const prevStores = stores;
+    const nextVerified = !store.is_verified;
+    showToast(
+      nextVerified
+        ? `${store.name} verified.`
+        : `${store.name} verification removed.`,
+    );
+    void runOptimisticMutation({
+      label: 'Toggle store verification',
+      applyOptimistic: () => {
+        setStores((prev) =>
+          prev.map((s) =>
+            s.id === store.id ? { ...s, is_verified: nextVerified } : s,
+          ),
+        );
+        setSelectedStore((prev) =>
+          prev && prev.id === store.id
+            ? { ...prev, is_verified: nextVerified }
+            : prev,
+        );
+      },
+      commit: () => adminApi.toggleStoreVerification(store.id),
+      onSuccess: () => {
+        void Promise.all([loadData(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setStores(prevStores);
+        setSelectedStore((prev) =>
+          prev && prev.id === store.id
+            ? { ...prev, is_verified: store.is_verified }
+            : prev,
+        );
+      },
+      offlineRequest: {
+        path: `/admin/stores/${store.id}/verify`,
+        method: 'PATCH',
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadData(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Update failed.',
+    });
   };
 
   const handleToggleSuspend = async (store: AdminStoreItem) => {
-    setBusyId(store.id);
-    try {
-      const nextStatus =
-        store.status === 'suspended' ? 'approved' : 'suspended';
-      const res = await adminApi.toggleStoreSuspension(store.id, nextStatus);
-      showToast(res.message || `Store status set to ${nextStatus}.`);
-      await Promise.all([loadData(), refreshCatalog()]);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Update failed.');
-    } finally {
-      setBusyId(null);
-    }
+    const nextStatus =
+      store.status === 'suspended' ? 'approved' : 'suspended';
+    const prevStores = stores;
+    showToast(`Store status set to ${nextStatus}.`);
+    void runOptimisticMutation({
+      label: 'Update store status',
+      applyOptimistic: () => {
+        setStores((prev) =>
+          prev.map((s) =>
+            s.id === store.id ? { ...s, status: nextStatus } : s,
+          ),
+        );
+        setSelectedStore((prev) =>
+          prev && prev.id === store.id
+            ? { ...prev, status: nextStatus }
+            : prev,
+        );
+      },
+      commit: () => adminApi.toggleStoreSuspension(store.id, nextStatus),
+      onSuccess: () => {
+        void Promise.all([loadData(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setStores(prevStores);
+        setSelectedStore((prev) =>
+          prev && prev.id === store.id
+            ? { ...prev, status: store.status }
+            : prev,
+        );
+      },
+      offlineRequest: {
+        path: `/admin/stores/${store.id}/suspend`,
+        method: 'PATCH',
+        body: { status: nextStatus },
+        dedupeKey: `admin-store-status-${store.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadData(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Update failed.',
+    });
   };
 
   const handleSaveCommission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStore) return;
-    setBusyId(selectedStore.id);
-    try {
-      const parsed =
-        commissionDraft.trim() === '' ? null : Number(commissionDraft);
-      const res = await adminApi.updateStoreCommission(
-        selectedStore.id,
-        parsed,
-      );
-      showToast(res.message || 'Commission rate saved.');
-      await loadData();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Save failed.');
-    } finally {
-      setBusyId(null);
-    }
+    const targetStore = selectedStore;
+    const parsed =
+      commissionDraft.trim() === '' ? null : Number(commissionDraft);
+    const prevStores = stores;
+    showToast('Commission rate saved.');
+    void runOptimisticMutation({
+      label: 'Save store commission',
+      applyOptimistic: () => {
+        setStores((prev) =>
+          prev.map((s) =>
+            s.id === targetStore.id ? { ...s, commission_rate: parsed } : s,
+          ),
+        );
+        setSelectedStore((prev) =>
+          prev && prev.id === targetStore.id
+            ? { ...prev, commission_rate: parsed }
+            : prev,
+        );
+      },
+      commit: () => adminApi.updateStoreCommission(targetStore.id, parsed),
+      onSuccess: () => {
+        void loadData();
+      },
+      rollback: () => {
+        setStores(prevStores);
+        setSelectedStore(targetStore);
+      },
+      offlineRequest: {
+        path: `/admin/stores/${targetStore.id}/commission`,
+        method: 'PUT',
+        body: { commission_rate: parsed },
+        dedupeKey: `admin-store-commission-${targetStore.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void loadData();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Save failed.',
+    });
   };
 
   const handleExportDirectory = () => {

@@ -12,6 +12,7 @@ import {
 import { formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
 import { validateUploadFile } from '../../utils/mediaUpload';
+import { runOptimisticMutation } from '../../utils/optimisticSync';
 import {
   DashboardModal,
   DashboardPageHeader,
@@ -695,7 +696,7 @@ export function SellerProductsPage() {
   }, [products]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bulkBusy, setBulkBusy] = useState(false);
+  const bulkBusy = false;
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Full Product Detail Modal state
@@ -902,21 +903,48 @@ export function SellerProductsPage() {
     nextStatus: 'published' | 'draft' | 'archived',
   ) => {
     if (selectedIds.length === 0) return;
-    setBulkBusy(true);
-    try {
-      await Promise.all(
-        selectedIds.map((id) =>
-          storeOwnerApi.updateProduct(id, { status: nextStatus }),
+    const targetIds = [...selectedIds];
+    const idSet = new Set(targetIds);
+    const prevProducts = products;
+    showToast(`Updated ${targetIds.length} products to ${nextStatus}.`);
+    void runOptimisticMutation({
+      label: 'Update product statuses',
+      applyOptimistic: () => {
+        setProducts((prev) =>
+          prev.map((item) =>
+            idSet.has(item.id) ? { ...item, status: nextStatus } : item,
+          ),
+        );
+        setSelectedIds([]);
+      },
+      commit: () =>
+        Promise.all(
+          targetIds.map((id) =>
+            storeOwnerApi.updateProduct(id, { status: nextStatus }),
+          ),
         ),
-      );
-      showToast(`Updated ${selectedIds.length} products to ${nextStatus}.`);
-      setSelectedIds([]);
-      await Promise.all([loadProducts(), refreshCatalog()]);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Bulk update failed.');
-    } finally {
-      setBulkBusy(false);
-    }
+      onSuccess: () => {
+        void Promise.all([loadProducts(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setProducts(prevProducts);
+      },
+      offlineRequest:
+        targetIds.length === 1
+          ? {
+              path: `/store-owner/products/${targetIds[0]}`,
+              method: 'PUT',
+              body: { status: nextStatus },
+              dedupeKey: `seller-prod-status-${targetIds[0]}`,
+            }
+          : undefined,
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadProducts(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Bulk update failed.',
+    });
   };
 
   const handleDelete = (p: SellerProductItem) => {
@@ -1175,14 +1203,14 @@ export function SellerProductsPage() {
               return (
                 <div
                   key={p.id}
-                  className={`group bg-white border transition-all rounded-[14px] flex flex-col gap-1.5 sm:gap-2 pb-2.5 sm:pb-3 overflow-hidden min-w-0 ${
+                  className={`group bg-white border transition-all rounded-[24px] p-2.5 flex flex-col gap-2 overflow-hidden min-w-0 ${
                     isChecked
                       ? 'border-[#ff6e20] ring-2 ring-[#ff6e20]/15'
                       : 'border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-md'
                   }`}
                 >
-                  {/* Photo Box — matches client ProductCard */}
-                  <div className="relative aspect-square sm:aspect-[276/260] w-full overflow-hidden bg-[#f7f7f7]">
+                  {/* Photo Box — concentric rounded-[14px] inside rounded-[24px] p-2.5 */}
+                  <div className="relative aspect-square sm:aspect-[276/260] w-full overflow-hidden rounded-[14px] bg-[#f7f7f7]">
                     <button
                       type="button"
                       onClick={() => void openProductDetail(p)}
@@ -1210,7 +1238,7 @@ export function SellerProductsPage() {
 
                     {/* Free Delivery Badge (bottom-left corner — matches client ProductCard) */}
                     {p.free_shipping && (
-                      <div className="absolute bottom-0 left-0 z-10 bg-green-600 rounded-tr-[12px] px-2 py-0.5 sm:px-2.5 sm:py-1 flex items-center gap-1 leading-none shadow-sm">
+                      <div className="absolute bottom-0 left-0 z-10 bg-green-600 rounded-tr-[14px] px-2 py-0.5 sm:px-2.5 sm:py-1 flex items-center gap-1 leading-none shadow-sm">
                         <span className="text-[10px] sm:text-[11.5px] text-[#ffe169]">
                           Free
                         </span>
@@ -1228,7 +1256,7 @@ export function SellerProductsPage() {
                   </div>
 
                   {/* Card Info — compact 2-col responsive layout */}
-                  <div className="px-2 sm:px-3 flex flex-col gap-1 sm:gap-[5px] flex-1 min-w-0">
+                  <div className="px-0.5 flex flex-col gap-1 sm:gap-[5px] flex-1 min-w-0">
                     <button
                       type="button"
                       onClick={() => void openProductDetail(p)}
@@ -1281,7 +1309,7 @@ export function SellerProductsPage() {
                         onClick={() => void openProductDetail(p)}
                         title="Detail"
                         aria-label={`View detail for ${p.name}`}
-                        className="flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 h-8 bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ff6e20]/35 hover:border-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold px-3 rounded-full transition-colors cursor-pointer"
+                        className="flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 h-8 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12px] font-semibold px-3 rounded-full transition-colors cursor-pointer"
                       >
                         <FigmaIcon name="eye" className="w-3.5 h-3.5 shrink-0" />
                         <span>Detail</span>
@@ -1291,7 +1319,7 @@ export function SellerProductsPage() {
                         onClick={() => openEditProductModal(p.id)}
                         title="Edit product"
                         aria-label={`Edit ${p.name}`}
-                        className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                        className="w-8 h-8 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ffd8c2] hover:border-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                       >
                         <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                       </button>
@@ -1371,7 +1399,7 @@ export function SellerProductsPage() {
                               className="w-11 h-11 rounded-[10px] object-cover border border-[#ececec] shrink-0"
                             />
                           ) : (
-                            <span className="w-11 h-11 bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0 rounded-[14px]">
+                            <span className="w-11 h-11 bg-[#f7f7f7] border border-[#ececec] flex items-center justify-center shrink-0 rounded-[10px]">
                               <FigmaIcon
                                 name="package"
                                 className="w-4 h-4 text-[#979797]"
@@ -1435,7 +1463,7 @@ export function SellerProductsPage() {
                             onClick={() => void openProductDetail(p)}
                             title="Detail"
                             aria-label={`View detail for ${p.name}`}
-                            className="inline-flex items-center justify-center gap-1.5 h-8 bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ff6e20]/35 hover:border-[#ff6e20] text-[#ff6e20] hover:text-white text-[12px] font-semibold px-3 rounded-full transition-colors shrink-0 cursor-pointer"
+                            className="inline-flex items-center justify-center gap-1.5 h-8 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[12px] font-semibold px-3 rounded-full transition-colors shrink-0 cursor-pointer"
                           >
                             <FigmaIcon
                               name="eye"
@@ -1448,7 +1476,7 @@ export function SellerProductsPage() {
                             onClick={() => openEditProductModal(p.id)}
                             title="Edit product"
                             aria-label={`Edit ${p.name}`}
-                            className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                            className="w-8 h-8 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ffd8c2] hover:border-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                           >
                             <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                           </button>
@@ -1884,6 +1912,21 @@ export function SellerProductsPage() {
           open
           productId={effectiveEditingProductId}
           onClose={closeProductFormModal}
+          onOptimisticSave={(optimisticItem, isEditing) => {
+            const prevProducts = products;
+            if (isEditing) {
+              setProducts((prev) =>
+                prev.map((item) =>
+                  item.id === optimisticItem.id
+                    ? { ...item, ...optimisticItem }
+                    : item,
+                ),
+              );
+            } else {
+              setProducts((prev) => [optimisticItem, ...prev]);
+            }
+            return () => setProducts(prevProducts);
+          }}
           onSaved={async () => {
             await loadProducts();
           }}
@@ -1900,11 +1943,16 @@ function SellerProductFormModal({
   open,
   productId,
   onClose,
+  onOptimisticSave,
   onSaved,
 }: {
   open: boolean;
   productId: number | null;
   onClose: () => void;
+  onOptimisticSave?: (
+    item: SellerProductItem,
+    isEditing: boolean,
+  ) => () => void;
   onSaved: () => Promise<void>;
 }) {
   const isEdit = Boolean(productId);
@@ -1935,7 +1983,7 @@ function SellerProductFormModal({
     }[]
   >([]);
   const [uploadingImg, setUploadingImg] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const saving = false;
 
   // Track newly uploaded (unsaved) images in this modal session so canceling cleans them up in background
   const unsavedUploadsRef = useRef<{ media_id: number; image_url: string }[]>(
@@ -2150,64 +2198,113 @@ function SellerProductFormModal({
 
     const finalStatus = forcedStatus ?? status;
     const effectiveCategory = categoryId ? Number(categoryId) : null;
-    setSaving(true);
-    try {
-      const normalizedImages = images.map((img, idx) => ({
-        id: img.id,
-        image_url: img.image_url,
-        media_id: img.media_id ?? null,
-        sort_order: idx,
-        is_primary: img.is_primary,
-      }));
+    const normalizedImages = images.map((img, idx) => ({
+      id: img.id,
+      image_url: img.image_url,
+      media_id: img.media_id ?? null,
+      sort_order: idx,
+      is_primary: img.is_primary,
+    }));
 
-      if (isEdit && productId) {
-        await storeOwnerApi.updateProduct(productId, {
-          name: name.trim(),
-          sku: sku.trim(),
-          category_id: effectiveCategory,
-          regular_price: Number(regularPrice),
-          discount_price: discountPrice ? Number(discountPrice) : null,
-          stock_quantity: Number(stockQuantity),
-          low_stock_threshold: Number(lowStockThreshold) || 5,
-          status: finalStatus,
-          is_featured: isFeatured,
-          free_shipping: freeShipping,
-          short_description: shortDescription.trim() || null,
-          description: description.trim() || null,
-          images: normalizedImages,
-        });
-        showToast('Product updated.');
-      } else {
-        await storeOwnerApi.createProduct({
-          name: name.trim(),
-          sku: sku.trim(),
-          category_id: effectiveCategory,
-          regular_price: Number(regularPrice),
-          discount_price: discountPrice ? Number(discountPrice) : null,
-          stock_quantity: Number(stockQuantity),
-          low_stock_threshold: Number(lowStockThreshold) || 5,
-          status: finalStatus,
-          is_featured: isFeatured,
-          free_shipping: freeShipping,
-          short_description: shortDescription.trim() || null,
-          description: description.trim() || null,
-          images: normalizedImages,
-        });
-        showToast(
-          finalStatus === 'draft' ? 'Saved as draft.' : 'Product published.',
+    const payload = {
+      name: name.trim(),
+      sku: sku.trim(),
+      category_id: effectiveCategory,
+      regular_price: Number(regularPrice),
+      discount_price: discountPrice ? Number(discountPrice) : null,
+      stock_quantity: Number(stockQuantity),
+      low_stock_threshold: Number(lowStockThreshold) || 5,
+      status: finalStatus,
+      is_featured: isFeatured,
+      free_shipping: freeShipping,
+      short_description: shortDescription.trim() || null,
+      description: description.trim() || null,
+      images: normalizedImages,
+    };
+
+    const primaryImg =
+      normalizedImages.find((img) => img.is_primary) ||
+      normalizedImages[0] ||
+      null;
+    const matchedCategory = effectiveCategory
+      ? categories.find((c) => c.id === effectiveCategory) || null
+      : null;
+
+    const optimisticProduct: SellerProductItem = {
+      id: isEdit && productId ? productId : -Date.now(),
+      name: payload.name,
+      slug: payload.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, ''),
+      sku: payload.sku,
+      regular_price: String(payload.regular_price),
+      discount_price:
+        payload.discount_price !== null ? String(payload.discount_price) : null,
+      stock_quantity: payload.stock_quantity,
+      low_stock_threshold: payload.low_stock_threshold,
+      status: payload.status,
+      is_featured: payload.is_featured,
+      free_shipping: payload.free_shipping,
+      short_description: payload.short_description,
+      description: payload.description,
+      category: matchedCategory
+        ? { id: matchedCategory.id, name: matchedCategory.name }
+        : null,
+      primary_image: primaryImg
+        ? { image_url: primaryImg.image_url }
+        : null,
+      created_at: new Date().toISOString(),
+    };
+
+    let rollbackFn: (() => void) | undefined;
+    savedSuccessfullyRef.current = true;
+    unsavedUploadsRef.current = [];
+    showToast(
+      isEdit
+        ? 'Product updated.'
+        : finalStatus === 'draft'
+          ? 'Saved as draft.'
+          : 'Product published.',
+    );
+
+    void runOptimisticMutation({
+      label: isEdit ? 'Update product' : 'Create product',
+      applyOptimistic: () => {
+        rollbackFn = onOptimisticSave?.(
+          optimisticProduct,
+          Boolean(isEdit && productId),
         );
-      }
-      savedSuccessfullyRef.current = true;
-      unsavedUploadsRef.current = [];
-      await Promise.all([onSaved(), refreshCatalog()]);
-      onClose();
-    } catch (err) {
-      showToast(
+        onClose();
+      },
+      commit: () =>
+        isEdit && productId
+          ? storeOwnerApi.updateProduct(productId, payload)
+          : storeOwnerApi.createProduct(payload),
+      onSuccess: () => {
+        void Promise.all([onSaved(), refreshCatalog()]);
+      },
+      rollback: () => {
+        rollbackFn?.();
+        void onSaved();
+      },
+      offlineRequest: {
+        path:
+          isEdit && productId
+            ? `/store-owner/products/${productId}`
+            : '/store-owner/products',
+        method: isEdit && productId ? 'PUT' : 'POST',
+        body: payload,
+        dedupeKey:
+          isEdit && productId ? `seller-prod-edit-${productId}` : undefined,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([onSaved(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to save product.',
-      );
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const parsedRegular = Number(regularPrice) || 0;
@@ -2667,7 +2764,7 @@ export function SellerInventoryPage() {
   const [type, setType] = useState<'restock' | 'adjustment'>('restock');
   const [qtyChange, setQtyChange] = useState('10');
   const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const submitting = false;
 
   const loadData = useCallback(async () => {
     try {
@@ -2721,26 +2818,54 @@ export function SellerInventoryPage() {
   const handleAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProductId || deltaNum === 0) return;
-    setSubmitting(true);
-    try {
-      const res = await storeOwnerApi.adjustStock({
-        product_id: selectedProductId,
-        quantity_change: deltaNum,
-        type,
-        notes: notes.trim() || undefined,
-      });
-      showToast(
-        `Stock updated. New available quantity: ${res.data.current_stock} units.`,
-      );
-      setNotes('');
-      await loadData();
-    } catch (err) {
-      showToast(
+    const targetProductId = selectedProductId;
+    const targetDelta = deltaNum;
+    const targetType = type;
+    const targetNotes = notes.trim() || undefined;
+    const prevProducts = products;
+    const nextStock = projectedStock;
+
+    showToast(`Stock updated. New available quantity: ${nextStock} units.`);
+    void runOptimisticMutation({
+      label: 'Adjust inventory stock',
+      applyOptimistic: () => {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === targetProductId ? { ...p, stock_quantity: nextStock } : p,
+          ),
+        );
+        setNotes('');
+      },
+      commit: () =>
+        storeOwnerApi.adjustStock({
+          product_id: targetProductId,
+          quantity_change: targetDelta,
+          type: targetType,
+          notes: targetNotes,
+        }),
+      onSuccess: () => {
+        void loadData();
+      },
+      rollback: () => {
+        setProducts(prevProducts);
+      },
+      offlineRequest: {
+        path: '/store-owner/inventory/adjust',
+        method: 'POST',
+        body: {
+          product_id: targetProductId,
+          quantity_change: targetDelta,
+          type: targetType,
+          notes: targetNotes,
+        },
+      },
+      onReconcileAfterOffline: () => {
+        void loadData();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to adjust stock.',
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   const handleExport = () => {

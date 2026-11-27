@@ -515,7 +515,7 @@ export function AddressBookPage() {
           {visibleAddresses.map((addr) => (
             <div
               key={addr.id}
-              className={`rounded-[16px] p-5 flex flex-col gap-2 ${
+              className={`rounded-[24px] p-5 flex flex-col gap-2 ${
                 addr.is_default
                   ? 'bg-[#ffefe6] border border-[#ff6e20]'
                   : 'bg-white border border-[#ececec]'
@@ -536,7 +536,9 @@ export function AddressBookPage() {
                     onClick={() => openEditModal(addr)}
                     title="Edit address"
                     aria-label={`Edit address for ${addr.full_name}`}
-                    className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                    className={`w-8 h-8 rounded-full hover:bg-[#ff6e20] border border-[#ffd8c2] hover:border-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                      addr.is_default ? 'bg-white' : 'bg-[#ffefe6]'
+                    }`}
                   >
                     <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                   </button>

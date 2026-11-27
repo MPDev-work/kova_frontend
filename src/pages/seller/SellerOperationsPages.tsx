@@ -18,6 +18,7 @@ import {
 import { formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
 import { validateUploadFile } from '../../utils/mediaUpload';
+import { runOptimisticMutation } from '../../utils/optimisticSync';
 import {
   DashboardPageHeader,
   FilterPillTabs,
@@ -75,7 +76,7 @@ export function SellerOrdersPage() {
   const [carrier, setCarrier] = useState('');
   const [tracking, setTracking] = useState('');
   const [notes, setNotes] = useState('');
-  const [updating, setUpdating] = useState(false);
+  const updating = false;
 
   const loadOrders = useCallback(async () => {
     try {
@@ -218,26 +219,54 @@ export function SellerOrdersPage() {
   const handleUpdateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
-    setUpdating(true);
-    try {
-      await storeOwnerApi.updateOrderStatus(selectedOrder.id, {
-        status: nextStatus,
-        shipping_carrier: carrier.trim() || undefined,
-        tracking_number: tracking.trim() || undefined,
-        notes: notes.trim() || undefined,
-      });
-      showToast(
-        `Order #${selectedOrder.order_number} updated to ${nextStatus}.`,
-      );
-      setSelectedOrder(null);
-      await loadOrders();
-    } catch (err) {
-      showToast(
+    const target = selectedOrder;
+    const payload = {
+      status: nextStatus,
+      shipping_carrier: carrier.trim() || undefined,
+      tracking_number: tracking.trim() || undefined,
+      notes: notes.trim() || undefined,
+    };
+    const prevOrders = orders;
+
+    showToast(`Order #${target.order_number} updated to ${nextStatus}.`);
+    void runOptimisticMutation({
+      label: `Update order #${target.order_number}`,
+      applyOptimistic: () => {
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === target.id
+              ? {
+                  ...o,
+                  status: nextStatus,
+                  shipping_carrier:
+                    payload.shipping_carrier ?? o.shipping_carrier,
+                  tracking_number: payload.tracking_number ?? o.tracking_number,
+                }
+              : o,
+          ),
+        );
+        setSelectedOrder(null);
+      },
+      commit: () => storeOwnerApi.updateOrderStatus(target.id, payload),
+      onSuccess: () => {
+        void loadOrders();
+      },
+      rollback: () => {
+        setOrders(prevOrders);
+      },
+      offlineRequest: {
+        path: `/store-owner/orders/${target.id}/status`,
+        method: 'PUT',
+        body: payload,
+        dedupeKey: `seller-order-status-${target.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void loadOrders();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to update order.',
-      );
-    } finally {
-      setUpdating(false);
-    }
+    });
   };
 
   const handleSendReceiptToCustomer = async (receiptImageFile: File) => {
@@ -768,7 +797,7 @@ export function SellerShippingPage() {
   const [baseCost, setBaseCost] = useState('1.50');
   const [freeThreshold, setFreeThreshold] = useState('25');
   const [estDays, setEstDays] = useState('1-2 business days');
-  const [saving, setSaving] = useState(false);
+  const saving = false;
 
   const loadData = useCallback(async () => {
     try {
@@ -821,32 +850,74 @@ export function SellerShippingPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    try {
-      const payload = {
-        name: name.trim(),
-        calculation_type: calcType,
-        base_cost: calcType === 'free' ? 0 : Number(baseCost),
-        free_shipping_threshold: freeThreshold ? Number(freeThreshold) : null,
-        estimated_delivery_days: estDays.trim() || null,
-        is_active: true,
-      };
-      if (editing) {
-        await storeOwnerApi.updateShippingMethod(editing.id, payload);
-        showToast('Shipping method updated.');
-      } else {
-        await storeOwnerApi.createShippingMethod(payload);
-        showToast('Shipping method added.');
-      }
-      setDrawerOpen(false);
-      await loadData();
-    } catch (err) {
-      showToast(
+    const editingTarget = editing;
+    const payload = {
+      name: name.trim(),
+      calculation_type: calcType,
+      base_cost: calcType === 'free' ? 0 : Number(baseCost),
+      free_shipping_threshold: freeThreshold ? Number(freeThreshold) : null,
+      estimated_delivery_days: estDays.trim() || null,
+      is_active: true,
+    };
+    const prevMethods = methods;
+    const optimisticMethod: SellerShippingMethod = {
+      id: editingTarget ? editingTarget.id : -Date.now(),
+      name: payload.name,
+      description: editingTarget?.description ?? null,
+      calculation_type: payload.calculation_type,
+      base_cost: String(payload.base_cost),
+      free_shipping_threshold:
+        payload.free_shipping_threshold !== null
+          ? String(payload.free_shipping_threshold)
+          : null,
+      estimated_delivery_days: payload.estimated_delivery_days,
+      is_active: true,
+    };
+
+    showToast(
+      editingTarget ? 'Shipping method updated.' : 'Shipping method added.',
+    );
+    void runOptimisticMutation({
+      label: editingTarget
+        ? 'Update shipping method'
+        : 'Create shipping method',
+      applyOptimistic: () => {
+        setMethods((prev) =>
+          editingTarget
+            ? prev.map((m) =>
+                m.id === editingTarget.id ? optimisticMethod : m,
+              )
+            : [optimisticMethod, ...prev],
+        );
+        setDrawerOpen(false);
+      },
+      commit: () =>
+        editingTarget
+          ? storeOwnerApi.updateShippingMethod(editingTarget.id, payload)
+          : storeOwnerApi.createShippingMethod(payload),
+      onSuccess: () => {
+        void loadData();
+      },
+      rollback: () => {
+        setMethods(prevMethods);
+      },
+      offlineRequest: {
+        path: editingTarget
+          ? `/store-owner/shipping-methods/${editingTarget.id}`
+          : '/store-owner/shipping-methods',
+        method: editingTarget ? 'PUT' : 'POST',
+        body: payload,
+        dedupeKey: editingTarget
+          ? `seller-ship-${editingTarget.id}`
+          : undefined,
+      },
+      onReconcileAfterOffline: () => {
+        void loadData();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to save shipping.',
-      );
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleDelete = (id: number) => {
@@ -989,7 +1060,7 @@ export function SellerShippingPage() {
                       onClick={() => openEditDrawer(m)}
                       title="Edit shipping method"
                       aria-label={`Edit ${m.name}`}
-                      className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                      className="w-8 h-8 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ffd8c2] hover:border-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                     >
                       <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                     </button>
@@ -1255,8 +1326,8 @@ export function SellerPromotionsPage() {
     () => getDefaultPromoWindow().start,
   );
   const [endDate, setEndDate] = useState(() => getDefaultPromoWindow().end);
-  const [saving, setSaving] = useState(false);
-  const [togglingPause, setTogglingPause] = useState(false);
+  const saving = false;
+  const togglingPause = false;
 
   const todayMinDateTime = getTodayStartDateTimeInput();
 
@@ -1357,71 +1428,135 @@ export function SellerPromotionsPage() {
       return;
     }
 
-    setSaving(true);
-    try {
-      if (editingPromo) {
-        await storeOwnerApi.updatePromotion(editingPromo.id, {
-          code: code.trim().toUpperCase(),
-          name: name.trim(),
-          discount_type: discountType,
-          discount_value: Number(discountValue),
-          min_order_amount: minOrder ? Number(minOrder) : null,
-          usage_limit: usageLimit ? Number(usageLimit) : null,
-          start_date: startObj.toISOString(),
-          end_date: endObj.toISOString(),
-        });
-        showToast('Discount voucher updated.');
-      } else {
-        await storeOwnerApi.createPromotion({
-          code: code.trim().toUpperCase(),
-          name: name.trim(),
-          discount_type: discountType,
-          discount_value: Number(discountValue),
-          min_order_amount: minOrder ? Number(minOrder) : null,
-          usage_limit: usageLimit ? Number(usageLimit) : null,
-          start_date: startObj.toISOString(),
-          end_date: endObj.toISOString(),
-          is_active: true,
-        });
-        showToast('Discount voucher created.');
-      }
-      setEditingPromo(null);
-      setCode('');
-      setName('');
-      setUsageLimit('');
-      const win = getDefaultPromoWindow();
-      setStartDate(win.start);
-      setEndDate(win.end);
-      setDrawerOpen(false);
-      await Promise.all([loadPromos(), refreshCatalog()]);
-    } catch (err) {
-      showToast(
+    const editingTarget = editingPromo;
+    const payload = {
+      code: code.trim().toUpperCase(),
+      name: name.trim(),
+      discount_type: discountType,
+      discount_value: Number(discountValue),
+      min_order_amount: minOrder ? Number(minOrder) : null,
+      usage_limit: usageLimit ? Number(usageLimit) : null,
+      start_date: startObj.toISOString(),
+      end_date: endObj.toISOString(),
+      ...(editingTarget ? {} : { is_active: true }),
+    };
+    const prevPromos = promos;
+    const optimisticPromo: SellerPromotionItem = {
+      id: editingTarget ? editingTarget.id : -Date.now(),
+      code: payload.code,
+      name: payload.name,
+      discount_type: payload.discount_type,
+      discount_value: String(payload.discount_value),
+      min_order_amount:
+        payload.min_order_amount !== null
+          ? String(payload.min_order_amount)
+          : null,
+      usage_limit: payload.usage_limit,
+      used_count: editingTarget?.used_count ?? 0,
+      start_date: payload.start_date,
+      end_date: payload.end_date,
+      is_active: editingTarget ? editingTarget.is_active : true,
+    };
+
+    showToast(
+      editingTarget
+        ? 'Discount voucher updated.'
+        : 'Discount voucher created.',
+    );
+    void runOptimisticMutation({
+      label: editingTarget ? 'Update promotion' : 'Create promotion',
+      applyOptimistic: () => {
+        setPromos((prev) =>
+          editingTarget
+            ? prev.map((pr) =>
+                pr.id === editingTarget.id ? optimisticPromo : pr,
+              )
+            : [optimisticPromo, ...prev],
+        );
+        setEditingPromo(null);
+        setCode('');
+        setName('');
+        setUsageLimit('');
+        const win = getDefaultPromoWindow();
+        setStartDate(win.start);
+        setEndDate(win.end);
+        setDrawerOpen(false);
+      },
+      commit: () =>
+        editingTarget
+          ? storeOwnerApi.updatePromotion(editingTarget.id, payload)
+          : storeOwnerApi.createPromotion({ ...payload, is_active: true }),
+      onSuccess: () => {
+        void Promise.all([loadPromos(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setPromos(prevPromos);
+      },
+      offlineRequest: {
+        path: editingTarget
+          ? `/store-owner/promotions/${editingTarget.id}`
+          : '/store-owner/promotions',
+        method: editingTarget ? 'PUT' : 'POST',
+        body: payload,
+        dedupeKey: editingTarget
+          ? `seller-promo-${editingTarget.id}`
+          : undefined,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadPromos(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError
           ? err.message
-          : editingPromo
+          : editingTarget
             ? 'Unable to update promotion.'
             : 'Unable to create promotion.',
-      );
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleToggleActive = async (pr: SellerPromotionItem) => {
-    setTogglingPause(true);
-    try {
-      const nextActive = !pr.is_active;
-      await storeOwnerApi.updatePromotion(pr.id, { is_active: nextActive });
-      setEditingPromo((prev) =>
-        prev && prev.id === pr.id ? { ...prev, is_active: nextActive } : prev,
-      );
-      showToast(pr.is_active ? 'Voucher paused.' : 'Voucher activated.');
-      await Promise.all([loadPromos(), refreshCatalog()]);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Unable to update.');
-    } finally {
-      setTogglingPause(false);
-    }
+    const nextActive = !pr.is_active;
+    const prevPromos = promos;
+    showToast(pr.is_active ? 'Voucher paused.' : 'Voucher activated.');
+    void runOptimisticMutation({
+      label: nextActive ? 'Activate voucher' : 'Pause voucher',
+      applyOptimistic: () => {
+        setPromos((prev) =>
+          prev.map((item) =>
+            item.id === pr.id ? { ...item, is_active: nextActive } : item,
+          ),
+        );
+        setEditingPromo((prev) =>
+          prev && prev.id === pr.id ? { ...prev, is_active: nextActive } : prev,
+        );
+      },
+      commit: () =>
+        storeOwnerApi.updatePromotion(pr.id, { is_active: nextActive }),
+      onSuccess: () => {
+        void Promise.all([loadPromos(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setPromos(prevPromos);
+        setEditingPromo((prev) =>
+          prev && prev.id === pr.id
+            ? { ...prev, is_active: pr.is_active }
+            : prev,
+        );
+      },
+      offlineRequest: {
+        path: `/store-owner/promotions/${pr.id}`,
+        method: 'PUT',
+        body: { is_active: nextActive },
+        dedupeKey: `seller-promo-toggle-${pr.id}`,
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadPromos(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Unable to update.',
+    });
   };
 
   const handleDelete = (id: number) => {
@@ -1628,7 +1763,7 @@ export function SellerPromotionsPage() {
                           onClick={() => openEditDrawer(pr)}
                           title="Edit promotion"
                           aria-label={`Edit ${pr.code}`}
-                          className="w-8 h-8 rounded-full bg-amber-500/15 hover:bg-amber-500 border border-amber-300 hover:border-amber-500 text-amber-600 hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                          className="w-8 h-8 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] border border-[#ffd8c2] hover:border-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                         >
                           <FigmaIcon name="edit-2" className="w-3.5 h-3.5" />
                         </button>
@@ -1924,15 +2059,36 @@ export function SellerBakongPage() {
 
   const handleToggle = async () => {
     if (!status) return;
-    try {
-      await storeOwnerApi.toggleBakong(!status.is_enabled);
-      showToast(
-        !status.is_enabled ? 'Bakong KHQR enabled.' : 'Bakong KHQR paused.',
-      );
-      await loadBakong();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Update failed.');
-    }
+    const prevStatus = status;
+    const nextEnabled = !status.is_enabled;
+    showToast(nextEnabled ? 'Bakong KHQR enabled.' : 'Bakong KHQR paused.');
+    void runOptimisticMutation({
+      label: nextEnabled ? 'Enable Bakong KHQR' : 'Pause Bakong KHQR',
+      applyOptimistic: () => {
+        setStatus((prev) =>
+          prev ? { ...prev, is_enabled: nextEnabled } : prev,
+        );
+      },
+      commit: () => storeOwnerApi.toggleBakong(nextEnabled),
+      onSuccess: () => {
+        void loadBakong();
+      },
+      rollback: () => {
+        setStatus(prevStatus);
+      },
+      offlineRequest: {
+        path: '/store-owner/bakong/toggle',
+        method: 'POST',
+        body: { is_enabled: nextEnabled },
+        dedupeKey: 'seller-bakong-toggle',
+      },
+      onReconcileAfterOffline: () => {
+        void loadBakong();
+      },
+      onToast: showToast,
+      errorToast: (err) =>
+        err instanceof ApiError ? err.message : 'Update failed.',
+    });
   };
 
   const handleDisconnect = async () => {
@@ -2626,58 +2782,88 @@ export function SellerStorefrontPage() {
     };
   }, [loadProfile]);
 
-  const [savingSection, setSavingSection] = useState<
-    'identity' | 'policies' | null
-  >(null);
+  const savingSection: 'identity' | 'policies' | null = null;
 
   const handleSaveIdentity = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavingSection('identity');
-    try {
-      const addressParts = [
-        commune.trim(),
-        district.trim(),
-        province.trim(),
-      ].filter(Boolean);
-      await storeOwnerApi.updateProfile({
-        name: name.trim(),
-        phone: phone.trim() || null,
-        email: email.trim() || null,
-        province: province.trim() || null,
-        district: district.trim() || null,
-        commune: commune.trim() || null,
-        address: addressParts.length > 0 ? addressParts.join(', ') : null,
-        google_maps_url: googleMapsUrl.trim() || null,
-        description: description.trim() || null,
-      });
-      await Promise.all([loadProfile(), refreshUser(), refreshCatalog()]);
-      showToast('Store identity & address saved.');
-    } catch (err) {
-      showToast(
+    const addressParts = [
+      commune.trim(),
+      district.trim(),
+      province.trim(),
+    ].filter(Boolean);
+    const payload = {
+      name: name.trim(),
+      phone: phone.trim() || null,
+      email: email.trim() || null,
+      province: province.trim() || null,
+      district: district.trim() || null,
+      commune: commune.trim() || null,
+      address: addressParts.length > 0 ? addressParts.join(', ') : null,
+      google_maps_url: googleMapsUrl.trim() || null,
+      description: description.trim() || null,
+    };
+    const prevProfile = profile;
+    showToast('Store identity & address saved.');
+    void runOptimisticMutation({
+      label: 'Save storefront identity',
+      applyOptimistic: () => {
+        setProfile((prev) => (prev ? { ...prev, ...payload } : prev));
+      },
+      commit: () => storeOwnerApi.updateProfile(payload),
+      onSuccess: () => {
+        void Promise.all([loadProfile(), refreshUser(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setProfile(prevProfile);
+      },
+      offlineRequest: {
+        path: '/store-owner/profile',
+        method: 'PUT',
+        body: payload,
+        dedupeKey: 'seller-profile-identity',
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadProfile(), refreshUser(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to save storefront.',
-      );
-    } finally {
-      setSavingSection(null);
-    }
+    });
   };
 
   const handleSavePolicies = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavingSection('policies');
-    try {
-      await storeOwnerApi.updateProfile({
-        announcements: announcements.trim() || null,
-        policies: policies.trim() || null,
-      });
-      await Promise.all([loadProfile(), refreshUser(), refreshCatalog()]);
-      showToast('Store announcements & policies saved.');
-    } catch (err) {
-      showToast(
+    const payload = {
+      announcements: announcements.trim() || null,
+      policies: policies.trim() || null,
+    };
+    const prevProfile = profile;
+    showToast('Store announcements & policies saved.');
+    void runOptimisticMutation({
+      label: 'Save storefront policies',
+      applyOptimistic: () => {
+        setProfile((prev) => (prev ? { ...prev, ...payload } : prev));
+      },
+      commit: () => storeOwnerApi.updateProfile(payload),
+      onSuccess: () => {
+        void Promise.all([loadProfile(), refreshUser(), refreshCatalog()]);
+      },
+      rollback: () => {
+        setProfile(prevProfile);
+      },
+      offlineRequest: {
+        path: '/store-owner/profile',
+        method: 'PUT',
+        body: payload,
+        dedupeKey: 'seller-profile-policies',
+      },
+      onReconcileAfterOffline: () => {
+        void Promise.all([loadProfile(), refreshUser(), refreshCatalog()]);
+      },
+      onToast: showToast,
+      errorToast: (err) =>
         err instanceof ApiError ? err.message : 'Unable to save policies.',
-      );
-    } finally {
-      setSavingSection(null);
-    }
+    });
   };
 
   const uploadBrandingFile = async (kind: 'logo' | 'banner', file: File) => {
