@@ -11,7 +11,6 @@ import {
 } from 'react-router-dom';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { ConfirmDeleteProvider } from './context/ConfirmDeleteContext';
-import { SyncStatusBadge } from './components/SyncStatusBadge';
 import { getUserDashboardPath } from './utils/authRedirect';
 import { Layout } from './components/Layout';
 import { CustomerSettingsLayout } from './components/CustomerSettingsLayout';
@@ -332,7 +331,6 @@ export default function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        <SyncStatusBadge />
         <GlobalToast />
         </ConfirmDeleteProvider>
       </StoreProvider>

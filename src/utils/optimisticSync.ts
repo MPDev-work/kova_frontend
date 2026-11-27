@@ -30,6 +30,94 @@ type ReconcileListener = (detail: {
 const syncListeners = new Set<SyncListener>();
 const reconcileListeners = new Set<ReconcileListener>();
 const deferredReconcilers = new Map<string, () => void>();
+let globalToastHandler: ((msg: string) => void) | null = null;
+
+export function registerSyncToastHandler(
+  handler: (msg: string) => void,
+): () => void {
+  ensureNetworkListeners();
+  globalToastHandler = handler;
+  return () => {
+    if (globalToastHandler === handler) {
+      globalToastHandler = null;
+    }
+  };
+}
+
+function toSaveSubject(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return 'changes';
+  const lower = trimmed.toLowerCase();
+  if (lower === 'add to cart') return 'cart item';
+  if (
+    lower.includes('cart') &&
+    (lower.startsWith('remove') || lower.startsWith('clear'))
+  ) {
+    return 'cart changes';
+  }
+  if (lower.includes('wishlist')) return 'wishlist';
+  if (lower.includes('notification')) return 'notification changes';
+  if (lower === 'follow store' || lower === 'unfollow store') {
+    return 'store follow';
+  }
+  if (lower === 'mark all conversations read') return 'conversation status';
+  if (lower.includes('bakong khqr')) return 'Bakong KHQR settings';
+  if (lower.startsWith('delete ') || lower.startsWith('remove ')) {
+    const rest = trimmed.replace(/^(delete|remove)\s+/i, '').trim();
+    return rest
+      ? `${rest.charAt(0).toLowerCase()}${rest.slice(1)} changes`
+      : 'changes';
+  }
+  const stripped = trimmed
+    .replace(
+      /^(save|update|create|edit|adjust|toggle|change|set|enable|pause|activate|send|upload|approve|reject|resolve)\s+/i,
+      '',
+    )
+    .trim();
+  if (!stripped) return 'changes';
+  return /^[A-Z]{2,}|^#/.test(stripped)
+    ? stripped
+    : `${stripped.charAt(0).toLowerCase()}${stripped.slice(1)}`;
+}
+
+const GENERIC_ERROR_PHRASES =
+  /^(something went wrong|we couldn't connect|please try again|request failed|unable to (save|update|create|delete|remove|send|upload|resolve|approve|reject|adjust|clear|mark))/i;
+
+export function formatUnableToSaveMessage(
+  label: string,
+  err?: unknown,
+  customMessage?: string,
+): string {
+  const base = `Unable to save ${toSaveSubject(label)}`;
+  const rawDetail =
+    customMessage?.trim() ||
+    (err instanceof ApiError
+      ? err.message
+      : toFriendlyErrorMessage(
+          err instanceof Error ? err.message : undefined,
+          0,
+        ));
+  const detail = rawDetail ? toFriendlyErrorMessage(rawDetail, 0).trim() : '';
+
+  if (/^unable to save\b/i.test(detail)) {
+    return detail;
+  }
+
+  // Include concise, specific validation/permission detail when available (4xx)
+  const isSpecificServerReason =
+    err instanceof ApiError &&
+    err.status >= 400 &&
+    err.status < 500 &&
+    detail.length > 0 &&
+    detail.length <= 120 &&
+    !GENERIC_ERROR_PHRASES.test(detail);
+
+  if (isSpecificServerReason) {
+    return `${base}: ${detail}`;
+  }
+
+  return `${base}.`;
+}
 
 let isOnlineState =
   typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -222,12 +310,9 @@ export async function flushOfflineQueue(
         } else {
           failed += 1;
           deferredReconcilers.delete(item.id);
-          if (onToast) {
-            onToast(
-              err instanceof ApiError
-                ? `${item.label}: ${err.message}`
-                : `Could not sync "${item.label}".`,
-            );
+          const notify = onToast ?? globalToastHandler;
+          if (notify) {
+            notify(formatUnableToSaveMessage(item.label, err));
           }
         }
       }
@@ -246,8 +331,9 @@ export async function flushOfflineQueue(
           // Non-blocking
         }
       });
-      if (onToast) {
-        onToast(
+      const notify = onToast ?? globalToastHandler;
+      if (notify) {
+        notify(
           synced === 1
             ? 'Synced 1 offline change.'
             : `Synced ${synced} offline changes.`,
@@ -374,8 +460,9 @@ export function runOptimisticMutation<T>(
       },
       options.onReconcileAfterOffline,
     );
-    if (options.onToast) {
-      options.onToast(
+    const notifyOffline = options.onToast ?? globalToastHandler;
+    if (notifyOffline) {
+      notifyOffline(
         options.offlineToast ||
           'Saved offline — will sync automatically when back online.',
       );
@@ -414,8 +501,9 @@ export function runOptimisticMutation<T>(
           },
           options.onReconcileAfterOffline,
         );
-        if (options.onToast) {
-          options.onToast(
+        const notifyLost = options.onToast ?? globalToastHandler;
+        if (notifyLost) {
+          notifyLost(
             options.offlineToast ||
               'Connection lost — change queued and will sync automatically.',
           );
@@ -429,18 +517,15 @@ export function runOptimisticMutation<T>(
         // Ignore rollback errors
       }
 
-      if (options.onToast) {
-        const msg = options.errorToast
+      const notify = options.onToast ?? globalToastHandler;
+      if (notify) {
+        const custom = options.errorToast
           ? typeof options.errorToast === 'function'
             ? options.errorToast(err)
             : options.errorToast
-          : err instanceof ApiError
-            ? err.message
-            : toFriendlyErrorMessage(
-                err instanceof Error ? err.message : undefined,
-                0,
-              );
-        if (msg) options.onToast(msg);
+          : undefined;
+        const msg = formatUnableToSaveMessage(options.label, err, custom);
+        if (msg) notify(msg);
       }
       return { status: 'failed' as const, error: err };
     })

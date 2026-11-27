@@ -25,6 +25,7 @@ import {
 import { DEFAULT_KHR_RATE } from '../utils/currency';
 import {
   clearOfflineQueue,
+  registerSyncToastHandler,
   runOptimisticMutation,
   subscribeSyncReconcile,
 } from '../utils/optimisticSync';
@@ -368,6 +369,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setToast((prev) => (prev === friendly ? null : prev));
     }, 3800);
   }, []);
+
+  useEffect(() => registerSyncToastHandler(showToast), [showToast]);
 
   const refreshNotifications = useCallback(
     async (silent = false) => {
