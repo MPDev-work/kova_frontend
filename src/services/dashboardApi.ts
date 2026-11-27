@@ -1558,4 +1558,31 @@ export const storeOwnerApi = {
     });
     return res.data;
   },
+
+  cleanupMedia(payload: { media_ids?: number[]; urls?: string[] }): void {
+    const mediaIds = Array.from(
+      new Set(
+        (payload.media_ids ?? []).filter(
+          (id): id is number => Number.isInteger(id) && id > 0,
+        ),
+      ),
+    );
+    const urls = Array.from(
+      new Set(
+        (payload.urls ?? [])
+          .map((u) => (typeof u === 'string' ? u.trim() : ''))
+          .filter(Boolean),
+      ),
+    );
+    if (mediaIds.length === 0 && urls.length === 0) return;
+
+    // Fire-and-forget with keepalive so canceling/closing never blocks the UI
+    void apiRequest<{ scheduled: number }>('/media/cleanup', {
+      method: 'POST',
+      body: JSON.stringify({ media_ids: mediaIds, urls }),
+      keepalive: true,
+    }).catch(() => {
+      // Background cloud cleanup is best-effort
+    });
+  },
 };

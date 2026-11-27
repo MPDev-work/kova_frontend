@@ -10,7 +10,7 @@ import {
   type AdminStoreApplication,
   type AdminStoreItem,
 } from '../../services/dashboardApi';
-import { formatRiel, formatShortDate } from '../../utils/currency';
+import { formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
 import {
   DashboardPageHeader,
@@ -65,7 +65,7 @@ function formatAdminCompactRange(startIso: string, endIso: string): string {
 // 1. Admin Platform Overview (/admin) — Figma Admin · 01
 // ==========================================
 export function AdminOverviewPage() {
-  const { khrRate, showToast, refreshCatalog } = useStore();
+  const { showToast, refreshCatalog } = useStore();
   const defaultCustom = useMemo(() => getDefaultAdminCustomRange(), []);
   const [range, setRange] = useState<OverviewRange>('30d');
   const [customStart, setCustomStart] = useState(defaultCustom.start);
@@ -232,7 +232,7 @@ export function AdminOverviewPage() {
     {
       label: 'Marketplace GMV',
       value: `$${m.total_gross_revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      sub: `${formatRiel(m.total_gross_revenue, khrRate)} · ${m.total_orders} orders`,
+      sub: `${m.total_orders} orders`,
       badge: activePeriodLabel,
       tone: 'green',
     },

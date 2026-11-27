@@ -273,7 +273,7 @@ function AvatarCropModalDialog({
             </h2>
             <p className="text-[12px] text-[#8a8a8a] mt-0.5 inline-flex items-center gap-1">
               <Move className="w-3 h-3 shrink-0" />
-              <span>Drag to reposition · 1:1 square (max 256×256)</span>
+              <span>Drag to reposition · 1:1 square</span>
             </p>
           </div>
           <button

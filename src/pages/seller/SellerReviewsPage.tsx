@@ -391,26 +391,16 @@ export function SellerReviewsPage() {
         }
         widthClass="max-w-[580px]"
         footer={
-          selectedReview && (
-            <>
-              {(selectedReview.product?.id || selectedReview.product_id) && (
-                <Link
-                  to={`/seller/products?view=${selectedReview.product?.id ?? selectedReview.product_id}`}
-                  onClick={() => setSelectedReview(null)}
-                  className="bg-[#ffefe6] hover:bg-[#ffdfcd] text-[#ff6e20] text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
-                >
-                  View product
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={() => setSelectedReview(null)}
-                className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4.5 py-2 rounded-full transition-colors"
-              >
-                Close
-              </button>
-            </>
-          )
+          selectedReview &&
+          (selectedReview.product?.id || selectedReview.product_id) ? (
+            <Link
+              to={`/seller/products?view=${selectedReview.product?.id ?? selectedReview.product_id}`}
+              onClick={() => setSelectedReview(null)}
+              className="bg-[#ffefe6] hover:bg-[#ffdfcd] text-[#ff6e20] text-[12.5px] font-semibold px-4.5 py-2 rounded-full transition-colors"
+            >
+              View product
+            </Link>
+          ) : undefined
         }
       >
         {selectedReview && (

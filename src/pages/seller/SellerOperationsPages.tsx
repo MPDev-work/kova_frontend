@@ -15,7 +15,7 @@ import {
   type SellerShippingMethod,
   type SellerStoreProfile,
 } from '../../services/dashboardApi';
-import { formatRiel, formatShortDate } from '../../utils/currency';
+import { formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
 import { validateUploadFile } from '../../utils/mediaUpload';
 import {
@@ -460,9 +460,6 @@ export function SellerOrdersPage() {
                       <p className="font-bold text-[#ff6e20]">
                         ${Number(ord.total_amount).toFixed(2)}
                       </p>
-                      <p className="text-[11px] text-[#8a8a8a]">
-                        {formatRiel(Number(ord.total_amount), khrRate)}
-                      </p>
                     </td>
                     <td className="py-3.5 px-3.5">
                       <StatusPill label={ord.payment_status} />
@@ -518,13 +515,6 @@ export function SellerOrdersPage() {
         widthClass="max-w-[640px]"
         footer={
           <>
-            <button
-              type="button"
-              onClick={closeOrderDrawer}
-              className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer"
-            >
-              Close
-            </button>
             <button
               type="button"
               onClick={() => setReceiptOpen(true)}
@@ -628,8 +618,7 @@ export function SellerOrdersPage() {
                   Customer paid total
                 </span>
                 <span className="font-bold text-[#029500]">
-                  ${Number(selectedOrder.total_amount).toFixed(2)} (
-                  {formatRiel(Number(selectedOrder.total_amount), khrRate)})
+                  ${Number(selectedOrder.total_amount).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -1097,23 +1086,14 @@ export function SellerShippingPage() {
         }
         subtitle="Set delivery cost and free-shipping threshold for Cambodia buyers."
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(false)}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="seller-shipping-form"
-              disabled={saving}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-            >
-              {saving ? 'Saving...' : editing ? 'Save method' : 'Create method'}
-            </button>
-          </>
+          <button
+            type="submit"
+            form="seller-shipping-form"
+            disabled={saving}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
+          >
+            {saving ? 'Saving...' : editing ? 'Save method' : 'Create method'}
+          </button>
         }
       >
         <form
@@ -1695,16 +1675,6 @@ export function SellerPromotionsPage() {
               </button>
             )}
             <button
-              type="button"
-              onClick={() => {
-                setDrawerOpen(false);
-                setEditingPromo(null);
-              }}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-            >
-              Cancel
-            </button>
-            <button
               type="submit"
               form="seller-promo-form"
               disabled={saving}
@@ -2269,7 +2239,7 @@ export function SellerBakongPage() {
 // 9. Finance & Payouts (/seller/payouts) — Exact Figma Seller · 20
 // ==========================================
 export function SellerPayoutsPage() {
-  const { khrRate, showToast } = useStore();
+  const { showToast } = useStore();
   const [dash, setDash] = useState<SellerDashboardData | null>(null);
   const [bakong, setBakong] = useState<SellerBakongStatus | null>(null);
   const [payouts, setPayouts] = useState<SellerPayoutItem[]>([]);
@@ -2363,7 +2333,7 @@ export function SellerPayoutsPage() {
               {
                 label: 'Available balance',
                 value: `$${dash.financials.available_balance.toFixed(2)}`,
-                sub: formatRiel(dash.financials.available_balance, khrRate),
+                sub: 'Available for withdrawal',
                 badge: 'Ready',
                 tone: 'green',
               },
@@ -2445,9 +2415,6 @@ export function SellerPayoutsPage() {
                             >
                               ${Number(po.amount).toFixed(2)}
                             </p>
-                            <p className="text-[11px] text-[#8a8a8a]">
-                              {formatRiel(Number(po.amount), khrRate)}
-                            </p>
                           </td>
                           <td className="py-3.5 px-3.5">
                             <StatusPill label={po.status} />
@@ -2517,23 +2484,14 @@ export function SellerPayoutsPage() {
         title="Request payout withdrawal"
         subtitle={`Available balance: $${avail.toFixed(2)} (min $10.00)`}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(false)}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="seller-payout-form"
-              disabled={submitting}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-            >
-              {submitting ? 'Submitting...' : 'Submit withdrawal'}
-            </button>
-          </>
+          <button
+            type="submit"
+            form="seller-payout-form"
+            disabled={submitting}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
+          >
+            {submitting ? 'Submitting...' : 'Submit withdrawal'}
+          </button>
         }
       >
         <form
@@ -3080,7 +3038,7 @@ export function SellerStorefrontPage() {
                 </div>
               )}
               <p className="text-[11px] text-[#8a8a8a]">
-                Full resolution preserved · Max 20MB · Drag &amp; drop supported
+                Max 20MB · Drag &amp; drop supported
               </p>
               <label className="inline-flex items-center justify-center bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-4 py-2 rounded-full cursor-pointer transition-colors w-full">
                 {uploading ? 'Uploading...' : 'Upload cover banner'}
@@ -3127,7 +3085,7 @@ export function SellerStorefrontPage() {
               )}
               <div className="flex flex-col gap-1.5 min-w-0">
                 <p className="text-[12.5px] font-bold text-black">
-                  Store logo (256×256)
+                  Store logo
                 </p>
                 <p className="text-[11px] text-[#8a8a8a]">
                   {draggingLogo

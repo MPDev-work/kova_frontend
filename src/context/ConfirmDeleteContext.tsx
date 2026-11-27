@@ -224,13 +224,6 @@ export function ConfirmDeleteProvider({ children }: { children: ReactNode }) {
               <div className="px-6 py-4 bg-[#fafafa] border-t border-[#ececec] flex items-center justify-end gap-2.5">
                 <button
                   type="button"
-                  onClick={() => setModalRequest(null)}
-                  className="bg-white border border-[#ececec] hover:border-[#cccccc] text-black text-[13px] font-semibold px-4.5 py-2 rounded-full transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
                   onClick={handleConfirmModal}
                   className="inline-flex items-center gap-1.5 bg-[#e5322d] hover:bg-[#c8231e] text-white text-[13px] font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer"
                 >

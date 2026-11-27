@@ -838,27 +838,18 @@ export function AdminCatalogPage() {
         }
         subtitle="Marketplace categories are available to all approved store owners."
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setCatDrawerOpen(false)}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="admin-category-form"
-              disabled={savingCat}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-            >
-              {savingCat
-                ? 'Saving...'
-                : editingCat
-                  ? 'Save changes'
-                  : 'Create category'}
-            </button>
-          </>
+          <button
+            type="submit"
+            form="admin-category-form"
+            disabled={savingCat}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
+          >
+            {savingCat
+              ? 'Saving...'
+              : editingCat
+                ? 'Save changes'
+                : 'Create category'}
+          </button>
         }
       >
         <form
@@ -1464,23 +1455,14 @@ export function AdminDisputesPage() {
             : undefined
         }
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setActiveDispute(null)}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="admin-dispute-form"
-              disabled={submitting}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-            >
-              {submitting ? 'Submitting...' : 'Submit resolution'}
-            </button>
-          </>
+          <button
+            type="submit"
+            form="admin-dispute-form"
+            disabled={submitting}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
+          >
+            {submitting ? 'Submitting...' : 'Submit resolution'}
+          </button>
         }
       >
         {activeDispute && (

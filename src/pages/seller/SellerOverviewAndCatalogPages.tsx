@@ -10,7 +10,7 @@ import {
   type SellerDashboardData,
   type SellerProductItem,
 } from '../../services/dashboardApi';
-import { formatKhr, formatRiel, formatShortDate } from '../../utils/currency';
+import { formatShortDate } from '../../utils/currency';
 import { exportRowsToCsv } from '../../utils/csv';
 import { validateUploadFile } from '../../utils/mediaUpload';
 import {
@@ -74,7 +74,7 @@ function getTimeGreeting(): string {
 // 1. Seller Overview Dashboard (/seller) — Figma Seller · 01
 // ==========================================
 export function SellerOverviewPage() {
-  const { user, khrRate, showToast } = useStore();
+  const { user, showToast } = useStore();
   const defaultCustom = useMemo(() => getDefaultCustomRange(), []);
   const [range, setRange] = useState<SellerRange>('30d');
   const [customStart, setCustomStart] = useState(defaultCustom.start);
@@ -264,7 +264,7 @@ export function SellerOverviewPage() {
     {
       label: 'Total revenue',
       value: `$${f.gross_sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      sub: `${formatRiel(f.gross_sales, khrRate)} · ${activePeriodLabel}`,
+      sub: activePeriodLabel,
       badge: 'Gross',
       tone: 'green',
     },
@@ -285,7 +285,7 @@ export function SellerOverviewPage() {
     {
       label: 'Average order value',
       value: `$${avgOrder.toFixed(2)}`,
-      sub: `${formatRiel(avgOrder, khrRate)} per order`,
+      sub: 'USD per order',
       badge: 'AOV',
       tone: 'green',
     },
@@ -542,9 +542,6 @@ export function SellerOverviewPage() {
                           <p className="font-bold text-[#ff6e20]">
                             ${Number(ord.total_amount).toFixed(2)}
                           </p>
-                          <p className="text-[11px] text-[#8a8a8a]">
-                            {formatRiel(Number(ord.total_amount), khrRate)}
-                          </p>
                         </td>
                         <td className="py-3.5 px-3.5">
                           <StatusPill label={ord.payment_status} />
@@ -689,7 +686,7 @@ type ProductFilterTab =
 
 export function SellerProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, khrRate, categories, showToast, refreshCatalog } = useStore();
+  const { user, categories, showToast, refreshCatalog } = useStore();
   const { confirmDelete } = useConfirmDelete();
 
   const [tab, setTab] = useState<ProductFilterTab>('all');
@@ -1280,10 +1277,7 @@ export function SellerProductsPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
-                      <span className="text-[#767676] truncate">
-                        {formatKhr(price, price >= 300, khrRate)}
-                      </span>
+                    <div className="flex items-center justify-end gap-1 text-[10px] sm:text-[11px]">
                       <span
                         className={`font-semibold shrink-0 ${
                           p.stock_quantity === 0 || low
@@ -1418,9 +1412,6 @@ export function SellerProductsPage() {
                       <td className="py-3.5 px-2.5 whitespace-nowrap">
                         <p className="font-bold text-[#ff6e20]">
                           ${price.toFixed(2)}
-                        </p>
-                        <p className="text-[11px] text-[#8a8a8a]">
-                          {formatRiel(price, khrRate)}
                         </p>
                       </td>
                       <td className="py-3.5 px-2.5 whitespace-nowrap">
@@ -1712,9 +1703,6 @@ export function SellerProductsPage() {
                           </span>
                         )}
                       </div>
-                      <span className="text-[12.5px] font-semibold text-[#767676]">
-                        {formatRiel(effective, khrRate)}
-                      </span>
                     </div>
 
                     {/* Key Metadata Grid */}
@@ -1925,7 +1913,7 @@ function SellerProductFormModal({
   onSaved: () => Promise<void>;
 }) {
   const isEdit = Boolean(productId);
-  const { user, categories, khrRate, showToast, refreshCatalog } = useStore();
+  const { user, categories, showToast, refreshCatalog } = useStore();
 
   const [loading, setLoading] = useState(Boolean(productId));
   const [draggingImages, setDraggingImages] = useState(false);
@@ -1953,6 +1941,45 @@ function SellerProductFormModal({
   >([]);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Track newly uploaded (unsaved) images in this modal session so canceling cleans them up in background
+  const unsavedUploadsRef = useRef<{ media_id: number; image_url: string }[]>(
+    [],
+  );
+  const savedSuccessfullyRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  const flushUnsavedUploads = useCallback(() => {
+    if (savedSuccessfullyRef.current) {
+      unsavedUploadsRef.current = [];
+      return;
+    }
+    const pending = unsavedUploadsRef.current;
+    if (pending.length === 0) return;
+    unsavedUploadsRef.current = [];
+    storeOwnerApi.cleanupMedia({
+      media_ids: pending.map((item) => item.media_id),
+      urls: pending.map((item) => item.image_url),
+    });
+  }, []);
+
+  const handleCancelClose = useCallback(() => {
+    flushUnsavedUploads();
+    onClose();
+  }, [flushUnsavedUploads, onClose]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    const handlePageHide = () => {
+      flushUnsavedUploads();
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      isMountedRef.current = false;
+      window.removeEventListener('pagehide', handlePageHide);
+      flushUnsavedUploads();
+    };
+  }, [flushUnsavedUploads]);
 
   useEffect(() => {
     if (!open || !productId) return;
@@ -2020,8 +2047,23 @@ function SellerProductFormModal({
     const filesToUpload = validFiles.slice(0, remainingSlots);
     setUploadingImg(true);
     try {
+      let uploadedCount = 0;
       for (const file of filesToUpload) {
+        if (!isMountedRef.current) break;
         const media = await storeOwnerApi.uploadProductImage(file);
+        if (!isMountedRef.current) {
+          // User canceled while upload was in flight — clean up immediately in background
+          storeOwnerApi.cleanupMedia({
+            media_ids: [media.id],
+            urls: [media.secure_url],
+          });
+          break;
+        }
+        unsavedUploadsRef.current.push({
+          media_id: media.id,
+          image_url: media.secure_url,
+        });
+        uploadedCount += 1;
         setImages((prev) => {
           const hasPrimary = prev.some((item) => item.is_primary);
           return [
@@ -2034,11 +2076,19 @@ function SellerProductFormModal({
           ];
         });
       }
-      showToast('Image uploaded successfully.');
+      if (isMountedRef.current && uploadedCount > 0) {
+        showToast('Image uploaded successfully.');
+      }
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Image upload failed.');
+      if (isMountedRef.current) {
+        showToast(
+          err instanceof ApiError ? err.message : 'Image upload failed.',
+        );
+      }
     } finally {
-      setUploadingImg(false);
+      if (isMountedRef.current) {
+        setUploadingImg(false);
+      }
     }
   };
 
@@ -2068,6 +2118,24 @@ function SellerProductFormModal({
   };
 
   const handleRemoveImage = (idx: number) => {
+    const target = images[idx];
+    if (target) {
+      const matched = unsavedUploadsRef.current.find(
+        (u) =>
+          (target.media_id && u.media_id === target.media_id) ||
+          u.image_url === target.image_url,
+      );
+      if (matched) {
+        unsavedUploadsRef.current = unsavedUploadsRef.current.filter(
+          (u) => u !== matched,
+        );
+        storeOwnerApi.cleanupMedia({
+          media_ids: [matched.media_id],
+          urls: [matched.image_url],
+        });
+      }
+    }
+
     setImages((prev) => {
       const next = prev.filter((_, i) => i !== idx);
       if (next.length > 0 && !next.some((item) => item.is_primary)) {
@@ -2134,6 +2202,8 @@ function SellerProductFormModal({
           finalStatus === 'draft' ? 'Saved as draft.' : 'Product published.',
         );
       }
+      savedSuccessfullyRef.current = true;
+      unsavedUploadsRef.current = [];
       await Promise.all([onSaved(), refreshCatalog()]);
       onClose();
     } catch (err) {
@@ -2166,7 +2236,7 @@ function SellerProductFormModal({
   return (
     <DashboardModal
       open={open}
-      onClose={onClose}
+      onClose={handleCancelClose}
       title={isEdit ? 'Edit product' : 'Add new product'}
       subtitle="Create a product listing with pricing, product media, inventory, and SEO preview."
       widthClass="max-w-[960px]"
@@ -2174,8 +2244,8 @@ function SellerProductFormModal({
         <div className="w-full flex flex-wrap items-center justify-end gap-2.5">
           <button
             type="button"
-            disabled={saving || uploadingImg}
-            onClick={onClose}
+            disabled={saving}
+            onClick={handleCancelClose}
             className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4.5 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-60"
           >
             Cancel
@@ -2342,7 +2412,7 @@ function SellerProductFormModal({
                             : 'Drag & drop or click to upload'}
                       </span>
                       <span className="text-[11px] text-[#8a8a8a]">
-                        Any browser image · Max 20MB · Auto 720p
+                        Any browser image · Max 20MB
                       </span>
                       <input
                         type="file"
@@ -2361,11 +2431,10 @@ function SellerProductFormModal({
               <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
                 <div>
                   <h2 className="text-[15.5px] font-bold text-black">
-                    Pricing &amp; KHR conversion
+                    Pricing
                   </h2>
                   <p className="text-[12px] text-[#8a8a8a] mt-0.5">
-                    Prices auto-convert to KHR at{' '}
-                    {khrRate.toLocaleString('en-US')} KHR / USD.
+                    Set regular and optional promotional prices in USD.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2383,9 +2452,6 @@ function SellerProductFormModal({
                       placeholder="0.00"
                       className="h-[42px] border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] outline-none"
                     />
-                    <span className="text-[11px] text-[#8a8a8a]">
-                      {formatRiel(parsedRegular, khrRate)}
-                    </span>
                   </label>
 
                   <label className="flex flex-col gap-1.5">
@@ -2403,7 +2469,7 @@ function SellerProductFormModal({
                     />
                     <span className="text-[11px] text-[#029500] font-medium">
                       {discountPct > 0
-                        ? `Shows -${discountPct}% discount (${formatRiel(effectivePrice, khrRate)})`
+                        ? `Shows -${discountPct}% discount ($${effectivePrice.toFixed(2)} USD)`
                         : 'Leave blank if not on sale'}
                     </span>
                   </label>

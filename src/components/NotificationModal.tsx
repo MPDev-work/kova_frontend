@@ -234,13 +234,6 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                 Clear all
               </button>
             )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-white border border-[#ececec] hover:border-black text-[12px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
-            >
-              Close
-            </button>
           </div>
         </div>
       }

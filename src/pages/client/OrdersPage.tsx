@@ -5,7 +5,7 @@ import { FigmaIcon } from '../../components/FigmaIcon';
 import { DashboardModal, StatusPill } from '../../components/DashboardPrimitives';
 import { useStore } from '../../context/StoreContext';
 import { ApiError, customerApi, orderApi } from '../../services/api';
-import { formatRiel, formatShortDate } from '../../utils/currency';
+import { formatShortDate } from '../../utils/currency';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { KhqrModal } from '../../components/KhqrModal';
 import { OrderStatusStepper } from '../../components/OrderStatusStepper';
@@ -135,23 +135,14 @@ function ProductReviewModal({
       subtitle="Share your experience to help other Kova shoppers."
       widthClass="max-w-[540px]"
       footer={
-        <>
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4.5 py-2 rounded-full transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="order-product-review-form"
-            disabled={submitting}
-            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
-          >
-            {submitting ? 'Submitting...' : 'Submit review'}
-          </button>
-        </>
+        <button
+          type="submit"
+          form="order-product-review-form"
+          disabled={submitting}
+          className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
+        >
+          {submitting ? 'Submitting...' : 'Submit review'}
+        </button>
       }
     >
       {target && (
@@ -542,9 +533,6 @@ export function MyOrdersPage() {
                     <p className="text-[14.5px] font-bold text-[#ff6e20]">
                       ${order.total_amount.toFixed(2)}
                     </p>
-                    <p className="text-[11px] text-[#767676]">
-                      {formatRiel(order.total_amount, khrRate)}
-                    </p>
                   </div>
                   <div className="flex md:justify-end gap-2">
                     {order.status === 'pending' &&
@@ -609,20 +597,22 @@ export function MyOrdersPage() {
         }
         widthClass="max-w-[820px]"
         footer={
-          selectedOrder && (
+          selectedOrder &&
+          selectedOrder.status === 'pending' &&
+          (selectedOrder.payment_status === 'pending' ||
+            (selectedOrder.payment_status !== 'paid' &&
+              selectedOrder.payment_method === 'bakong_khqr')) ? (
             <>
-              {selectedOrder.status === 'pending' &&
-                selectedOrder.payment_status === 'pending' && (
-                  <Link
-                    to={`/account/orders/${selectedOrder.id}/cancel`}
-                    onClick={closeOrderModal}
-                    className="bg-white border border-[#ececec] hover:border-[#e5322d] hover:text-[#e5322d] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
-                  >
-                    Cancel order
-                  </Link>
-                )}
-              {selectedOrder.status === 'pending' &&
-                selectedOrder.payment_status !== 'paid' &&
+              {selectedOrder.payment_status === 'pending' && (
+                <Link
+                  to={`/account/orders/${selectedOrder.id}/cancel`}
+                  onClick={closeOrderModal}
+                  className="bg-white border border-[#ececec] hover:border-[#e5322d] hover:text-[#e5322d] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors"
+                >
+                  Cancel order
+                </Link>
+              )}
+              {selectedOrder.payment_status !== 'paid' &&
                 selectedOrder.payment_method === 'bakong_khqr' && (
                   <button
                     type="button"
@@ -638,15 +628,8 @@ export function MyOrdersPage() {
                       : 'Pay with KHQR'}
                   </button>
                 )}
-              <button
-                type="button"
-                onClick={closeOrderModal}
-                className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4.5 py-2 rounded-full transition-colors"
-              >
-                Close
-              </button>
             </>
-          )
+          ) : undefined
         }
       >
         {selectedOrder && (
@@ -850,8 +833,7 @@ export function MyOrdersPage() {
                 <div className="flex justify-between items-baseline pt-2 border-t border-[#e8e8e8] font-bold text-[14px]">
                   <span>Total</span>
                   <span className="text-[#ff6e20] text-right">
-                    ${selectedOrder.total_amount.toFixed(2)} (
-                    {formatRiel(selectedOrder.total_amount, khrRate)})
+                    ${selectedOrder.total_amount.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -1283,8 +1265,7 @@ export function OrderDetailsPage() {
             <div className="flex justify-between pt-2 border-t border-[#ececec] font-bold text-[15px]">
               <span>Total</span>
               <span className="text-[#ff6e20]">
-                ${order.total_amount.toFixed(2)} (
-                {formatRiel(order.total_amount, khrRate)})
+                ${order.total_amount.toFixed(2)}
               </span>
             </div>
           </div>

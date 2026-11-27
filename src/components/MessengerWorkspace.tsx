@@ -1422,7 +1422,7 @@ export function MessengerWorkspace({
               Drop images to attach
             </p>
             <p className="text-[12px] text-[#767676]">
-              Up to 6 images · Max 20MB each · Auto 720p
+              Up to 6 images · Max 20MB each
             </p>
           </div>
         )}

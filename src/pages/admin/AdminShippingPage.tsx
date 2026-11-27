@@ -496,23 +496,14 @@ export function AdminShippingPage() {
         }
         subtitle="Configure platform-wide delivery options shown to buyers at checkout."
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(false)}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="admin-shipping-form"
-              disabled={saving}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-            >
-              {saving ? 'Saving...' : editing ? 'Save method' : 'Create method'}
-            </button>
-          </>
+          <button
+            type="submit"
+            form="admin-shipping-form"
+            disabled={saving}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
+          >
+            {saving ? 'Saving...' : editing ? 'Save method' : 'Create method'}
+          </button>
         }
       >
         <form
@@ -645,23 +636,14 @@ export function AdminShippingPage() {
             : undefined
         }
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setSelectedShipment(null)}
-              className="bg-white border border-[#ececec] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="admin-shipment-update-form"
-              disabled={savingShipment}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
-            >
-              {savingShipment ? 'Updating...' : 'Save shipment'}
-            </button>
-          </>
+          <button
+            type="submit"
+            form="admin-shipment-update-form"
+            disabled={savingShipment}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full"
+          >
+            {savingShipment ? 'Updating...' : 'Save shipment'}
+          </button>
         }
       >
         <form

@@ -10,7 +10,6 @@ import { VoucherCard } from '../../components/VoucherCard';
 import { useStore } from '../../context/StoreContext';
 import { catalogApi } from '../../services/api';
 import { storeOwnerApi } from '../../services/dashboardApi';
-import { formatKhr } from '../../utils/currency';
 import type { Product, Promotion, Store } from '../../types/marketplace';
 
 interface StorefrontPreviewModalProps {
@@ -26,7 +25,7 @@ export function StorefrontPreviewModal({
   open,
   onClose,
 }: StorefrontPreviewModalProps) {
-  const { user, khrRate, showToast } = useStore();
+  const { user, showToast } = useStore();
   const [store, setStore] = useState<Store | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [storeVouchers, setStoreVouchers] = useState<Promotion[]>([]);
@@ -124,8 +123,8 @@ export function StorefrontPreviewModal({
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            {previewProduct && (
+          {previewProduct && (
+            <div className="flex items-center gap-2">
               <Link
                 to={`/seller/products/${previewProduct.id}/edit`}
                 onClick={onClose}
@@ -133,15 +132,8 @@ export function StorefrontPreviewModal({
               >
                 Edit product
               </Link>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-5 py-2 rounded-full transition-colors"
-            >
-              Close
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       }
     >
@@ -177,13 +169,6 @@ export function StorefrontPreviewModal({
                 </span>
               )}
             </div>
-            <p className="text-[12.5px] text-[#767676]">
-              {formatKhr(
-                previewProduct.price,
-                previewProduct.price >= 300,
-                khrRate,
-              )}
-            </p>
             {previewProduct.description && (
               <p className="text-[13.5px] text-[#555555] leading-relaxed whitespace-pre-line pt-2 border-t border-[#f0f0f0]">
                 {previewProduct.description}

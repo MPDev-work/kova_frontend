@@ -323,14 +323,6 @@ function AddressFormModal({
       footer={
         <div className="w-full flex flex-wrap items-center justify-end gap-2.5">
           <button
-            type="button"
-            disabled={saving}
-            onClick={onClose}
-            className="bg-white border border-[#ececec] hover:border-black text-[13px] font-semibold text-black px-5 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-60"
-          >
-            Cancel
-          </button>
-          <button
             type="submit"
             form={formId}
             disabled={saving}
@@ -1010,7 +1002,7 @@ export function MyReviewsPage() {
         widthClass="max-w-[540px]"
         footer={
           selectedReview && (
-            <div className="w-full flex items-center justify-between gap-2">
+            <div className="w-full flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => handleDelete(selectedReview)}
@@ -1018,14 +1010,6 @@ export function MyReviewsPage() {
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete review</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedReview(null)}
-                className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-5 py-2 rounded-full transition-colors"
-              >
-                Close
               </button>
             </div>
           )
@@ -1090,23 +1074,14 @@ export function MyReviewsPage() {
         subtitle="Share your experience to help other Kova shoppers."
         widthClass="max-w-[540px]"
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setReviewTarget(null)}
-              className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4.5 py-2 rounded-full transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="my-reviews-write-form"
-              disabled={submitting}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
-            >
-              {submitting ? 'Submitting...' : 'Submit review'}
-            </button>
-          </>
+          <button
+            type="submit"
+            form="my-reviews-write-form"
+            disabled={submitting}
+            className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[12.5px] font-semibold px-5 py-2 rounded-full transition-colors"
+          >
+            {submitting ? 'Submitting...' : 'Submit review'}
+          </button>
         }
       >
         {reviewTarget && (

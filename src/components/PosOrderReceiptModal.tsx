@@ -1077,14 +1077,6 @@ export function PosOrderReceiptModal({
           <button
             type="button"
             disabled={sendingToChat}
-            onClick={onClose}
-            className="bg-white border border-[#ececec] hover:border-black text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            disabled={sendingToChat}
             onClick={() => printPosSlip(model)}
             className="inline-flex items-center gap-1.5 bg-white border border-[#ececec] hover:border-[#ff6e20] hover:text-[#ff6e20] text-[12.5px] font-semibold text-black px-4 py-2 rounded-full transition-colors cursor-pointer disabled:opacity-50"
           >

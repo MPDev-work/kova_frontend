@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
   ExternalLink,
-  Mic,
   Package,
   Pause,
   Play,
@@ -365,14 +364,10 @@ function VoiceMessagePlayer({
         </div>
 
         <div
-          className={`flex items-center justify-between text-[10.5px] font-medium tabular-nums ${
+          className={`flex items-center justify-end text-[10.5px] font-medium tabular-nums ${
             isOwn ? 'text-white/85' : 'text-[#8a8a8a]'
           }`}
         >
-          <span className="inline-flex items-center gap-1">
-            <Mic className="w-3 h-3" />
-            <span>Voice</span>
-          </span>
           <span>
             {playing || currentTime > 0
               ? `${formatAudioSeconds(currentTime)} / ${formatAudioSeconds(duration)}`
