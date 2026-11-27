@@ -1987,11 +1987,7 @@ export function AdminSettingsPage() {
                                 <label className="inline-flex items-center gap-1.5 self-start bg-white hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] hover:border-[#ff6e20]/40 text-black text-[12px] font-semibold px-3.5 py-1.5 rounded-full cursor-pointer transition-colors">
                                   <input
                                     type="file"
-                                    accept={
-                                      isLogo
-                                        ? 'image/png,image/jpeg,image/webp,image/svg+xml'
-                                        : 'image/png,image/x-icon,image/svg+xml,image/webp,.ico'
-                                    }
+                                    accept={isLogo ? 'image/*' : 'image/*,.ico'}
                                     disabled={isUploading}
                                     className="hidden"
                                     onChange={(e) => {
