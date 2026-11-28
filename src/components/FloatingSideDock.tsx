@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowUpToLine, Store } from 'lucide-react';
+import { useClientDrawer } from '../context/ClientDrawerContext';
 import { useStore } from '../context/StoreContext';
 import { FigmaIcon, ICON_STROKE_WIDTH } from './FigmaIcon';
-import { NotificationModal } from './NotificationModal';
 
 function DockTooltip({ label }: { label: string }) {
   return (
@@ -36,7 +35,13 @@ export function FloatingSideDock() {
     unreadNotificationsCount,
   } = useStore();
   const { pathname } = useLocation();
-  const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const {
+    activeDrawer,
+    openWishlist,
+    openCart,
+    openMessages,
+    openNotifications,
+  } = useClientDrawer();
 
   const unreadMessagesCount = notifications.filter(
     (n) => !n.read_at && n.type === 'message',
@@ -55,6 +60,7 @@ export function FloatingSideDock() {
   const isHomeActive = pathname === '/';
   const isMessengerActive = pathname.startsWith('/help/tickets');
   const isCartActive = pathname === '/cart' || pathname === '/checkout';
+  const isWishlistActive = pathname === '/wishlist';
   const isFollowingActive = pathname.startsWith('/account/following');
   const isProfileActive =
     (pathname.startsWith('/account') && !isFollowingActive) ||
@@ -82,11 +88,12 @@ export function FloatingSideDock() {
           </Link>
 
           {/* Wishlist */}
-          <Link
-            to="/wishlist"
+          <button
+            type="button"
+            onClick={() => openWishlist({ toggle: true })}
             aria-label="Wishlist"
             className={`${itemBase} ${
-              pathname === '/wishlist'
+              activeDrawer === 'wishlist' || pathname === '/wishlist'
                 ? 'bg-[#ffefe6] text-[#ff6e20]'
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
@@ -96,14 +103,18 @@ export function FloatingSideDock() {
               <DockBadge count={wishlistIds.length} />
             )}
             <DockTooltip label="Wishlist" />
-          </Link>
+          </button>
 
           {/* Shopping Cart */}
-          <Link
-            to="/cart"
+          <button
+            type="button"
+            onClick={() => openCart({ toggle: true })}
             aria-label="Cart"
             className={`${itemBase} ${
-              pathname === '/cart'
+              activeDrawer === 'cart' ||
+              activeDrawer === 'checkout' ||
+              pathname === '/cart' ||
+              pathname === '/checkout'
                 ? 'bg-[#ffefe6] text-[#ff6e20]'
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
@@ -111,28 +122,34 @@ export function FloatingSideDock() {
             <FigmaIcon name="shopping-cart" className="w-[20px] h-[20px]" />
             {!bootstrapping && <DockBadge count={cartCount} />}
             <DockTooltip label="Cart" />
-          </Link>
+          </button>
 
           {/* Messenger */}
-          <Link
-            to="/help/tickets"
+          <button
+            type="button"
+            onClick={() => openMessages({ toggle: true })}
             aria-label="Messenger"
-            className={`${itemBase} text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]`}
+            className={`${itemBase} ${
+              activeDrawer === 'messages' ||
+              pathname.startsWith('/help/tickets')
+                ? 'bg-[#ffefe6] text-[#ff6e20]'
+                : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
+            }`}
           >
             <FigmaIcon name="message-square" className="w-[20px] h-[20px]" />
             {!bootstrapping && isSignedIn && (
               <DockBadge count={unreadMessagesCount} />
             )}
             <DockTooltip label="Messenger" />
-          </Link>
+          </button>
 
           {/* Notifications */}
           <button
             type="button"
-            onClick={() => setNotifModalOpen(true)}
+            onClick={() => openNotifications({ toggle: true })}
             aria-label="Notifications"
             className={`${itemBase} ${
-              notifModalOpen
+              activeDrawer === 'notifications' || pathname === '/notifications'
                 ? 'bg-[#ffefe6] text-[#ff6e20]'
                 : 'text-[#222222] hover:bg-[#ffefe6] hover:text-[#ff6e20]'
             }`}
@@ -174,12 +191,12 @@ export function FloatingSideDock() {
         </button>
       </aside>
 
-      {/* Mobile App Bottom Tab Bar (Home, Messenger, Cart, Following, Profile) */}
+      {/* Mobile App Bottom Tab Bar (Home, Messenger, Cart, Wishlist, Following, Profile) */}
       <nav
         aria-label="Mobile navigation"
         className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-[12px] border-t border-[#ececec] pb-[env(safe-area-inset-bottom)] select-none"
       >
-        <div className="grid grid-cols-5 h-[60px]">
+        <div className="grid grid-cols-6 h-[60px]">
           <Link
             to="/"
             state={{ allowStorefront: true }}
@@ -189,10 +206,10 @@ export function FloatingSideDock() {
           >
             <FigmaIcon
               name={isHomeActive ? 'home-filled' : 'home'}
-              className="w-[21px] h-[21px]"
+              className="w-[20px] h-[20px]"
             />
             <span
-              className={`text-[10.5px] leading-tight ${
+              className={`text-[10px] leading-tight ${
                 isHomeActive ? 'font-bold' : 'font-medium'
               }`}
             >
@@ -211,7 +228,7 @@ export function FloatingSideDock() {
                 name={
                   isMessengerActive ? 'message-square-filled' : 'message-square'
                 }
-                className="w-[21px] h-[21px]"
+                className="w-[20px] h-[20px]"
               />
               {!bootstrapping && isSignedIn && unreadMessagesCount > 0 && (
                 <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
@@ -220,7 +237,7 @@ export function FloatingSideDock() {
               )}
             </span>
             <span
-              className={`text-[10.5px] leading-tight ${
+              className={`text-[10px] leading-tight ${
                 isMessengerActive ? 'font-bold' : 'font-medium'
               }`}
             >
@@ -237,7 +254,7 @@ export function FloatingSideDock() {
             <span className="relative inline-flex">
               <FigmaIcon
                 name={isCartActive ? 'shopping-cart-filled' : 'shopping-cart'}
-                className="w-[21px] h-[21px]"
+                className="w-[20px] h-[20px]"
               />
               {!bootstrapping && cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
@@ -246,11 +263,37 @@ export function FloatingSideDock() {
               )}
             </span>
             <span
-              className={`text-[10.5px] leading-tight ${
+              className={`text-[10px] leading-tight ${
                 isCartActive ? 'font-bold' : 'font-medium'
               }`}
             >
               Cart
+            </span>
+          </Link>
+
+          <Link
+            to="/wishlist"
+            className={`relative flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              isWishlistActive ? 'text-[#ff6e20]' : 'text-[#6e6e6e]'
+            }`}
+          >
+            <span className="relative inline-flex">
+              <FigmaIcon
+                name={isWishlistActive ? 'heart-filled' : 'heart'}
+                className="w-[20px] h-[20px]"
+              />
+              {!bootstrapping && isSignedIn && wishlistIds.length > 0 && (
+                <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff6e20] text-white text-[9.5px] leading-none font-bold flex items-center justify-center border border-white">
+                  {wishlistIds.length > 99 ? '99+' : wishlistIds.length}
+                </span>
+              )}
+            </span>
+            <span
+              className={`text-[10px] leading-tight ${
+                isWishlistActive ? 'font-bold' : 'font-medium'
+              }`}
+            >
+              Wishlist
             </span>
           </Link>
 
@@ -262,7 +305,7 @@ export function FloatingSideDock() {
           >
             <span className="relative inline-flex">
               <Store
-                className="w-[21px] h-[21px]"
+                className="w-[20px] h-[20px]"
                 strokeWidth={ICON_STROKE_WIDTH}
               />
               {!bootstrapping && isSignedIn && followedStores.length > 0 && (
@@ -272,7 +315,7 @@ export function FloatingSideDock() {
               )}
             </span>
             <span
-              className={`text-[10.5px] leading-tight ${
+              className={`text-[10px] leading-tight ${
                 isFollowingActive ? 'font-bold' : 'font-medium'
               }`}
             >
@@ -290,7 +333,7 @@ export function FloatingSideDock() {
               <img
                 src={user.avatar}
                 alt={user.name}
-                className={`w-[22px] h-[22px] rounded-full object-cover ${
+                className={`w-[21px] h-[21px] rounded-full object-cover ${
                   isProfileActive
                     ? 'ring-2 ring-[#ff6e20]'
                     : 'border border-[#dcdcdc]'
@@ -299,11 +342,11 @@ export function FloatingSideDock() {
             ) : (
               <FigmaIcon
                 name={isProfileActive ? 'user-filled' : 'user'}
-                className="w-[21px] h-[21px]"
+                className="w-[20px] h-[20px]"
               />
             )}
             <span
-              className={`text-[10.5px] leading-tight ${
+              className={`text-[10px] leading-tight ${
                 isProfileActive ? 'font-bold' : 'font-medium'
               }`}
             >
@@ -312,11 +355,6 @@ export function FloatingSideDock() {
           </Link>
         </div>
       </nav>
-
-      <NotificationModal
-        open={notifModalOpen}
-        onClose={() => setNotifModalOpen(false)}
-      />
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useClientDrawer } from '../context/ClientDrawerContext';
 import { useStore } from '../context/StoreContext';
 import { FigmaIcon, type FigmaIconName } from './FigmaIcon';
 import { KovaLogo } from './KovaLogo';
@@ -29,6 +30,7 @@ const PROMISES: { icon: FigmaIconName; title: string; desc: string }[] = [
 
 export function Footer() {
   const { settings, showToast } = useStore();
+  const { openWishlist, openMessages, openNotifications } = useClientDrawer();
   const [email, setEmail] = useState('');
 
   const socialEntries = (() => {
@@ -165,18 +167,20 @@ export function Footer() {
             >
               Track an order
             </Link>
-            <Link
-              to="/help/tickets"
-              className="text-[14px] text-[#767676] hover:text-[#ff6e20]"
+            <button
+              type="button"
+              onClick={() => openMessages()}
+              className="text-left text-[14px] text-[#767676] hover:text-[#ff6e20]"
             >
               Support tickets
-            </Link>
-            <Link
-              to="/help/contact"
-              className="text-[14px] text-[#767676] hover:text-[#ff6e20]"
+            </button>
+            <button
+              type="button"
+              onClick={() => openMessages({ target: 'support' })}
+              className="text-left text-[14px] text-[#767676] hover:text-[#ff6e20]"
             >
               Contact support
-            </Link>
+            </button>
             <Link
               to="/help#faq"
               className="text-[14px] text-[#767676] hover:text-[#ff6e20]"
@@ -200,18 +204,20 @@ export function Footer() {
             >
               Order history
             </Link>
-            <Link
-              to="/wishlist"
-              className="text-[14px] text-[#767676] hover:text-[#ff6e20]"
+            <button
+              type="button"
+              onClick={() => openWishlist()}
+              className="text-left text-[14px] text-[#767676] hover:text-[#ff6e20]"
             >
               Wishlist
-            </Link>
-            <Link
-              to="/notifications"
-              className="text-[14px] text-[#767676] hover:text-[#ff6e20]"
+            </button>
+            <button
+              type="button"
+              onClick={() => openNotifications()}
+              className="text-left text-[14px] text-[#767676] hover:text-[#ff6e20]"
             >
               Notifications
-            </Link>
+            </button>
             <Link
               to="/account/security"
               className="text-[14px] text-[#767676] hover:text-[#ff6e20]"

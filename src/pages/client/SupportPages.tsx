@@ -8,6 +8,7 @@ import {
 } from 'react-router-dom';
 import { FigmaIcon } from '../../components/FigmaIcon';
 import { MessengerWorkspace } from '../../components/MessengerWorkspace';
+import { useClientDrawer } from '../../context/ClientDrawerContext';
 import { useStore } from '../../context/StoreContext';
 
 const FAQS = [
@@ -26,6 +27,7 @@ const FAQS = [
 ];
 
 export function HelpCenterPage() {
+  const { openMessages } = useClientDrawer();
   const [search, setSearch] = useState('');
   const [openIdx, setOpenIdx] = useState<number | null>(0);
 
@@ -85,12 +87,22 @@ export function HelpCenterPage() {
               </h2>
               <p className="text-[14px] text-[#767676] mt-2">{card.desc}</p>
             </div>
-            <Link
-              to={card.to}
-              className="self-start bg-white border border-[#ececec] hover:border-[#ff6e20] text-[14px] font-semibold text-black px-5 py-2.5 transition-colors rounded-[24px]"
-            >
-              Get help
-            </Link>
+            {card.to === '/help/tickets' ? (
+              <button
+                type="button"
+                onClick={() => openMessages()}
+                className="self-start bg-white border border-[#ececec] hover:border-[#ff6e20] text-[14px] font-semibold text-black px-5 py-2.5 transition-colors rounded-[24px]"
+              >
+                Get help
+              </button>
+            ) : (
+              <Link
+                to={card.to}
+                className="self-start bg-white border border-[#ececec] hover:border-[#ff6e20] text-[14px] font-semibold text-black px-5 py-2.5 transition-colors rounded-[24px]"
+              >
+                Get help
+              </Link>
+            )}
           </div>
         ))}
       </div>
@@ -127,18 +139,20 @@ export function HelpCenterPage() {
       </div>
 
       <div className="flex flex-wrap gap-3 pt-2">
-        <Link
-          to="/help/contact"
+        <button
+          type="button"
+          onClick={() => openMessages({ target: 'support' })}
           className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[14px] font-semibold px-6 py-3 rounded-full"
         >
           Contact support
-        </Link>
-        <Link
-          to="/help/tickets"
+        </button>
+        <button
+          type="button"
+          onClick={() => openMessages()}
           className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-black text-[14px] font-semibold px-6 py-3 rounded-full"
         >
           View my messages
-        </Link>
+        </button>
       </div>
     </div>
   );

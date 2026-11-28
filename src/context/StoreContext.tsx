@@ -163,6 +163,7 @@ interface StoreContextValue {
   wishlist: Product[];
   wishlistIds: number[];
   toggleWishlist: (productId: number) => Promise<void>;
+  moveAllWishlistToCart: () => Promise<number>;
   followedStores: Store[];
   followedStoreIds: number[];
   refreshFollowing: () => Promise<void>;
@@ -1594,6 +1595,71 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const moveAllWishlistToCart = async (): Promise<number> => {
+    if (!user) {
+      showToast('Please sign in to move wishlist items to your cart.');
+      return 0;
+    }
+    if (wishlist.length === 0) return 0;
+
+    const eligible = wishlist.filter((p) => p.in_stock);
+    if (eligible.length === 0) {
+      showToast('No in-stock wishlist items to move to cart.');
+      return 0;
+    }
+
+    const movedIds: number[] = [];
+    let latestCart: CartSummary | null = null;
+
+    for (const product of eligible) {
+      const defaultVariant =
+        product.variants && product.variants.length > 0
+          ? (product.variants.find((v) => v.stock_quantity > 0) ??
+            product.variants[0])
+          : null;
+      try {
+        latestCart = await cartApi.addItem({
+          product_id: product.id,
+          variant_id: defaultVariant?.id ?? null,
+          quantity: 1,
+        });
+        movedIds.push(product.id);
+      } catch {
+        // Skip items that cannot be added so they stay safely in wishlist
+      }
+    }
+
+    if (movedIds.length === 0) {
+      showToast('Unable to move wishlist items to cart right now.');
+      return 0;
+    }
+
+    if (latestCart) {
+      setCart(latestCart);
+    } else {
+      await refreshCart();
+    }
+
+    const movedSet = new Set(movedIds);
+    setWishlist((prev) => prev.filter((p) => !movedSet.has(p.id)));
+
+    await Promise.allSettled(movedIds.map((id) => wishlistApi.toggle(id)));
+    try {
+      const freshWishlist = await wishlistApi.getWishlist();
+      setWishlist(freshWishlist);
+    } catch {
+      // Keep optimistic wishlist state on transient fetch error
+    }
+
+    const skippedCount = wishlist.length - movedIds.length;
+    showToast(
+      skippedCount > 0
+        ? `Moved ${movedIds.length} item${movedIds.length > 1 ? 's' : ''} to cart (${skippedCount} unavailable).`
+        : `Moved ${movedIds.length} item${movedIds.length > 1 ? 's' : ''} to cart.`,
+    );
+    return movedIds.length;
+  };
+
   const trackProductView = useCallback((productId: number) => {
     setRecentlyViewedIds((prev) => {
       const next = [productId, ...prev.filter((id) => id !== productId)].slice(
@@ -1937,6 +2003,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         wishlist,
         wishlistIds: wishlist.map((p) => p.id),
         toggleWishlist,
+        moveAllWishlistToCart,
         followedStores,
         followedStoreIds: followedStores.map((s) => s.id),
         refreshFollowing,

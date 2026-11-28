@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { FigmaIcon } from '../../components/FigmaIcon';
+import { useClientDrawer } from '../../context/ClientDrawerContext';
 import { useStore } from '../../context/StoreContext';
 import { useConfirmDelete } from '../../context/ConfirmDeleteContext';
 import { formatRiel } from '../../utils/currency';
@@ -46,7 +47,7 @@ function SelectionCheckbox({
 }
 
 export function CartPage() {
-  const navigate = useNavigate();
+  const { openCheckout } = useClientDrawer();
   const {
     bootstrapping,
     cart,
@@ -180,7 +181,7 @@ export function CartPage() {
       mode: 'cart_items',
       cart_item_ids: selectedIds,
     });
-    navigate('/checkout');
+    openCheckout({ mode: 'cart' });
   };
 
   if (bootstrapping) {

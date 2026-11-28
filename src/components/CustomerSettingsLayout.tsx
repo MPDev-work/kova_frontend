@@ -6,11 +6,11 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
+import { useClientDrawer } from '../context/ClientDrawerContext';
 import { useStore } from '../context/StoreContext';
 import { getUserDashboardPath } from '../utils/authRedirect';
 import { FigmaIcon, type FigmaIconName } from './FigmaIcon';
 import { KovaLogo } from './KovaLogo';
-import { NotificationModal } from './NotificationModal';
 import { CustomerSettingsSkeleton } from './Skeleton';
 import { VerifiedBadge } from './VerifiedBadge';
 
@@ -69,11 +69,17 @@ export function CustomerSettingsLayout() {
   ).length;
   const location = useLocation();
   const navigate = useNavigate();
+  const {
+    activeDrawer,
+    openWishlist,
+    openCart,
+    openMessages,
+    openNotifications,
+  } = useClientDrawer();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
-  const [notifModalOpen, setNotifModalOpen] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -447,11 +453,16 @@ export function CustomerSettingsLayout() {
               Back to shop
             </Link>
 
-            <Link
-              to="/wishlist"
+            <button
+              type="button"
+              onClick={() => openWishlist({ toggle: true })}
               title="Wishlist"
               aria-label="Wishlist"
-              className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+              className={`hidden sm:inline-flex relative p-2 rounded-full transition-colors ${
+                activeDrawer === 'wishlist'
+                  ? 'bg-[#ffefe6] text-[#ff6e20]'
+                  : 'bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676]'
+              }`}
             >
               <FigmaIcon name="heart" className="w-4 h-4" />
               {wishlistIds.length > 0 && (
@@ -459,13 +470,18 @@ export function CustomerSettingsLayout() {
                   {wishlistIds.length}
                 </span>
               )}
-            </Link>
+            </button>
 
-            <Link
-              to="/help/tickets"
+            <button
+              type="button"
+              onClick={() => openMessages({ toggle: true })}
               title="Messages"
               aria-label="Messages"
-              className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+              className={`hidden sm:inline-flex relative p-2 rounded-full transition-colors ${
+                activeDrawer === 'messages'
+                  ? 'bg-[#ffefe6] text-[#ff6e20]'
+                  : 'bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676]'
+              }`}
             >
               <FigmaIcon name="message-circle" className="w-4 h-4" />
               {unreadMessagesCount > 0 && (
@@ -473,14 +489,18 @@ export function CustomerSettingsLayout() {
                   {unreadMessagesCount}
                 </span>
               )}
-            </Link>
+            </button>
 
             <button
               type="button"
-              onClick={() => setNotifModalOpen(true)}
+              onClick={() => openNotifications({ toggle: true })}
               title="Notifications"
               aria-label="Notifications"
-              className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+              className={`hidden sm:inline-flex relative p-2 rounded-full transition-colors ${
+                activeDrawer === 'notifications'
+                  ? 'bg-[#ffefe6] text-[#ff6e20]'
+                  : 'bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676]'
+              }`}
             >
               <FigmaIcon name="bell" className="w-4 h-4" />
               {unreadNotificationsCount > 0 && (
@@ -490,11 +510,16 @@ export function CustomerSettingsLayout() {
               )}
             </button>
 
-            <Link
-              to="/cart"
+            <button
+              type="button"
+              onClick={() => openCart({ toggle: true })}
               title="Shopping Cart"
               aria-label="Shopping Cart"
-              className="hidden sm:inline-flex relative bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676] p-2 rounded-full transition-colors"
+              className={`hidden sm:inline-flex relative p-2 rounded-full transition-colors ${
+                activeDrawer === 'cart'
+                  ? 'bg-[#ffefe6] text-[#ff6e20]'
+                  : 'bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676]'
+              }`}
             >
               <FigmaIcon name="shopping-cart" className="w-4 h-4" />
               {cartCount > 0 && (
@@ -502,7 +527,7 @@ export function CustomerSettingsLayout() {
                   {cartCount}
                 </span>
               )}
-            </Link>
+            </button>
 
             <Link
               to="/help"
@@ -546,10 +571,6 @@ export function CustomerSettingsLayout() {
           <Outlet />
         </main>
       </div>
-      <NotificationModal
-        open={notifModalOpen}
-        onClose={() => setNotifModalOpen(false)}
-      />
     </div>
   );
 }

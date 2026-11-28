@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { DashboardModal } from './DashboardPrimitives';
 import { FigmaIcon } from './FigmaIcon';
+import { RightSlideModal } from './RightSlideModal';
+import { useClientDrawer } from '../context/ClientDrawerContext';
 import { useStore } from '../context/StoreContext';
 import { formatShortDate } from '../utils/currency';
 import type { UserNotificationItem } from '../types/marketplace';
@@ -94,6 +95,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
   } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const { openMessages } = useClientDrawer();
 
   const grouped = useMemo(
     () => groupNotifications(notifications),
@@ -170,7 +172,15 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
       void markNotificationRead(id);
     });
     onClose();
-    navigate(getNotificationTargetUrl(group.latest));
+    const targetUrl = getNotificationTargetUrl(group.latest);
+    if (targetUrl.startsWith('/help/tickets')) {
+      const ticketId = group.latest.data?.ticket_id
+        ? Number(group.latest.data.ticket_id)
+        : null;
+      openMessages({ chatId: ticketId });
+      return;
+    }
+    navigate(targetUrl);
   };
 
   const handleMarkGroupRead = (group: GroupedNotification) => {
@@ -183,8 +193,49 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
     void clearAllNotifications();
   };
 
+  const footer = (
+    <div className="px-3.5 py-2.5 flex flex-nowrap items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      <button
+        type="button"
+        onClick={() => {
+          onClose();
+          if (location.pathname.startsWith('/seller')) {
+            navigate('/seller/messages');
+          } else if (location.pathname.startsWith('/admin')) {
+            navigate('/admin/tickets');
+          } else {
+            openMessages();
+          }
+        }}
+        className="text-[12px] font-semibold text-[#ff6e20] hover:underline whitespace-nowrap shrink-0 cursor-pointer"
+      >
+        Open all messages
+      </button>
+      <div className="flex flex-nowrap items-center gap-1.5 shrink-0">
+        {unreadNotificationsCount > 0 && (
+          <button
+            type="button"
+            onClick={() => void markAllNotificationsRead()}
+            className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-3 py-1.5 rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            Mark all read
+          </button>
+        )}
+        {notifications.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[12px] font-semibold px-3 py-1.5 rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <DashboardModal
+    <RightSlideModal
       open={open}
       onClose={onClose}
       title="Notifications"
@@ -195,53 +246,20 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
             }`
           : 'You are all caught up'
       }
-      widthClass="max-w-[580px]"
-      footer={
-        <div className="w-full flex flex-nowrap items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              if (location.pathname.startsWith('/seller')) {
-                navigate('/seller/messages');
-              } else if (location.pathname.startsWith('/admin')) {
-                navigate('/admin/tickets');
-              } else {
-                navigate('/help/tickets');
-              }
-            }}
-            className="text-[12px] sm:text-[12.5px] font-semibold text-[#ff6e20] hover:underline whitespace-nowrap shrink-0"
-          >
-            Open all messages
-          </button>
-          <div className="flex flex-nowrap items-center gap-2 shrink-0">
-            {unreadNotificationsCount > 0 && (
-              <button
-                type="button"
-                onClick={() => void markAllNotificationsRead()}
-                className="bg-white border border-[#ececec] hover:border-[#ff6e20] text-[12px] font-semibold text-black px-3 sm:px-3.5 py-2 rounded-full transition-colors whitespace-nowrap shrink-0"
-              >
-                Mark all read
-              </button>
-            )}
-            {notifications.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[12px] font-semibold px-3 sm:px-3.5 py-2 rounded-full transition-colors whitespace-nowrap shrink-0"
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-        </div>
-      }
+      bodyClassName="p-2.5"
+      footer={footer}
+      ariaLabel="Notifications"
     >
       {!isSignedIn ? (
-        <div className="py-10 text-center flex flex-col items-center gap-3">
-          <FigmaIcon name="bell" className="w-8 h-8 text-[#979797]" />
-          <p className="text-[14.5px] font-semibold text-black">
+        <div className="bg-white border border-[#ececec] py-14 px-5 flex flex-col items-center text-center gap-2.5 rounded-[24px]">
+          <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+            <FigmaIcon name="bell" className="w-7 h-7" />
+          </span>
+          <h3 className="text-[19px] font-semibold text-black">
             Sign in to view notifications
+          </h3>
+          <p className="text-[13.5px] text-[#767676] max-w-[300px]">
+            Get real-time order updates, seller replies, and support alerts.
           </p>
           <button
             type="button"
@@ -249,26 +267,26 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
               onClose();
               navigate('/login');
             }}
-            className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13px] font-semibold px-5 py-2 rounded-full"
+            className="mt-1 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-full transition-colors cursor-pointer"
           >
             Sign in
           </button>
         </div>
       ) : grouped.length === 0 ? (
-        <div className="py-12 text-center flex flex-col items-center gap-2">
-          <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-            <FigmaIcon name="message-circle" className="w-5 h-5" />
+        <div className="bg-white border border-[#ececec] py-14 px-5 flex flex-col items-center text-center gap-2.5 rounded-[24px]">
+          <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+            <FigmaIcon name="message-circle" className="w-6 h-6" />
           </span>
-          <p className="text-[15px] font-semibold text-black">
+          <h3 className="text-[18px] font-semibold text-black">
             No notifications yet
-          </p>
-          <p className="text-[13px] text-[#767676] max-w-[340px]">
+          </h3>
+          <p className="text-[13px] text-[#767676] max-w-[300px]">
             New orders, customer messages, seller replies, and support alerts
             will appear here in real time.
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2.5">
+        <div className="bg-white border border-[#ececec] p-2.5 flex flex-col gap-2.5 rounded-[24px]">
           {grouped.map((group) => {
             const notif = group.latest;
             const isUnread = group.unreadIds.length > 0;
@@ -282,14 +300,14 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
             return (
               <div
                 key={group.key}
-                className={`rounded-[16px] p-3.5 border transition-colors flex items-start gap-3 ${
+                className={`rounded-[14px] p-3 border transition-colors flex items-start gap-3 ${
                   isUnread
                     ? 'bg-[#fff7f2] border-[#ffdfcd]'
-                    : 'bg-white border-[#ececec] hover:bg-[#fafafa]'
+                    : 'bg-[#f7f7f7] border-transparent hover:bg-[#f2f2f2]'
                 }`}
               >
                 <div className="relative shrink-0">
-                  <span className="w-10 h-10 rounded-full border border-[#ececec] bg-[#ffefe6] text-[#ff6e20] overflow-hidden flex items-center justify-center">
+                  <span className="w-10 h-10 rounded-full border border-[#ececec] bg-white text-[#ff6e20] overflow-hidden flex items-center justify-center">
                     {notif.avatar_url ? (
                       <img
                         src={notif.avatar_url}
@@ -327,7 +345,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                     </p>
                   )}
                   <div className="flex items-center justify-between gap-2 mt-2.5">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {notif.data?.order_number && !isOrder && (
                         <span className="text-[11px] font-semibold bg-white border border-[#ececec] text-[#555555] px-2.5 py-0.5 rounded-full">
                           Order #{notif.data.order_number}
@@ -339,7 +357,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                           onClick={() => handleMarkGroupRead(group)}
                           title="Mark as read"
                           aria-label="Mark as read"
-                          className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ffdfcd] text-[#555555] hover:text-[#ff6e20] text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors"
+                          className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ffdfcd] text-[#555555] hover:text-[#ff6e20] text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer"
                         >
                           <FigmaIcon name="check" className="w-3 h-3" />
                           <span>Mark read</span>
@@ -349,7 +367,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
                     <button
                       type="button"
                       onClick={() => handlePrimaryClick(group)}
-                      className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-3.5 py-1.5 rounded-full transition-colors shrink-0"
+                      className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-3.5 py-1.5 rounded-full transition-colors shrink-0 cursor-pointer"
                     >
                       {isOrder ? 'View order' : 'Reply'}
                     </button>
@@ -360,6 +378,6 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
           })}
         </div>
       )}
-    </DashboardModal>
+    </RightSlideModal>
   );
 }

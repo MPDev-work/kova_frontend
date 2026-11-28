@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { FigmaIcon } from '../../components/FigmaIcon';
+import { useClientDrawer } from '../../context/ClientDrawerContext';
 import { useStore } from '../../context/StoreContext';
 import { catalogApi, customerApi } from '../../services/api';
 import { formatKhr, formatShortDate } from '../../utils/currency';
@@ -114,7 +115,7 @@ function ProductDetailContent({
   related: Product[];
   reviews: ReviewItem[];
 }) {
-  const navigate = useNavigate();
+  const { openMessages, openCheckout } = useClientDrawer();
   const {
     addToCart,
     wishlistIds,
@@ -177,7 +178,7 @@ function ProductDetailContent({
         },
       },
     });
-    navigate('/checkout?mode=buy_now');
+    openCheckout({ mode: 'buy_now' });
   };
 
   return (
@@ -212,8 +213,8 @@ function ProductDetailContent({
 
         <div className="flex items-center gap-2">
           {product.store_id && (
-            <Link
-              to={`/help/contact?storeId=${product.store_id}&storeName=${encodeURIComponent(product.store_name)}&storeSlug=${encodeURIComponent(product.store_slug)}`}
+            <button
+              type="button"
               onClick={() => {
                 savePendingChatCard(product.store_id, {
                   kind: 'product',
@@ -224,13 +225,14 @@ function ProductDetailContent({
                   unit_price: product.price,
                   store_name: product.store_name,
                 });
+                openMessages({ storeId: product.store_id });
               }}
               title="Contact store"
               aria-label={`Contact ${product.store_name}`}
-              className="w-9 h-9 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors shrink-0"
+              className="w-9 h-9 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
             >
               <FigmaIcon name="message-circle" className="w-4 h-4" />
-            </Link>
+            </button>
           )}
           <Link
             to={`/store/${product.store_slug}`}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FigmaIcon } from '../../components/FigmaIcon';
+import { useClientDrawer } from '../../context/ClientDrawerContext';
 import { useStore } from '../../context/StoreContext';
 import { catalogApi } from '../../services/api';
 import { ProductCard } from '../../components/ProductCard';
@@ -13,6 +14,7 @@ import type { Product, Promotion, Store } from '../../types/marketplace';
 export function StorefrontPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { openMessages } = useClientDrawer();
   const {
     isSignedIn,
     followedStoreIds,
@@ -192,14 +194,15 @@ export function StorefrontPage() {
             >
               <FigmaIcon name="map" className="w-4 h-4" />
             </a>
-            <Link
-              to={`/help/contact?storeId=${store.id}&storeName=${encodeURIComponent(store.name)}&storeSlug=${encodeURIComponent(store.slug)}`}
+            <button
+              type="button"
+              onClick={() => openMessages({ storeId: store.id })}
               title="Contact store"
               aria-label={`Contact ${store.name}`}
-              className="w-9 h-9 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors shrink-0"
+              className="w-9 h-9 rounded-full bg-[#ffefe6] hover:bg-[#ff6e20] text-[#ff6e20] hover:text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
             >
               <FigmaIcon name="message-circle" className="w-4 h-4" />
-            </Link>
+            </button>
           </div>
         </div>
 

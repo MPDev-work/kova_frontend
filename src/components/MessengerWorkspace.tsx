@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCheck, Loader2 } from 'lucide-react';
+import { CheckCheck, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import {
   ChatMessageBody,
   PendingAttachmentsBar,
@@ -72,12 +72,31 @@ function getLastPreview(ticket: UnifiedTicket, mode: WorkspaceMode): string {
   return mode === 'customer' ? `You: ${initialBody}` : initialBody;
 }
 
+export interface MessengerStartRequest {
+  storeId?: number | null;
+  orderId?: number | null;
+  target?: 'support';
+  nonce: number;
+}
+
 export function MessengerWorkspace({
   mode,
   fullScreen = false,
+  drawerMode = false,
+  isMaximized = false,
+  onToggleMaximize,
+  onCloseDrawer,
+  initialChatId = null,
+  startRequest = null,
 }: {
   mode: WorkspaceMode;
   fullScreen?: boolean;
+  drawerMode?: boolean;
+  isMaximized?: boolean;
+  onToggleMaximize?: () => void;
+  onCloseDrawer?: () => void;
+  initialChatId?: number | null;
+  startRequest?: MessengerStartRequest | null;
 }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -89,9 +108,22 @@ export function MessengerWorkspace({
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [search, setSearch] = useState('');
 
-  const selectedId = Number(searchParams.get('chat')) || null;
+  const [drawerSelectedId, setDrawerSelectedId] = useState<number | null>(
+    drawerMode ? initialChatId : null,
+  );
+  const selectedId = drawerMode
+    ? drawerSelectedId
+    : Number(searchParams.get('chat')) || null;
   const [activeTicket, setActiveTicket] = useState<UnifiedTicket | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
+
+  useEffect(() => {
+    if (!drawerMode) return;
+    const t = window.setTimeout(() => {
+      setDrawerSelectedId(initialChatId ?? null);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [drawerMode, initialChatId]);
 
   const selectedIdRef = useRef<number | null>(selectedId);
   const activeTicketRef = useRef<UnifiedTicket | null>(activeTicket);
@@ -304,7 +336,11 @@ export function MessengerWorkspace({
           pendingContextCardRef.current = queuedCard;
           setPendingContextCard(queuedCard);
         }
-        setSearchParams({ chat: String(started.id) }, { replace: true });
+        if (drawerMode) {
+          setDrawerSelectedId(started.id);
+        } else {
+          setSearchParams({ chat: String(started.id) }, { replace: true });
+        }
         void fetchList(true);
         window.setTimeout(() => {
           replyTextareaRef.current?.focus();
@@ -322,25 +358,34 @@ export function MessengerWorkspace({
         }
       }
     },
-    [mode, setSearchParams, showToast, fetchList],
+    [mode, drawerMode, setSearchParams, showToast, fetchList],
   );
 
   // Auto-open or create conversation when arriving from any "Contact" button
   const shouldStartParam =
     mode === 'customer' &&
-    (searchParams.get('start') === '1' ||
-      Boolean(searchParams.get('storeId')) ||
-      searchParams.get('target') === 'support');
-  const startStoreId = Number(searchParams.get('storeId')) || null;
-  const startOrderId = Number(searchParams.get('orderId')) || null;
-  const startTarget = searchParams.get('target') || '';
+    (drawerMode
+      ? Boolean(startRequest)
+      : searchParams.get('start') === '1' ||
+        Boolean(searchParams.get('storeId')) ||
+        searchParams.get('target') === 'support');
+  const startStoreId = drawerMode
+    ? (startRequest?.storeId ?? null)
+    : Number(searchParams.get('storeId')) || null;
+  const startOrderId = drawerMode
+    ? (startRequest?.orderId ?? null)
+    : Number(searchParams.get('orderId')) || null;
+  const startTarget = drawerMode
+    ? startRequest?.target || ''
+    : searchParams.get('target') || '';
+  const startNonce = drawerMode ? (startRequest?.nonce ?? 0) : 0;
 
   useEffect(() => {
     if (!shouldStartParam) {
       handledStartKeyRef.current = null;
       return;
     }
-    const startKey = `${startStoreId ?? 'support'}:${startOrderId ?? ''}:${startTarget}`;
+    const startKey = `${startNonce}:${startStoreId ?? 'support'}:${startOrderId ?? ''}:${startTarget}`;
     const t = window.setTimeout(() => {
       if (handledStartKeyRef.current === startKey) return;
       handledStartKeyRef.current = startKey;
@@ -352,6 +397,7 @@ export function MessengerWorkspace({
     return () => window.clearTimeout(t);
   }, [
     shouldStartParam,
+    startNonce,
     startStoreId,
     startOrderId,
     startTarget,
@@ -466,6 +512,10 @@ export function MessengerWorkspace({
         setActiveTicket(null);
         setLoadingThread(false);
       }
+    }
+    if (drawerMode) {
+      setDrawerSelectedId(id);
+      return;
     }
     const next = new URLSearchParams(searchParams);
     next.delete('start');
@@ -1307,14 +1357,18 @@ export function MessengerWorkspace({
     >
       {/* LEFT PANE: Messenger-style Chats Sidebar */}
       <aside
-        className={`${
-          selectedId ? 'hidden lg:flex' : 'flex'
-        } w-full lg:w-[340px] xl:w-[360px] border-r border-[#ececec] bg-white flex-col shrink-0`}
+        className={
+          drawerMode && !isMaximized
+            ? `${selectedId ? 'hidden' : 'flex'} w-full flex-1 min-h-0 bg-white flex-col`
+            : `${
+                selectedId ? 'hidden lg:flex' : 'flex'
+              } w-full lg:w-[340px] xl:w-[360px] border-r border-[#ececec] bg-white flex-col shrink-0`
+        }
       >
         {/* Top Row: Title + Action Circles */}
         <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-1 min-w-0">
-            {mode === 'customer' && (
+            {mode === 'customer' && !drawerMode && (
               <button
                 type="button"
                 onClick={() => {
@@ -1428,6 +1482,44 @@ export function MessengerWorkspace({
                 </div>
               )}
             </div>
+
+            {drawerMode && onToggleMaximize && (
+              <button
+                type="button"
+                onClick={onToggleMaximize}
+                title={isMaximized ? 'Minimize chat' : 'Maximize chat'}
+                aria-label={isMaximized ? 'Minimize chat' : 'Maximize chat'}
+                className={`${
+                  isMaximized ? 'lg:hidden flex' : 'flex'
+                } w-9 h-9 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] items-center justify-center transition-colors cursor-pointer`}
+              >
+                {isMaximized ? (
+                  <Minimize2
+                    className="w-4 h-4"
+                    strokeWidth={ICON_STROKE_WIDTH}
+                  />
+                ) : (
+                  <Maximize2
+                    className="w-4 h-4"
+                    strokeWidth={ICON_STROKE_WIDTH}
+                  />
+                )}
+              </button>
+            )}
+
+            {drawerMode && onCloseDrawer && (
+              <button
+                type="button"
+                onClick={onCloseDrawer}
+                title="Close messages"
+                aria-label="Close messages"
+                className={`${
+                  isMaximized ? 'lg:hidden flex' : 'flex'
+                } w-9 h-9 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] items-center justify-center transition-colors cursor-pointer`}
+              >
+                <FigmaIcon name="x" className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -1685,7 +1777,13 @@ export function MessengerWorkspace({
         onDragLeave={handleChatDragLeave}
         onDrop={handleChatDrop}
         className={`${
-          selectedId ? 'flex' : 'hidden lg:flex'
+          drawerMode && !isMaximized
+            ? selectedId
+              ? 'flex'
+              : 'hidden'
+            : selectedId
+              ? 'flex'
+              : 'hidden lg:flex'
         } relative flex-1 min-w-0 flex-col bg-[#fafafa]`}
       >
         {isDraggingFiles && matchedActiveTicket && !headerTicket?.is_blocked && (
@@ -1702,7 +1800,36 @@ export function MessengerWorkspace({
           </div>
         )}
         {!selectedId ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none">
+          <div className="relative flex-1 flex flex-col items-center justify-center p-8 text-center select-none">
+            {drawerMode && isMaximized && (
+              <div className="absolute top-4 right-4 flex items-center gap-1.5">
+                {onToggleMaximize && (
+                  <button
+                    type="button"
+                    onClick={onToggleMaximize}
+                    title="Minimize chat"
+                    aria-label="Minimize chat"
+                    className="w-9 h-9 rounded-full bg-white hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-[#555555] flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <Minimize2
+                      className="w-4 h-4"
+                      strokeWidth={ICON_STROKE_WIDTH}
+                    />
+                  </button>
+                )}
+                {onCloseDrawer && (
+                  <button
+                    type="button"
+                    onClick={onCloseDrawer}
+                    title="Close messages"
+                    aria-label="Close messages"
+                    className="w-9 h-9 rounded-full bg-white hover:bg-[#ffefe6] hover:text-[#ff6e20] border border-[#ececec] text-[#555555] flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <FigmaIcon name="x" className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
             <div className="w-20 h-20 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center mb-4">
               <FigmaIcon name="message-circle" className="w-10 h-10" />
             </div>
@@ -1734,13 +1861,21 @@ export function MessengerWorkspace({
         ) : (
           <>
             {/* Active Chat Header */}
-            <div className="bg-white border-b border-[#ececec] px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
+            <div
+              className={`bg-white border-b border-[#ececec] ${
+                drawerMode && !isMaximized
+                  ? 'px-3.5 py-3'
+                  : 'px-4 sm:px-5 py-3.5'
+              } flex items-center justify-between gap-2.5 shrink-0`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
                 <button
                   type="button"
                   onClick={() => selectChat(null)}
                   aria-label="Back to chats"
-                  className="lg:hidden w-8 h-8 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-black flex items-center justify-center shrink-0"
+                  className={`${
+                    drawerMode && !isMaximized ? 'flex' : 'lg:hidden flex'
+                  } w-8 h-8 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-black items-center justify-center shrink-0 cursor-pointer transition-colors`}
                 >
                   <FigmaIcon name="arrow-left" className="w-4 h-4" />
                 </button>
@@ -1771,6 +1906,7 @@ export function MessengerWorkspace({
                     {activePeer.storeSlug ? (
                       <Link
                         to={`/store/${activePeer.storeSlug}`}
+                        onClick={drawerMode ? onCloseDrawer : undefined}
                         className="text-[15px] font-bold text-black hover:text-[#ff6e20] truncate transition-colors"
                       >
                         {activePeer.name}
@@ -1798,71 +1934,107 @@ export function MessengerWorkspace({
                 </div>
               </div>
 
-              <div ref={chatMenuRef} className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setChatMenuOpen((prev) => !prev)}
-                  title="Conversation options"
-                  aria-label="Conversation options"
-                  aria-expanded={chatMenuOpen}
-                  aria-haspopup="menu"
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                    chatMenuOpen
-                      ? 'bg-[#ffefe6] text-[#ff6e20]'
-                      : 'bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555]'
-                  }`}
-                >
-                  <FigmaIcon name="more-horizontal" className="w-4 h-4" />
-                </button>
-
-                {chatMenuOpen && (
-                  <div
-                    role="menu"
-                    className="absolute right-0 mt-2 w-[180px] bg-white border border-[#ececec] rounded-[14px] shadow-[0_12px_32px_rgba(0,0,0,0.12)] py-1.5 z-30"
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div ref={chatMenuRef} className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setChatMenuOpen((prev) => !prev)}
+                    title="Conversation options"
+                    aria-label="Conversation options"
+                    aria-expanded={chatMenuOpen}
+                    aria-haspopup="menu"
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                      chatMenuOpen
+                        ? 'bg-[#ffefe6] text-[#ff6e20]'
+                        : 'bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555]'
+                    }`}
                   >
-                    {(!headerTicket.is_blocked ||
-                      headerTicket.blocked_by_me ||
-                      mode === 'admin') && (
+                    <FigmaIcon name="more-horizontal" className="w-4 h-4" />
+                  </button>
+
+                  {chatMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 mt-2 w-[180px] bg-white border border-[#ececec] rounded-[14px] shadow-[0_12px_32px_rgba(0,0,0,0.12)] py-1.5 z-30"
+                    >
+                      {(!headerTicket.is_blocked ||
+                        headerTicket.blocked_by_me ||
+                        mode === 'admin') && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={bulkBusy}
+                          onClick={() => {
+                            setChatMenuOpen(false);
+                            void runBulkAction(
+                              headerTicket.is_blocked ? 'unblock' : 'block',
+                              [headerTicket.id],
+                            );
+                          }}
+                          className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-black hover:bg-[#f7f7f7] flex items-center gap-2.5 transition-colors disabled:opacity-50"
+                        >
+                          <FigmaIcon
+                            name="slash"
+                            className="w-4 h-4 text-[#767676] shrink-0"
+                          />
+                          <span>
+                            {headerTicket.is_blocked ? 'Unblock' : 'Block'}
+                          </span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         role="menuitem"
                         disabled={bulkBusy}
                         onClick={() => {
                           setChatMenuOpen(false);
-                          void runBulkAction(
-                            headerTicket.is_blocked ? 'unblock' : 'block',
+                          requestDeleteConversations(
                             [headerTicket.id],
+                            activePeer?.name || headerTicket.subject,
                           );
                         }}
-                        className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-black hover:bg-[#f7f7f7] flex items-center gap-2.5 transition-colors disabled:opacity-50"
+                        className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-[#d93025] hover:bg-[#fff0f0] flex items-center gap-2.5 transition-colors disabled:opacity-50"
                       >
-                        <FigmaIcon
-                          name="slash"
-                          className="w-4 h-4 text-[#767676] shrink-0"
-                        />
-                        <span>
-                          {headerTicket.is_blocked ? 'Unblock' : 'Block'}
-                        </span>
+                        <FigmaIcon name="trash" className="w-4 h-4 shrink-0" />
+                        <span>Delete</span>
                       </button>
-                    )}
+                    </div>
+                  )}
+                </div>
 
-                    <button
-                      type="button"
-                      role="menuitem"
-                      disabled={bulkBusy}
-                      onClick={() => {
-                        setChatMenuOpen(false);
-                        requestDeleteConversations(
-                          [headerTicket.id],
-                          activePeer?.name || headerTicket.subject,
-                        );
-                      }}
-                      className="w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-[#d93025] hover:bg-[#fff0f0] flex items-center gap-2.5 transition-colors disabled:opacity-50"
-                    >
-                      <FigmaIcon name="trash" className="w-4 h-4 shrink-0" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
+                {drawerMode && onToggleMaximize && (
+                  <button
+                    type="button"
+                    onClick={onToggleMaximize}
+                    title={isMaximized ? 'Minimize chat' : 'Maximize chat'}
+                    aria-label={isMaximized ? 'Minimize chat' : 'Maximize chat'}
+                    className="w-9 h-9 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    {isMaximized ? (
+                      <Minimize2
+                        className="w-4 h-4"
+                        strokeWidth={ICON_STROKE_WIDTH}
+                      />
+                    ) : (
+                      <Maximize2
+                        className="w-4 h-4"
+                        strokeWidth={ICON_STROKE_WIDTH}
+                      />
+                    )}
+                  </button>
+                )}
+
+                {drawerMode && onCloseDrawer && (
+                  <button
+                    type="button"
+                    onClick={onCloseDrawer}
+                    title="Close messages"
+                    aria-label="Close messages"
+                    className="w-9 h-9 rounded-full bg-[#f4f4f4] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#555555] flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <FigmaIcon name="x" className="w-4 h-4" />
+                  </button>
                 )}
               </div>
             </div>
@@ -1877,7 +2049,9 @@ export function MessengerWorkspace({
                 <div
                   ref={messagesContainerRef}
                   onScroll={handleMessagesScroll}
-                  className="flex-1 overflow-y-auto px-5 py-5 flex flex-col"
+                  className={`flex-1 overflow-y-auto overscroll-contain ${
+                    drawerMode ? 'px-3.5 py-4' : 'px-5 py-5'
+                  } flex flex-col`}
                 >
                   {/* Empty new conversation welcome header */}
                   {!matchedActiveTicket.message?.trim() &&

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { FigmaIcon } from './FigmaIcon';
 import { ApiError, checkoutApi } from '../services/api';
@@ -352,9 +353,9 @@ export function KhqrModal({
   const payableOrders = storeOrders.filter((o) => Boolean(o.khqr?.khqr_payload));
   const isVisible = open && payableOrders.length > 0;
   useBodyScrollLock(isVisible);
-  if (!isVisible) return null;
+  if (!isVisible || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <KhqrModalContent
       key={payableOrders
         .map((o) => `${o.khqr?.bill_number ?? ''}-${o.khqr?.expires_at ?? ''}`)
@@ -365,7 +366,8 @@ export function KhqrModal({
       onTimeout={onTimeout}
       onAllPaid={onAllPaid}
       allowBackdropClose={allowBackdropClose}
-    />
+    />,
+    document.body,
   );
 }
 
@@ -766,7 +768,10 @@ function KhqrModalContent({
     const fromInfo = parseBakongAccountDisplay(paidReceipt?.fromAccountId);
 
     return (
-      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[4px] overflow-y-auto flex flex-col px-3.5 sm:px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div
+        data-khqr-modal="true"
+        className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-[4px] overflow-y-auto flex flex-col px-3.5 sm:px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+      >
         <div className="relative w-full max-w-[364px] sm:max-w-[392px] mx-auto my-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.32)]">
           {/* Main White Bakong Slip Card */}
           <div className="bg-white rounded-t-[22px] sm:rounded-t-[24px] overflow-hidden">
@@ -933,7 +938,8 @@ function KhqrModalContent({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[4px] overflow-y-auto flex flex-col px-3.5 sm:px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+      data-khqr-modal="true"
+      className="fixed inset-0 z-[70] bg-black/55 backdrop-blur-[4px] overflow-y-auto flex flex-col px-3.5 sm:px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
       onClick={() => {
         if (allowBackdropClose && !cancelling) {
           onClose();

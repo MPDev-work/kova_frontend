@@ -720,3 +720,94 @@ export function DashboardTableSkeleton({ rows = 5 }: { rows?: number }) {
     </div>
   );
 }
+
+export function CartDrawerSkeleton() {
+  return (
+    <div aria-hidden="true" className="flex flex-col gap-3">
+      {Array.from({ length: 2 }).map((_, cardIdx) => (
+        <div
+          key={cardIdx}
+          className="bg-white border border-[#ececec] p-2.5 flex flex-col gap-3 rounded-[24px]"
+        >
+          <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#ececec]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Skeleton className="w-[22px] h-[22px] rounded-full shrink-0" />
+              <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+              <Skeleton className="h-4 w-28 rounded-full" />
+            </div>
+            <Skeleton className="h-3.5 w-16 rounded-full shrink-0" />
+          </div>
+          {Array.from({ length: 2 }).map((_, rowIdx) => (
+            <div
+              key={rowIdx}
+              className="flex items-start gap-2.5 pb-3 border-b border-[#ececec] last:border-b-0 last:pb-0"
+            >
+              <div className="flex items-center gap-2 shrink-0">
+                <Skeleton className="w-[22px] h-[22px] rounded-full shrink-0" />
+                <Skeleton className="w-[80px] h-[80px] rounded-[14px] shrink-0" />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col gap-2">
+                <Skeleton className="h-3.5 w-[90%] rounded-full" />
+                <Skeleton className="h-3 w-24 rounded-full" />
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <Skeleton className="h-4 w-16 rounded-full" />
+                  <Skeleton className="h-7 w-20 rounded-full" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function CheckoutDrawerSkeleton() {
+  return (
+    <div aria-hidden="true" className="flex flex-col gap-3">
+      {/* Order summary skeleton */}
+      <div className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-3 rounded-[24px]">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-32 rounded-full" />
+          <Skeleton className="h-3.5 w-14 rounded-full" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-3.5 w-[85%] rounded-full" />
+          <Skeleton className="h-3.5 w-[72%] rounded-full" />
+        </div>
+        <div className="border-t border-[#ececec] pt-3 flex flex-col gap-2">
+          <div className="flex justify-between">
+            <Skeleton className="h-3.5 w-20 rounded-full" />
+            <Skeleton className="h-3.5 w-16 rounded-full" />
+          </div>
+          <div className="flex justify-between">
+            <Skeleton className="h-3.5 w-28 rounded-full" />
+            <Skeleton className="h-3.5 w-14 rounded-full" />
+          </div>
+          <div className="flex justify-between pt-1">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+        </div>
+      </div>
+
+      {/* Coupon skeleton */}
+      <div className="bg-white border border-[#ececec] p-3.5 flex flex-col gap-2.5 rounded-[24px]">
+        <Skeleton className="h-5 w-28 rounded-full" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-[42px] flex-1 rounded-full" />
+          <Skeleton className="h-[42px] w-20 rounded-full shrink-0" />
+        </div>
+      </div>
+
+      {/* Address skeleton */}
+      <div className="bg-white border border-[#ececec] p-3 flex flex-col gap-2.5 rounded-[24px]">
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-5 w-32 rounded-full" />
+          <Skeleton className="h-8 w-28 rounded-full" />
+        </div>
+        <Skeleton className="h-20 w-full rounded-[14px]" />
+      </div>
+    </div>
+  );
+}

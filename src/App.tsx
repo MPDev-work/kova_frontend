@@ -11,6 +11,7 @@ import {
 } from 'react-router-dom';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { ConfirmDeleteProvider } from './context/ConfirmDeleteContext';
+import { ClientDrawerProvider } from './context/ClientDrawerContext';
 import { getUserDashboardPath } from './utils/authRedirect';
 import { Layout } from './components/Layout';
 import { CustomerSettingsLayout } from './components/CustomerSettingsLayout';
@@ -165,7 +166,7 @@ function GlobalToast() {
       key={toast}
       role="status"
       aria-live="polite"
-      className="kova-toast-in fixed bottom-[68px] md:bottom-6 right-3 md:right-6 z-50 max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-2rem)] bg-[#ff6e20] text-white pl-1.5 pr-3.5 py-1.5 sm:pl-2.5 sm:pr-5 sm:py-2.5 rounded-full border border-white/15 text-[12px] sm:text-[13.5px] font-medium flex items-center gap-1.5 sm:gap-2.5"
+      className="kova-toast-in fixed bottom-[68px] md:bottom-6 right-3 md:right-6 z-[80] max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-2rem)] bg-[#ff6e20] text-white pl-1.5 pr-3.5 py-1.5 sm:pl-2.5 sm:pr-5 sm:py-2.5 rounded-full border border-white/15 text-[12px] sm:text-[13.5px] font-medium flex items-center gap-1.5 sm:gap-2.5"
     >
       <span className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
         <FigmaIcon
@@ -183,8 +184,9 @@ export default function App() {
     <BrowserRouter>
       <StoreProvider>
         <ConfirmDeleteProvider>
-          <RoleNavigationGate />
-          <Routes>
+          <ClientDrawerProvider>
+            <RoleNavigationGate />
+            <Routes>
           {/* Storefront Shell */}
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
@@ -332,6 +334,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <GlobalToast />
+          </ClientDrawerProvider>
         </ConfirmDeleteProvider>
       </StoreProvider>
     </BrowserRouter>

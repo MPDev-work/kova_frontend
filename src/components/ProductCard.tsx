@@ -8,13 +8,17 @@ import type { Product } from '../types/marketplace';
 interface ProductCardProps {
   product: Product;
   previewOnly?: boolean;
+  compact?: boolean;
   onPreviewClick?: (product: Product) => void;
+  onNavigate?: () => void;
 }
 
 export function ProductCard({
   product,
   previewOnly = false,
+  compact = false,
   onPreviewClick,
+  onNavigate,
 }: ProductCardProps) {
   const { wishlistIds, toggleWishlist, khrRate } = useStore();
   const isSaved = wishlistIds.includes(product.id);
@@ -22,12 +26,12 @@ export function ProductCard({
   return (
     <div
       onClick={previewOnly ? () => onPreviewClick?.(product) : undefined}
-      className={`group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-md transition-all rounded-[24px] p-2.5 flex flex-col gap-2.5 overflow-hidden ${
+      className={`group bg-white border border-[#ececec] hover:border-[#ff6e20]/60 hover:shadow-md transition-all rounded-[24px] flex flex-col gap-2.5 overflow-hidden ${
         previewOnly ? 'cursor-pointer' : ''
       }`}
     >
       {/* Photo Box */}
-      <div className="relative aspect-[276/260] w-full overflow-hidden bg-[#f7f7f7] rounded-[14px]">
+      <div className="relative aspect-square w-full overflow-hidden bg-[#f7f7f7] rounded-b-[24px]">
         {previewOnly ? (
           <div className="block w-full h-full">
             {product.image ? (
@@ -43,7 +47,11 @@ export function ProductCard({
             )}
           </div>
         ) : (
-          <Link to={`/product/${product.slug}`} className="block w-full h-full">
+          <Link
+            to={`/product/${product.slug}`}
+            onClick={onNavigate}
+            className="block w-full h-full"
+          >
             {product.image ? (
               <img
                 src={product.image}
@@ -104,7 +112,7 @@ export function ProductCard({
 
       {/* Info */}
       {previewOnly ? (
-        <div className="px-0.5 flex flex-col gap-[5px] flex-1">
+        <div className="px-2.5 pb-2.5 flex flex-col gap-[5px] flex-1">
           <p className="text-[14px] font-medium leading-[1.35] text-black line-clamp-2 min-h-[38px] group-hover:text-[#ff6e20] transition-colors">
             {product.name}
           </p>
@@ -142,9 +150,16 @@ export function ProductCard({
       ) : (
         <Link
           to={`/product/${product.slug}`}
-          className="px-0.5 flex flex-col gap-[5px] flex-1"
+          onClick={onNavigate}
+          className="px-2.5 pb-2.5 flex flex-col gap-[5px] flex-1"
         >
-          <p className="text-[14px] font-medium leading-[1.35] text-black line-clamp-2 min-h-[38px] group-hover:text-[#ff6e20] transition-colors">
+          <p
+            className={`${
+              compact
+                ? 'text-[12.5px] min-h-[34px]'
+                : 'text-[14px] min-h-[38px]'
+            } font-medium leading-[1.35] text-black line-clamp-2 group-hover:text-[#ff6e20] transition-colors`}
+          >
             {product.name}
           </p>
 
@@ -161,7 +176,11 @@ export function ProductCard({
           </div>
 
           <div className="flex items-baseline gap-1.5 mt-auto pt-0.5">
-            <span className="text-[21px] font-bold leading-[1.2] text-[#ff6e20]">
+            <span
+              className={`${
+                compact ? 'text-[16px]' : 'text-[21px]'
+              } font-bold leading-[1.2] text-[#ff6e20]`}
+            >
               ${product.price.toFixed(2)}
             </span>
             <span className="text-[11px] font-semibold text-[#ff6e20]">

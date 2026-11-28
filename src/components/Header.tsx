@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useClientDrawer } from '../context/ClientDrawerContext';
 import { useStore } from '../context/StoreContext';
 import { getAuthToken } from '../services/api';
 import { FigmaIcon } from './FigmaIcon';
@@ -9,6 +10,7 @@ import { VerifiedBadge } from './VerifiedBadge';
 
 export function Header() {
   const { bootstrapping, isSignedIn, user, products, signOut } = useStore();
+  const { openWishlist, openMessages, openNotifications } = useClientDrawer();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
@@ -240,22 +242,45 @@ export function Header() {
                     {[
                       { label: 'Account settings', to: '/account/profile' },
                       { label: 'Order history', to: '/account/orders' },
-                      { label: 'Messages', to: '/help/tickets' },
-                      { label: 'Wishlist', to: '/wishlist' },
-                      { label: 'Notifications', to: '/notifications' },
+                      {
+                        label: 'Messages',
+                        action: () => openMessages(),
+                      },
+                      {
+                        label: 'Wishlist',
+                        action: () => openWishlist(),
+                      },
+                      {
+                        label: 'Notifications',
+                        action: () => openNotifications(),
+                      },
                       { label: 'Address book', to: '/account/addresses' },
                       { label: 'Account security', to: '/account/security' },
                       { label: 'Help center', to: '/help' },
-                    ].map((item) => (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        onClick={() => setShowProfileMenu(false)}
-                        className="w-full px-3.5 py-2.5 rounded-[14px] bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[13.5px] text-black transition-colors"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
+                    ].map((item) =>
+                      'action' in item && item.action ? (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            item.action();
+                          }}
+                          className="w-full px-3.5 py-2.5 rounded-[14px] bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-left text-[13.5px] text-black transition-colors"
+                        >
+                          {item.label}
+                        </button>
+                      ) : (
+                        <Link
+                          key={item.to}
+                          to={item.to!}
+                          onClick={() => setShowProfileMenu(false)}
+                          className="w-full px-3.5 py-2.5 rounded-[14px] bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[13.5px] text-black transition-colors"
+                        >
+                          {item.label}
+                        </Link>
+                      ),
+                    )}
                     <button
                       type="button"
                       onClick={() => {
