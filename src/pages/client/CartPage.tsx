@@ -30,10 +30,10 @@ function SelectionCheckbox({
       aria-checked={indeterminate ? 'mixed' : checked}
       aria-label={label}
       onClick={onChange}
-      className={`w-5 h-5 rounded-[6px] border flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+      className={`w-[22px] h-[22px] rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
         checked || indeterminate
           ? 'bg-[#ff6e20] border-[#ff6e20] text-white'
-          : 'bg-white border-[#d1d1d6] hover:border-[#ff6e20] text-transparent'
+          : 'bg-white border-[#c7c7cc] hover:border-[#ff6e20] text-transparent'
       }`}
     >
       {indeterminate ? (
@@ -54,7 +54,6 @@ export function CartPage() {
     stores,
     updateCartQty,
     removeFromCart,
-    removeMultipleFromCart,
     appliedCoupon,
     applyCoupon,
     removeCoupon,
@@ -69,7 +68,6 @@ export function CartPage() {
     message: string;
   } | null>(null);
   const [applying, setApplying] = useState(false);
-  const [deletingSelected, setDeletingSelected] = useState(false);
 
   // Track explicitly unchecked cart item IDs so all items default to selected
   // and removed/added items stay synchronized automatically without effects.
@@ -118,6 +116,19 @@ export function CartPage() {
   );
 
   const total = Math.max(0, selectedSubtotal - selectedCouponDiscount);
+  const allSelected =
+    allItemIds.length > 0 && selectedIds.length === allItemIds.length;
+  const someSelected =
+    selectedIds.length > 0 && selectedIds.length < allItemIds.length;
+  const [totalDollars, totalCents] = total.toFixed(2).split('.');
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setDeselectedIds(allItemIds);
+    } else {
+      setDeselectedIds([]);
+    }
+  };
 
   const toggleSelectStore = (storeItemIds: number[]) => {
     const storeAllSelected =
@@ -144,37 +155,6 @@ export function CartPage() {
         next.add(itemId);
       }
       return Array.from(next);
-    });
-  };
-
-  const handleDeleteSelected = () => {
-    if (selectedIds.length === 0 || deletingSelected) return;
-    const idsToDelete = [...selectedIds];
-    const count = idsToDelete.length;
-    confirmDelete({
-      title: `Remove ${count} selected item${count === 1 ? '' : 's'}?`,
-      description: `The selected item${count === 1 ? '' : 's'} will be removed from your shopping cart.`,
-      itemLabel: `${count} cart item${count === 1 ? '' : 's'}`,
-      confirmLabel: 'Remove',
-      onOptimisticRemove: () => {
-        setHiddenCartItemIds((prev) =>
-          Array.from(new Set([...prev, ...idsToDelete])),
-        );
-      },
-      onUndo: () => {
-        const idSet = new Set(idsToDelete);
-        setHiddenCartItemIds((prev) => prev.filter((id) => !idSet.has(id)));
-      },
-      onCommit: async () => {
-        setDeletingSelected(true);
-        try {
-          await removeMultipleFromCart(idsToDelete);
-          const idSet = new Set(idsToDelete);
-          setHiddenCartItemIds((prev) => prev.filter((id) => !idSet.has(id)));
-        } finally {
-          setDeletingSelected(false);
-        }
-      },
     });
   };
 
@@ -272,42 +252,24 @@ export function CartPage() {
   }
 
   return (
-    <div className="kova-container px-4 lg:px-6 pt-5 pb-10 flex flex-col gap-[18px]">
+    <div className="kova-container px-2.5 sm:px-4 lg:px-6 pt-4 sm:pt-5 pb-28 md:pb-10 flex flex-col gap-3.5 sm:gap-[18px]">
       <p className="text-[12px] text-[#767676]">
         Home &nbsp;/&nbsp; Shopping cart
       </p>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-[32px] sm:text-[36px] font-semibold text-black leading-[1.2]">
-            Your cart
-          </h1>
-          <p className="text-[15px] text-[#767676]">
-            {cart.total_items} item{cart.total_items > 1 ? 's' : ''} from{' '}
-            {cart.stores.length} store{cart.stores.length > 1 ? 's' : ''}.
-            Select by store or item to check out or remove.
-          </p>
-        </div>
-
-        {selectedIds.length > 0 && (
-          <button
-            type="button"
-            disabled={deletingSelected}
-            onClick={() => void handleDeleteSelected()}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-[#ececec] text-[13px] font-semibold text-[#e5322d] hover:bg-[#fdecec] hover:border-[#e5322d]/30 disabled:opacity-50 transition-colors cursor-pointer"
-          >
-            <FigmaIcon name="trash" className="w-3.5 h-3.5" />
-            <span>
-              {deletingSelected
-                ? 'Deleting...'
-                : `Delete selected (${selectedIds.length})`}
-            </span>
-          </button>
-        )}
+      <div className="flex flex-col gap-0.5 sm:gap-1">
+        <h1 className="text-[24px] sm:text-[34px] font-semibold text-black leading-[1.2]">
+          Your cart
+        </h1>
+        <p className="text-[13px] sm:text-[15px] text-[#767676]">
+          {cart.total_items} item{cart.total_items > 1 ? 's' : ''} from{' '}
+          {cart.stores.length} store{cart.stores.length > 1 ? 's' : ''}.
+          Select by store or item to check out.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_440px] gap-8 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_440px] gap-6 sm:gap-8 items-start">
         {/* Left: Items Grouped by Store */}
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3.5 sm:gap-5">
           {visibleCartStores.map((group) => {
             const storeMeta = stores.find((s) => s.id === group.store.id);
             const isVerified = Boolean(storeMeta?.is_verified);
@@ -334,9 +296,9 @@ export function CartPage() {
                 key={group.store.id}
                 className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 rounded-[24px]"
               >
-                {/* Store Header with Checkbox + Store Image + Blue Verified Badge + View store */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#ececec]">
-                  <div className="flex items-center gap-3 min-w-0">
+                {/* Store Header with Circular Checkbox + Store Image + Blue Verified Badge + Visit store */}
+                <div className="flex items-center justify-between gap-2 pb-3 sm:pb-4 border-b border-[#ececec]">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     <SelectionCheckbox
                       checked={storeAllSelected}
                       indeterminate={storeSomeSelected}
@@ -345,9 +307,9 @@ export function CartPage() {
                     />
                     <Link
                       to={`/store/${group.store.slug}`}
-                      className="flex items-center gap-3 group min-w-0"
+                      className="flex items-center gap-2 sm:gap-3 group min-w-0"
                     >
-                      <span className="w-10 h-10 rounded-full border border-[#ececec] bg-white overflow-hidden shrink-0 flex items-center justify-center">
+                      <span className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-[#ececec] bg-white overflow-hidden shrink-0 flex items-center justify-center">
                         {group.store.logo ? (
                           <img
                             src={group.store.logo}
@@ -357,13 +319,13 @@ export function CartPage() {
                         ) : (
                           <FigmaIcon
                             name="home"
-                            className="w-5 h-5 text-[#ff6e20]"
+                            className="w-4 h-4 sm:w-5 sm:h-5 text-[#ff6e20]"
                           />
                         )}
                       </span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[16.5px] font-semibold text-black group-hover:text-[#ff6e20] transition-colors truncate">
+                          <span className="text-[14.5px] sm:text-[16.5px] font-semibold text-black group-hover:text-[#ff6e20] transition-colors truncate">
                             {group.store.name}
                           </span>
                           {isVerified && (
@@ -375,24 +337,24 @@ export function CartPage() {
                   </div>
                   <Link
                     to={`/store/${group.store.slug}`}
-                    className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#ff6e20] hover:underline shrink-0"
+                    className="inline-flex items-center gap-1 text-[12px] sm:text-[13px] font-semibold text-[#ff6e20] hover:underline shrink-0 whitespace-nowrap"
                   >
                     <span>Visit store</span>
                     <FigmaIcon name="arrow-up-right" className="w-3.5 h-3.5" />
                   </Link>
                 </div>
 
-                <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-3.5 sm:gap-5">
                   {group.items.map((item) => {
                     const isChecked = selectedSet.has(item.id);
                     return (
                       <div
                         key={item.id}
-                        className={`flex flex-col sm:flex-row gap-4 sm:gap-5 items-start pb-5 border-b border-[#ececec] last:border-b-0 last:pb-0 transition-opacity ${
+                        className={`flex items-start gap-2.5 sm:gap-4 pb-3.5 sm:pb-5 border-b border-[#ececec] last:border-b-0 last:pb-0 transition-opacity ${
                           isChecked ? 'opacity-100' : 'opacity-65'
                         }`}
                       >
-                        <div className="flex items-center gap-3.5 shrink-0">
+                        <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
                           <SelectionCheckbox
                             checked={isChecked}
                             onChange={() => toggleSelectItem(item.id)}
@@ -400,7 +362,7 @@ export function CartPage() {
                           />
                           <Link
                             to={`/product/${item.product_slug}`}
-                            className="w-[100px] h-[100px] sm:w-[116px] sm:h-[116px] overflow-hidden shrink-0 border border-[#ececec] bg-[#f7f7f7] flex items-center justify-center rounded-[14px]"
+                            className="w-[84px] h-[84px] sm:w-[116px] sm:h-[116px] overflow-hidden shrink-0 border border-[#ececec] bg-[#f7f7f7] flex items-center justify-center rounded-[14px]"
                           >
                             {item.product_image ? (
                               <img
@@ -411,20 +373,36 @@ export function CartPage() {
                             ) : (
                               <FigmaIcon
                                 name="package"
-                                className="w-8 h-8 text-[#979797]"
+                                className="w-7 h-7 sm:w-8 sm:h-8 text-[#979797]"
                               />
                             )}
                           </Link>
                         </div>
 
-                        <div className="flex-1 flex flex-col gap-1 min-w-0">
-                          <Link
-                            to={`/product/${item.product_slug}`}
-                            className="text-[16.5px] font-medium text-black hover:text-[#ff6e20] leading-[1.4]"
-                          >
-                            {item.product_name}
-                          </Link>
-                          <div className="flex items-center gap-1.5 text-[12px] text-[#767676]">
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <Link
+                              to={`/product/${item.product_slug}`}
+                              className="text-[13.5px] sm:text-[16.5px] font-medium text-black hover:text-[#ff6e20] leading-[1.35] line-clamp-2 min-w-0"
+                            >
+                              {item.product_name}
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRemoveSingleItem(
+                                  item.id,
+                                  item.product_name,
+                                )
+                              }
+                              aria-label={`Remove ${item.product_name}`}
+                              className="sm:hidden shrink-0 p-1 -mr-1 -mt-0.5 text-[#979797] hover:text-[#e5322d] transition-colors cursor-pointer"
+                            >
+                              <FigmaIcon name="trash" className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="hidden sm:flex items-center gap-1.5 text-[12px] text-[#767676]">
                             {group.store.logo && (
                               <img
                                 src={group.store.logo}
@@ -435,71 +413,76 @@ export function CartPage() {
                             <span>{group.store.name}</span>
                             {isVerified && <VerifiedBadge size="xs" />}
                           </div>
+
                           {item.variant_name && (
-                            <p className="text-[13px] text-[#767676]">
+                            <p className="text-[11.5px] sm:text-[13px] text-[#767676] truncate">
                               Variant: {item.variant_name}
                             </p>
                           )}
+
                           {item.free_shipping && (
-                            <p className="text-[12px] font-medium text-[#029500]">
+                            <p className="text-[11.5px] sm:text-[12px] font-medium text-[#029500]">
                               Free delivery
                             </p>
                           )}
-                          <div className="flex items-center gap-6 text-[12.5px] pt-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleRemoveSingleItem(
-                                  item.id,
-                                  item.product_name,
-                                )
-                              }
-                              className="text-[#e5322d] hover:underline font-medium"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
 
-                        <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4">
-                          <div className="bg-white border border-[#ececec] px-3.5 py-1.5 flex items-center gap-2.5 sm:gap-3 text-[14px] font-semibold text-black rounded-full">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void updateCartQty(item.id, item.quantity - 1)
-                              }
-                              className="hover:text-[#ff6e20]"
-                            >
-                              −
-                            </button>
-                            <span className="tabular-nums w-4 text-center">
-                              {item.quantity}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void updateCartQty(item.id, item.quantity + 1)
-                              }
-                              className="hover:text-[#ff6e20]"
-                            >
-                              +
-                            </button>
+                          <div className="mt-1 sm:mt-1.5 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-4 min-w-0">
+                              <p className="text-[15.5px] sm:text-[18px] font-bold sm:font-semibold text-[#ff6e20] tabular-nums">
+                                ${item.subtotal.toFixed(2)}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRemoveSingleItem(
+                                    item.id,
+                                    item.product_name,
+                                  )
+                                }
+                                className="hidden sm:inline text-[12.5px] text-[#e5322d] hover:underline font-medium cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            </div>
+
+                            <div className="bg-white border border-[#ececec] px-2.5 sm:px-3.5 py-1 sm:py-1.5 flex items-center gap-2 sm:gap-3 text-[13px] sm:text-[14px] font-semibold text-black rounded-full shrink-0">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void updateCartQty(item.id, item.quantity - 1)
+                                }
+                                aria-label="Decrease quantity"
+                                className="w-5 h-5 flex items-center justify-center hover:text-[#ff6e20] cursor-pointer"
+                              >
+                                −
+                              </button>
+                              <span className="tabular-nums min-w-[16px] text-center">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void updateCartQty(item.id, item.quantity + 1)
+                                }
+                                aria-label="Increase quantity"
+                                className="w-5 h-5 flex items-center justify-center hover:text-[#ff6e20] cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
-                          <p className="text-[18px] font-semibold text-[#ff6e20]">
-                            ${item.subtotal.toFixed(2)}
-                          </p>
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                <div className="pt-4 border-t border-[#ececec] flex items-center justify-between text-[14px]">
+                <div className="pt-3 sm:pt-4 border-t border-[#ececec] flex items-center justify-between text-[13px] sm:text-[14px]">
                   <span className="text-[#767676]">
                     Selected store subtotal ({selectedStoreCount}/
                     {group.items.length})
                   </span>
-                  <span className="font-semibold text-black">
+                  <span className="font-semibold text-black tabular-nums">
                     ${selectedStoreSubtotal.toFixed(2)}
                   </span>
                 </div>
@@ -508,8 +491,8 @@ export function CartPage() {
           })}
         </div>
 
-        {/* Right: Order Summary */}
-        <aside className="bg-white border border-[#ececec] p-2.5 sm:p-3 sm:p-7 flex flex-col gap-3 sticky top-[120px] rounded-[24px]">
+        {/* Right: Order Summary (Desktop & Tablet only — mobile uses docked bottom bar) */}
+        <aside className="hidden md:flex bg-white border border-[#ececec] p-2.5 sm:p-3 sm:p-7 flex-col gap-3 sticky top-[120px] rounded-[24px]">
           <h2 className="text-[24px] font-semibold text-black">
             Order summary
           </h2>
@@ -656,6 +639,57 @@ export function CartPage() {
               : `Proceed to checkout (${selectedTotalQty})`}
           </button>
         </aside>
+      </div>
+
+      {/* Mobile Sticky Cart Checkout Bar (docked flush above mobile bottom tab bar) */}
+      <div
+        aria-label="Cart checkout bar"
+        className="md:hidden fixed inset-x-0 bottom-[calc(60px+env(safe-area-inset-bottom))] z-40 bg-white/95 backdrop-blur-[12px] border-t border-[#ececec] rounded-t-[16px] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-3 py-2 flex items-center justify-between gap-3"
+      >
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={someSelected ? 'mixed' : allSelected}
+          aria-label="Select all cart items"
+          onClick={toggleSelectAll}
+          className="inline-flex items-center gap-2 shrink-0 py-1 cursor-pointer select-none"
+        >
+          <span
+            className={`w-[22px] h-[22px] rounded-full border-[1.5px] flex items-center justify-center transition-colors ${
+              allSelected || someSelected
+                ? 'bg-[#ff6e20] border-[#ff6e20] text-white'
+                : 'bg-white border-[#c7c7cc] text-transparent'
+            }`}
+          >
+            {someSelected ? (
+              <FigmaIcon name="minus" className="w-3.5 h-3.5" />
+            ) : (
+              <FigmaIcon name="check" className="w-3.5 h-3.5" />
+            )}
+          </span>
+          <span className="text-[14px] font-medium text-[#1c1c1e]">All</span>
+        </button>
+
+        <div className="flex items-center justify-end gap-3 flex-1 min-w-0">
+          <div className="flex items-baseline text-black tabular-nums leading-none shrink-0">
+            <span className="text-[13px] font-bold mr-0.5">$</span>
+            <span className="text-[20px] font-bold tracking-[-0.02em]">
+              {totalDollars}
+            </span>
+            <span className="text-[13.5px] font-bold">.{totalCents}</span>
+          </div>
+
+          <button
+            type="button"
+            disabled={selectedIds.length === 0}
+            onClick={handleProceedToCheckout}
+            className="w-[44%] min-w-[132px] max-w-[190px] shrink-0 bg-[#ff6e20] hover:bg-[#e85d12] active:bg-[#d9530c] disabled:opacity-45 disabled:cursor-not-allowed text-white min-h-[44px] py-2.5 px-4 rounded-full text-[14.5px] font-semibold whitespace-nowrap transition-colors cursor-pointer"
+          >
+            {selectedTotalQty > 0
+              ? `Checkout (${selectedTotalQty})`
+              : 'Checkout'}
+          </button>
+        </div>
       </div>
     </div>
   );

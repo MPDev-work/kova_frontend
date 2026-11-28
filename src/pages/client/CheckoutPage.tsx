@@ -102,7 +102,13 @@ export function CheckoutPage() {
       selectedCartItemIds: undefined,
       isBuyNow: false,
     };
-  }, [buyNowItem, storedSelection, cart.stores, cart.total_items, cart.total_amount]);
+  }, [
+    buyNowItem,
+    storedSelection,
+    cart.stores,
+    cart.total_items,
+    cart.total_amount,
+  ]);
 
   const checkoutStoreIdsKey = checkoutStores.map((g) => g.store.id).join(',');
 
@@ -471,7 +477,7 @@ export function CheckoutPage() {
   }
 
   return (
-    <div className="kova-container px-4 lg:px-6 pt-5 pb-12 flex flex-col gap-5">
+    <div className="kova-container px-4 lg:px-6 pt-5 pb-28 md:pb-12 flex flex-col gap-5">
       <p className="text-[12px] text-[#767676]">
         {isBuyNow && buyNowItem ? (
           <>
@@ -754,7 +760,10 @@ export function CheckoutPage() {
                       className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#ff6e20] hover:underline shrink-0"
                     >
                       <span>Visit store</span>
-                      <FigmaIcon name="arrow-up-right" className="w-3.5 h-3.5" />
+                      <FigmaIcon
+                        name="arrow-up-right"
+                        className="w-3.5 h-3.5"
+                      />
                     </Link>
                   </div>
 
@@ -1032,8 +1041,8 @@ export function CheckoutPage() {
                       return (
                         <p className="text-[11.5px] text-[#ff6e20]">
                           Add ${remain.toFixed(2)} more from{' '}
-                          {appliedCoupon.store?.name || 'this store'} to activate
-                          voucher.
+                          {appliedCoupon.store?.name || 'this store'} to
+                          activate voucher.
                         </p>
                       );
                     })()}
@@ -1100,12 +1109,14 @@ export function CheckoutPage() {
             </div> */}
           </div>
 
-          <div className="sticky bottom-5 z-20 bg-white/95 backdrop-blur-md border border-[#ececec] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.08)] flex flex-col gap-2.5 rounded-[24px]">
+          <div
+            className={`${isBuyNow ? 'hidden' : ''} md:sticky md:bottom-5 z-20 bg-white/95 backdrop-blur-md border border-[#ececec] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.08)] flex flex-col gap-2.5 rounded-[24px]`}
+          >
             <button
               type="button"
               disabled={submitting}
               onClick={() => void handlePurchase()}
-              className="w-full bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[14.5px] font-semibold py-3.5 px-5 rounded-full transition-colors cursor-pointer"
+              className="hidden md:block w-full bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[14.5px] font-semibold py-3.5 px-5 rounded-full transition-colors cursor-pointer"
             >
               {submitting
                 ? 'Creating order...'
@@ -1119,11 +1130,125 @@ export function CheckoutPage() {
               }
               className="w-full text-center bg-white border border-[#ececec] hover:border-black text-black text-[14px] font-semibold py-3 px-5 rounded-full transition-colors"
             >
-              {isBuyNow ? 'Back to product' : 'Return to cart'}
+              Return to cart
             </Link>
           </div>
         </aside>
       </div>
+
+      {/* Mobile Sticky Checkout Bar (docked flush above mobile bottom tab bar) */}
+      {!khqrOpen &&
+        (isBuyNow && buyNowItem
+          ? (() => {
+              const isBuyNowStoreVerified = Boolean(
+                stores.find((s) => s.id === buyNowItem.store.id)?.is_verified ??
+                buyNowItem.store.is_verified,
+              );
+              return (
+                <div
+                  aria-label="Instant buy checkout bar"
+                  className="md:hidden fixed inset-x-0 bottom-[calc(60px+env(safe-area-inset-bottom))] z-40 bg-white/95 backdrop-blur-[12px] rounded-t-[16px] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2.5 py-2.5 flex items-center justify-between gap-2.5"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-11 h-11 rounded-[8px] bg-[#f7f7f7] overflow-hidden shrink-0 flex items-center justify-center">
+                      {buyNowItem.product_image ? (
+                        <img
+                          src={buyNowItem.product_image}
+                          alt={buyNowItem.product_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FigmaIcon
+                          name="package"
+                          className="w-5 h-5 text-[#979797]"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+                      <p className="text-[13px] font-semibold text-black leading-snug truncate">
+                        {buyNowItem.product_name}
+                      </p>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="w-4 h-4 rounded-full border border-[#ececec] bg-white overflow-hidden shrink-0 flex items-center justify-center">
+                          {buyNowItem.store.logo ? (
+                            <img
+                              src={buyNowItem.store.logo}
+                              alt={buyNowItem.store.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <FigmaIcon
+                              name="home"
+                              className="w-2.5 h-2.5 text-[#ff6e20]"
+                            />
+                          )}
+                        </span>
+                        <span className="text-[11.5px] font-medium text-[#767676] truncate">
+                          {buyNowItem.store.name}
+                        </span>
+                        {isBuyNowStoreVerified && (
+                          <VerifiedBadge size="xs" label="Verified store" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => void handlePurchase()}
+                    className="w-[38%] min-w-[132px] max-w-[220px] shrink-0 bg-[#ff6e20] hover:bg-[#e85d12] active:bg-[#d9530c] disabled:opacity-60 text-white px-4 min-h-[44px] py-1.5 rounded-full flex flex-col items-center justify-center leading-tight whitespace-nowrap transition-colors cursor-pointer"
+                  >
+                    {submitting ? (
+                      <span className="text-[12.5px] font-semibold">
+                        Ordering...
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-[11.5px] font-semibold leading-tight">
+                          Buy Now - ${total.toFixed(2)}
+                        </span>
+                        {/* <span className="text-[13px] font-bold leading-tight tabular-nums"></span> */}
+                      </>
+                    )}
+                  </button>
+                </div>
+              );
+            })()
+          : (() => {
+              const [totalDollars, totalCents] = total.toFixed(2).split('.');
+              return (
+                <div
+                  aria-label="Checkout purchase bar"
+                  className="md:hidden fixed inset-x-0 bottom-[calc(60px+env(safe-area-inset-bottom))] z-40 bg-white/95 backdrop-blur-[12px] border-t border-[#ececec] rounded-t-[16px] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-3 py-2 flex items-center justify-between gap-3"
+                >
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11.5px] font-medium text-[#767676] leading-tight">
+                      Total ({checkoutTotalItems} item
+                      {checkoutTotalItems === 1 ? '' : 's'})
+                    </span>
+                    <div className="mt-0.5 flex items-baseline text-black tabular-nums leading-none">
+                      <span className="text-[13px] font-bold mr-0.5">$</span>
+                      <span className="text-[20px] font-bold tracking-[-0.02em]">
+                        {totalDollars}
+                      </span>
+                      <span className="text-[13.5px] font-bold">
+                        .{totalCents}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => void handlePurchase()}
+                    className="w-[44%] min-w-[136px] max-w-[190px] shrink-0 bg-[#ff6e20] hover:bg-[#e85d12] active:bg-[#d9530c] disabled:opacity-60 text-white min-h-[44px] py-2.5 px-4 rounded-full text-[14.5px] font-semibold whitespace-nowrap transition-colors cursor-pointer"
+                  >
+                    {submitting ? 'Creating...' : 'Checkout'}
+                  </button>
+                </div>
+              );
+            })())}
 
       {/* Real Bakong KHQR Modal */}
       <KhqrModal

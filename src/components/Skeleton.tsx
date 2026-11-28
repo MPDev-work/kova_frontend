@@ -366,24 +366,25 @@ export function CartSkeleton() {
                 </div>
                 <Skeleton className="h-4 w-16 sm:w-20 rounded-full shrink-0" />
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <Skeleton className="w-18 h-18 sm:w-20 sm:h-20 rounded-[14px] shrink-0" />
-                  <div className="flex-1 flex flex-col gap-2 min-w-0">
-                    <Skeleton className="h-4 w-[80%] rounded-full" />
-                    <Skeleton className="h-3.5 w-24 max-w-full rounded-full" />
-                    <Skeleton className="h-5 w-20 max-w-full rounded-full" />
-                  </div>
+              <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <Skeleton className="w-[22px] h-[22px] rounded-full shrink-0" />
+                  <Skeleton className="w-[84px] h-[84px] sm:w-24 sm:h-24 rounded-[14px] shrink-0" />
                 </div>
-                <div className="flex items-center justify-end sm:justify-start shrink-0">
-                  <Skeleton className="h-9 w-24 rounded-full" />
+                <div className="flex-1 flex flex-col gap-2 min-w-0">
+                  <Skeleton className="h-4 w-[85%] rounded-full" />
+                  <Skeleton className="h-3.5 w-24 max-w-full rounded-full" />
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-8 w-24 rounded-full shrink-0" />
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px] min-w-0">
+        <div className="hidden md:flex bg-white border border-[#ececec] p-2.5 sm:p-3 flex-col gap-2.5 sm:gap-3 rounded-[24px] min-w-0">
           <Skeleton className="h-6 w-36 max-w-full rounded-full" />
           <Skeleton className="h-10 w-full rounded-full" />
           <div className="flex flex-col gap-2 pt-1">

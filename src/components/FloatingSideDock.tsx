@@ -177,7 +177,7 @@ export function FloatingSideDock() {
       {/* Mobile App Bottom Tab Bar (Home, Messenger, Cart, Following, Profile) */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-[12px] border-t border-[#ececec] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom)] select-none"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-[12px] border-t border-[#ececec] pb-[env(safe-area-inset-bottom)] select-none"
       >
         <div className="grid grid-cols-5 h-[60px]">
           <Link
