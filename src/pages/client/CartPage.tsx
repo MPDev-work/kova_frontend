@@ -55,19 +55,11 @@ export function CartPage() {
     updateCartQty,
     removeFromCart,
     appliedCoupon,
-    applyCoupon,
     removeCoupon,
     showToast,
   } = useStore();
   const { confirmDelete } = useConfirmDelete();
   const [hiddenCartItemIds, setHiddenCartItemIds] = useState<number[]>([]);
-
-  const [couponInput, setCouponInput] = useState(appliedCoupon?.code || '');
-  const [couponFeedback, setCouponFeedback] = useState<{
-    ok: boolean;
-    message: string;
-  } | null>(null);
-  const [applying, setApplying] = useState(false);
 
   // Track explicitly unchecked cart item IDs so all items default to selected
   // and removed/added items stay synchronized automatically without effects.
@@ -189,27 +181,6 @@ export function CartPage() {
       cart_item_ids: selectedIds,
     });
     navigate('/checkout');
-  };
-
-  const handleApplyCoupon = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!couponInput.trim()) return;
-    setApplying(true);
-    const storeSubtotals: Record<number, number> = {};
-    selectedStores.forEach((g) => {
-      storeSubtotals[g.store.id] = g.store_subtotal;
-    });
-    const res = await applyCoupon(
-      couponInput.trim(),
-      selectedStores.length > 0
-        ? {
-            totalAmount: selectedSubtotal,
-            storeSubtotals,
-          }
-        : undefined,
-    );
-    setCouponFeedback(res);
-    setApplying(false);
   };
 
   if (bootstrapping) {
@@ -523,11 +494,8 @@ export function CartPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => {
-                        removeCoupon();
-                        setCouponFeedback(null);
-                      }}
-                      className="text-[11px] text-[#e5322d] hover:underline"
+                      onClick={() => removeCoupon()}
+                      className="text-[11px] text-[#e5322d] hover:underline cursor-pointer"
                     >
                       Remove
                     </button>
@@ -585,36 +553,6 @@ export function CartPage() {
               </div>
             )}
           </div>
-
-          <form
-            onSubmit={handleApplyCoupon}
-            className="flex items-center justify-between h-[48px] bg-white border border-[#ececec] rounded-full pl-4 pr-1"
-          >
-            <input
-              type="text"
-              value={couponInput}
-              onChange={(e) => setCouponInput(e.target.value)}
-              placeholder="Enter promotion code"
-              className="flex-1 bg-transparent text-[14px] text-black outline-none min-w-0"
-            />
-            <button
-              type="submit"
-              disabled={applying || selectedIds.length === 0}
-              className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[14px] font-semibold h-[40px] px-5 rounded-full transition-colors shrink-0"
-            >
-              {applying ? '...' : 'Apply'}
-            </button>
-          </form>
-
-          {couponFeedback && (
-            <p
-              className={`text-[12px] -mt-2 ${
-                couponFeedback.ok ? 'text-[#029500]' : 'text-[#e5322d]'
-              }`}
-            >
-              {couponFeedback.message}
-            </p>
-          )}
 
           <div className="border-t border-[#ececec] pt-4 flex flex-col gap-1">
             <div className="flex items-center justify-between text-[16px]">

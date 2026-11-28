@@ -386,7 +386,6 @@ export function CartSkeleton() {
 
         <div className="hidden md:flex bg-white border border-[#ececec] p-2.5 sm:p-3 flex-col gap-2.5 sm:gap-3 rounded-[24px] min-w-0">
           <Skeleton className="h-6 w-36 max-w-full rounded-full" />
-          <Skeleton className="h-10 w-full rounded-full" />
           <div className="flex flex-col gap-2 pt-1">
             <div className="flex justify-between gap-2">
               <Skeleton className="h-4 w-24 rounded-full" />

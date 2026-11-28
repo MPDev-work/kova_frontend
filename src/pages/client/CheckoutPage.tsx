@@ -536,9 +536,9 @@ export function CheckoutPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-8 items-stretch">
+      <div className="flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_420px] gap-6 xl:gap-8 items-stretch">
         {/* Left: Shipping Address + Delivery Selection on the SAME page */}
-        <div className="flex flex-col gap-6">
+        <div className="order-2 md:order-1 flex flex-col gap-6">
           {/* 1. Shipping Address */}
           <section className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-2.5 sm:gap-3 rounded-[24px]">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -909,161 +909,186 @@ export function CheckoutPage() {
           </section>
         </div>
 
-        {/* Right: Order Summary + Fixed-Bottom Action Component (sticky bottom-5) */}
-        <aside className="flex flex-col justify-between gap-4">
-          <div className="bg-white border border-[#ececec] p-2.5 sm:p-3 flex flex-col gap-3 top-[116px] rounded-[24px]">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[20px] font-semibold text-black">
-                Order summary
-              </h2>
-              <span className="text-[12px] font-medium text-[#767676]">
-                {checkoutTotalItems} item{checkoutTotalItems > 1 ? 's' : ''}
-              </span>
-            </div>
+        {/* Right: Apply Coupon + Order Summary + Fixed-Bottom Action Component (moves to top on mobile via flex order) */}
+        <aside className="order-1 md:order-2 flex flex-col justify-between gap-4">
+          <div className="flex flex-col gap-4">
+            <div className="bg-white border border-[#ececec] p-3.5 sm:p-4 flex flex-col gap-3 rounded-[24px]">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[20px] font-semibold text-black">
+                  Order summary
+                </h2>
+                <span className="text-[12px] font-medium text-[#767676]">
+                  {checkoutTotalItems} item{checkoutTotalItems > 1 ? 's' : ''}
+                </span>
+              </div>
 
-            <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto pr-1">
-              {checkoutStores.map((group) => {
-                const storeMeta = stores.find((s) => s.id === group.store.id);
-                const isStoreVerified = Boolean(
-                  storeMeta?.is_verified ?? buyNowItem?.store.is_verified,
-                );
-                return (
-                  <div key={group.store.id} className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {group.store.logo && (
-                          <img
-                            src={group.store.logo}
-                            alt={group.store.name}
-                            className="w-4 h-4 rounded-full object-cover border border-[#ececec] shrink-0"
+              <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto pr-1">
+                {checkoutStores.map((group) => {
+                  const storeMeta = stores.find((s) => s.id === group.store.id);
+                  const isStoreVerified = Boolean(
+                    storeMeta?.is_verified ?? buyNowItem?.store.is_verified,
+                  );
+                  return (
+                    <div key={group.store.id} className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {group.store.logo && (
+                            <img
+                              src={group.store.logo}
+                              alt={group.store.name}
+                              className="w-4 h-4 rounded-full object-cover border border-[#ececec] shrink-0"
+                            />
+                          )}
+                          <span className="text-[12px] font-semibold text-black truncate">
+                            {group.store.name}
+                          </span>
+                          {isStoreVerified && <VerifiedBadge size="xs" />}
+                        </div>
+                        <Link
+                          to={`/store/${group.store.slug}`}
+                          className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#ff6e20] hover:underline shrink-0"
+                        >
+                          <span>Visit store</span>
+                          <FigmaIcon
+                            name="arrow-up-right"
+                            className="w-3 h-3"
                           />
-                        )}
-                        <span className="text-[12px] font-semibold text-black truncate">
-                          {group.store.name}
-                        </span>
-                        {isStoreVerified && <VerifiedBadge size="xs" />}
+                        </Link>
                       </div>
-                      <Link
-                        to={`/store/${group.store.slug}`}
-                        className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#ff6e20] hover:underline shrink-0"
-                      >
-                        <span>Visit store</span>
-                        <FigmaIcon name="arrow-up-right" className="w-3 h-3" />
-                      </Link>
+                      {group.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-2 text-[12.5px] pl-5"
+                        >
+                          <span className="text-[#767676] truncate">
+                            {item.quantity} × {item.product_name}
+                          </span>
+                          <span className="font-medium text-black shrink-0">
+                            ${item.subtotal.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                    {group.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between gap-2 text-[12.5px] pl-5"
-                      >
-                        <span className="text-[#767676] truncate">
-                          {item.quantity} × {item.product_name}
-                        </span>
-                        <span className="font-medium text-black shrink-0">
-                          ${item.subtotal.toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
 
-            <div className="border-t border-[#ececec] pt-4 flex flex-col gap-2.5 text-[14px]">
-              <div className="flex justify-between">
-                <span className="text-[#767676]">Subtotal</span>
-                <span className="font-medium text-black">
-                  ${subtotal.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#767676]">Estimated delivery</span>
-                <span className="font-medium text-black">
-                  ${estimatedShipping.toFixed(2)}
-                </span>
-              </div>
-              {appliedCoupon && (
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[#767676] flex items-center gap-2 flex-wrap">
-                      <span>
-                        {appliedCoupon.code}
-                        {appliedCoupon.store?.name
-                          ? ` (${appliedCoupon.store.name})`
-                          : ' discount'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          removeCoupon();
-                          setCouponFeedback(null);
-                        }}
-                        className="text-[11px] text-[#e5322d] hover:underline"
-                      >
-                        Remove
-                      </button>
-                    </span>
-                    <span
-                      className={`font-medium shrink-0 ${
-                        effectiveCouponDiscount > 0
-                          ? 'text-[#029500]'
-                          : 'text-[#8a8a8a]'
-                      }`}
-                    >
-                      {effectiveCouponDiscount > 0
-                        ? `−$${effectiveCouponDiscount.toFixed(2)}`
-                        : '$0.00'}
-                    </span>
-                  </div>
-                  {appliedCoupon.store_id &&
-                    !checkoutStores.some(
-                      (g) => g.store.id === appliedCoupon.store_id,
-                    ) && (
-                      <p className="text-[11.5px] text-[#ff6e20]">
-                        This voucher only applies to{' '}
-                        {appliedCoupon.store?.name || 'another store'}.
-                      </p>
-                    )}
-                  {appliedCoupon.store_id &&
-                    appliedCoupon.min_order_amount &&
-                    (() => {
-                      const matched = checkoutStores.find(
-                        (g) => g.store.id === appliedCoupon.store_id,
-                      );
-                      if (
-                        !matched ||
-                        matched.store_subtotal >= appliedCoupon.min_order_amount
-                      ) {
-                        return null;
-                      }
-                      const remain =
-                        appliedCoupon.min_order_amount - matched.store_subtotal;
-                      return (
-                        <p className="text-[11.5px] text-[#ff6e20]">
-                          Add ${remain.toFixed(2)} more from{' '}
-                          {appliedCoupon.store?.name || 'this store'} to
-                          activate voucher.
-                        </p>
-                      );
-                    })()}
+              <div className="border-t border-[#ececec] pt-4 flex flex-col gap-2.5 text-[14px]">
+                <div className="flex justify-between">
+                  <span className="text-[#767676]">Subtotal</span>
+                  <span className="font-medium text-black">
+                    ${subtotal.toFixed(2)}
+                  </span>
                 </div>
-              )}
+                <div className="flex justify-between">
+                  <span className="text-[#767676]">Estimated delivery</span>
+                  <span className="font-medium text-black">
+                    ${estimatedShipping.toFixed(2)}
+                  </span>
+                </div>
+                {appliedCoupon && (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[#767676] flex items-center gap-2 flex-wrap">
+                        <span>
+                          {appliedCoupon.code}
+                          {appliedCoupon.store?.name
+                            ? ` (${appliedCoupon.store.name})`
+                            : ' discount'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            removeCoupon();
+                            setCouponFeedback(null);
+                          }}
+                          className="text-[11px] text-[#e5322d] hover:underline cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </span>
+                      <span
+                        className={`font-medium shrink-0 ${
+                          effectiveCouponDiscount > 0
+                            ? 'text-[#029500]'
+                            : 'text-[#8a8a8a]'
+                        }`}
+                      >
+                        {effectiveCouponDiscount > 0
+                          ? `−$${effectiveCouponDiscount.toFixed(2)}`
+                          : '$0.00'}
+                      </span>
+                    </div>
+                    {appliedCoupon.store_id &&
+                      !checkoutStores.some(
+                        (g) => g.store.id === appliedCoupon.store_id,
+                      ) && (
+                        <p className="text-[11.5px] text-[#ff6e20]">
+                          This voucher only applies to{' '}
+                          {appliedCoupon.store?.name || 'another store'}.
+                        </p>
+                      )}
+                    {appliedCoupon.store_id &&
+                      appliedCoupon.min_order_amount &&
+                      (() => {
+                        const matched = checkoutStores.find(
+                          (g) => g.store.id === appliedCoupon.store_id,
+                        );
+                        if (
+                          !matched ||
+                          matched.store_subtotal >=
+                            appliedCoupon.min_order_amount
+                        ) {
+                          return null;
+                        }
+                        const remain =
+                          appliedCoupon.min_order_amount -
+                          matched.store_subtotal;
+                        return (
+                          <p className="text-[11.5px] text-[#ff6e20]">
+                            Add ${remain.toFixed(2)} more from{' '}
+                            {appliedCoupon.store?.name || 'this store'} to
+                            activate voucher.
+                          </p>
+                        );
+                      })()}
+                  </div>
+                )}
 
+                <div className="border-t border-[#ececec] pt-3 flex items-baseline justify-between">
+                  <span className="text-[15px] font-semibold text-black">
+                    Total
+                  </span>
+                  <div className="text-right">
+                    <p className="text-[22px] font-bold text-[#ff6e20] leading-tight">
+                      ${total.toFixed(2)}
+                    </p>
+                    <p className="text-[12px] text-[#767676]">
+                      {formatRiel(total, khrRate)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white border border-[#ececec] p-3.5 sm:p-4 flex flex-col gap-3 rounded-[24px]">
+              <h2 className="text-[18px] sm:text-[20px] font-semibold text-black">
+                Apply coupon
+              </h2>
               <form
                 onSubmit={handleApplyCoupon}
-                className="flex items-center justify-between h-[42px] bg-white border border-[#ececec] focus-within:border-[#ff6e20] rounded-full pl-4 pr-1 mt-1 transition-colors"
+                className="flex items-center gap-2"
               >
                 <input
                   type="text"
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value)}
-                  placeholder="Enter discount code"
-                  className="flex-1 bg-transparent text-[13px] text-black outline-none min-w-0"
+                  placeholder="Enter coupon code"
+                  className="flex-1 min-w-0 h-[42px] bg-white border border-[#ececec] focus:border-[#ff6e20] rounded-full px-4 text-[13.5px] text-black outline-none transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={applyingCoupon || !couponInput.trim()}
-                  className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[13px] font-semibold h-[34px] px-4 rounded-full transition-colors shrink-0 cursor-pointer"
+                  className="bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-50 text-white text-[13.5px] font-semibold h-[42px] px-5 rounded-full transition-colors shrink-0 cursor-pointer"
                 >
                   {applyingCoupon ? '...' : 'Apply'}
                 </button>
@@ -1078,39 +1103,11 @@ export function CheckoutPage() {
                   {couponFeedback.message}
                 </p>
               )}
-
-              <div className="border-t border-[#ececec] pt-3 flex items-baseline justify-between">
-                <span className="text-[15px] font-semibold text-black">
-                  Total
-                </span>
-                <div className="text-right">
-                  <p className="text-[22px] font-bold text-[#ff6e20] leading-tight">
-                    ${total.toFixed(2)}
-                  </p>
-                  <p className="text-[12px] text-[#767676]">
-                    {formatRiel(total, khrRate)}
-                  </p>
-                </div>
-              </div>
             </div>
-
-            {/* <div className="bg-[#f7f7f7] px-4 py-3 flex items-center justify-between gap-3 rounded-[14px]">
-              <div>
-                <p className="text-[12.5px] font-semibold text-black">
-                  Bakong KHQR Payment
-                </p>
-                <p className="text-[11.5px] text-[#767676]">
-                  Secure payment with KHQR
-                </p>
-              </div>
-              <span className="bg-[#E1232E] text-white text-[11px] font-bold px-2.5 py-1 rounded-[6px] tracking-wide">
-                KHQR
-              </span>
-            </div> */}
           </div>
 
           <div
-            className={`${isBuyNow ? 'hidden' : ''} md:sticky md:bottom-5 z-20 bg-white/95 backdrop-blur-md border border-[#ececec] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.08)] flex flex-col gap-2.5 rounded-[24px]`}
+            className={`hidden md:sticky md:bottom-5 z-20 bg-white/95 backdrop-blur-md border border-[#ececec] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.08)] md:flex flex-col gap-2.5 rounded-[24px]`}
           >
             <button
               type="button"
