@@ -56,7 +56,7 @@ export function MessagesDrawer({
       ariaLabel="Messages"
     >
       {!isSignedIn ? (
-        <div className="flex-1 flex flex-col bg-[#f7f7f7]">
+        <div className="flex-1 flex flex-col bg-white">
           <div className="bg-white px-4 py-3.5 border-b border-[#ececec] flex items-center justify-between gap-2 shrink-0">
             <h2 className="text-[20px] font-bold text-black tracking-tight">
               Chats
@@ -91,25 +91,23 @@ export function MessagesDrawer({
               </button>
             </div>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4">
-            <div className="bg-white border border-[#ececec] p-8 max-w-[360px] w-full text-center flex flex-col items-center gap-3 rounded-[24px]">
-              <span className="w-12 h-12 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-                <FigmaIcon name="message-circle" className="w-6 h-6" />
-              </span>
-              <h3 className="text-[19px] font-bold text-black">
-                Sign in to view your messages
-              </h3>
-              <p className="text-[13.5px] text-[#767676]">
-                Chat directly with stores and Kova Support.
-              </p>
-              <Link
-                to="/login"
-                onClick={onClose}
-                className="mt-1 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-full transition-colors"
-              >
-                Sign in
-              </Link>
-            </div>
+          <div className="flex-1 min-h-0 w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-3">
+            <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+              <FigmaIcon name="message-circle" className="w-7 h-7" />
+            </span>
+            <h3 className="text-[19px] font-bold text-black">
+              Sign in to view your messages
+            </h3>
+            <p className="text-[13.5px] text-[#767676] max-w-[300px]">
+              Chat directly with stores and Kova Support.
+            </p>
+            <Link
+              to="/login"
+              onClick={onClose}
+              className="mt-1 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-full transition-colors"
+            >
+              Sign in
+            </Link>
           </div>
         </div>
       ) : (

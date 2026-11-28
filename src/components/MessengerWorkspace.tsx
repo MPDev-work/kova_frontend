@@ -1608,14 +1608,14 @@ export function MessengerWorkspace({
               Loading chats...
             </div>
           ) : filteredTickets.length === 0 ? (
-            <div className="py-12 px-4 text-center flex flex-col items-center gap-2">
-              <span className="w-11 h-11 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-                <FigmaIcon name="message-circle" className="w-5 h-5" />
+            <div className="flex-1 w-full bg-white px-6 py-10 text-center flex flex-col items-center justify-center gap-2">
+              <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+                <FigmaIcon name="message-circle" className="w-6 h-6" />
               </span>
-              <p className="text-[13.5px] font-semibold text-black">
+              <p className="text-[15px] font-semibold text-black">
                 No conversations
               </p>
-              <p className="text-[12px] text-[#8a8a8a]">
+              <p className="text-[13px] text-[#8a8a8a] max-w-[260px]">
                 {filterTab === 'active' && !search.trim()
                   ? 'No one is currently online.'
                   : search.trim() || filterTab !== 'all'

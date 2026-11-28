@@ -558,6 +558,10 @@ export function CheckoutDrawer({
     </span>
   ) : undefined;
 
+  const isFullBleedState =
+    !bootstrapping &&
+    (!isSignedIn || (checkoutStores.length === 0 && !khqrOpen));
+
   return (
     <>
       <RightSlideModal
@@ -571,14 +575,16 @@ export function CheckoutDrawer({
         }
         headerLeft={headerLeft}
         headerRight={headerRight}
-        bodyClassName="p-2.5"
+        bodyClassName={
+          isFullBleedState ? 'p-0 flex flex-col bg-white' : 'p-2.5'
+        }
         footer={checkoutFooter}
         ariaLabel="Checkout"
       >
         {bootstrapping ? (
           <CheckoutDrawerSkeleton />
         ) : !isSignedIn ? (
-          <div className="bg-white border border-[#ececec] py-14 px-5 flex flex-col items-center text-center gap-3 rounded-[24px]">
+          <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-3">
             <div className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
               <FigmaIcon name="shopping-bag" className="w-7 h-7" />
             </div>
@@ -606,7 +612,7 @@ export function CheckoutDrawer({
             </div>
           </div>
         ) : checkoutStores.length === 0 && !khqrOpen ? (
-          <div className="bg-white border border-[#ececec] py-14 px-5 flex flex-col items-center text-center gap-3 rounded-[24px]">
+          <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-3">
             <div className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
               <FigmaIcon name="shopping-bag" className="w-7 h-7" />
             </div>

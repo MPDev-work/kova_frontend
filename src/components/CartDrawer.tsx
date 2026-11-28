@@ -255,20 +255,22 @@ export function CartDrawer({
       </div>
     ) : undefined;
 
+  const isEmptyState = !bootstrapping && visibleCartStores.length === 0;
+
   return (
     <RightSlideModal
       open={open}
       onClose={onClose}
       title="Your cart"
       subtitle={subtitle}
-      bodyClassName="p-2.5"
+      bodyClassName={isEmptyState ? 'p-0 flex flex-col bg-white' : 'p-2.5'}
       footer={checkoutBarFooter}
       ariaLabel="Shopping cart"
     >
       {bootstrapping ? (
         <CartDrawerSkeleton />
       ) : visibleCartStores.length === 0 ? (
-        <div className="bg-white border border-[#ececec] py-14 px-5 flex flex-col items-center text-center gap-2.5 rounded-[24px]">
+        <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-2.5">
           <div className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <FigmaIcon name="shopping-bag" className="w-7 h-7" />
           </div>

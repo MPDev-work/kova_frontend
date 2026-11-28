@@ -60,20 +60,23 @@ export function WishlistDrawer({
       </div>
     ) : undefined;
 
+  const isFullBleedState =
+    !(bootstrapping && isSignedIn) && (!isSignedIn || wishlist.length === 0);
+
   return (
     <RightSlideModal
       open={open}
       onClose={onClose}
       title={`Wishlist (${wishlist.length})`}
       subtitle="Products you saved to your Kova account."
-      bodyClassName="p-2.5"
+      bodyClassName={isFullBleedState ? 'p-0 flex flex-col bg-white' : 'p-2.5'}
       footer={footer}
       ariaLabel="Wishlist"
     >
       {bootstrapping && isSignedIn ? (
         <ProductGridSkeleton count={4} columnsClass="grid-cols-2" />
       ) : !isSignedIn ? (
-        <div className="bg-white border border-[#ececec] py-14 px-5 flex flex-col items-center text-center gap-2.5 rounded-[24px]">
+        <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-2.5">
           <div className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <FigmaIcon name="heart" className="w-7 h-7" />
           </div>
@@ -92,7 +95,7 @@ export function WishlistDrawer({
           </Link>
         </div>
       ) : wishlist.length === 0 ? (
-        <div className="bg-white border border-[#ececec] py-14 px-5 flex flex-col items-center text-center gap-2.5 rounded-[24px]">
+        <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-2.5">
           <div className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
             <FigmaIcon name="heart" className="w-7 h-7" />
           </div>
