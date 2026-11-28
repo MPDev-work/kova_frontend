@@ -327,22 +327,22 @@ export function PayWithAcledaButton({
         type="button"
         disabled={disabled || loading || phase === 'launching'}
         onClick={() => void handleClick()}
-        className={`w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#ff6e20] hover:bg-[#e85d12] active:bg-[#d9530c] disabled:opacity-60 text-white font-semibold whitespace-nowrap transition-colors shadow-[0_8px_20px_rgba(255,110,32,0.24)] cursor-pointer ${
+        className={`relative w-full inline-flex items-center justify-center rounded-full bg-[#ff6e20] hover:bg-[#e85d12] active:bg-[#d9530c] disabled:opacity-60 text-white font-semibold whitespace-nowrap transition-colors cursor-pointer ${
           compact
-            ? 'min-h-[44px] py-2.5 px-5 text-[13.5px]'
-            : 'min-h-[46px] py-3 px-5 text-[14px]'
+            ? 'min-h-[44px] py-2.5 pl-11 pr-5 text-[13.5px]'
+            : 'min-h-[46px] py-3 pl-12 pr-5 text-[14px]'
         } ${className}`}
       >
-        {loading || phase === 'launching' ? (
-          <span
-            className="w-5 h-5 rounded-full border-2 border-white/35 border-t-white animate-spin shrink-0"
-            aria-hidden="true"
-          />
-        ) : (
-          <AcledaBankIcon
-            className={compact ? 'w-6 h-6 shrink-0' : 'w-6 h-6 shrink-0'}
-          />
-        )}
+        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center">
+          {loading || phase === 'launching' ? (
+            <span
+              className="w-7 h-7 rounded-full border-2 border-white/35 border-t-white animate-spin"
+              aria-hidden="true"
+            />
+          ) : (
+            <AcledaBankIcon className="w-8 h-8" />
+          )}
+        </span>
         <span>
           {loading
             ? 'Preparing ACLEDA Bank...'
@@ -351,40 +351,6 @@ export function PayWithAcledaButton({
               : label}
         </span>
       </button>
-
-      {showInlineFallback && phase === 'verifying' && activePayment && (
-        <div className="rounded-[14px] bg-[#ffefe6] border border-[#ff6e20]/20 px-3.5 py-3 text-left flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <span
-              className="w-3.5 h-3.5 rounded-full border-2 border-[#ff6e20]/25 border-t-[#ff6e20] animate-spin shrink-0"
-              aria-hidden="true"
-            />
-            <p className="text-[12.5px] font-semibold text-[#111111]">
-              Waiting for ACLEDA Bank verification...
-            </p>
-          </div>
-          <p className="text-[11.5px] text-[#666666] leading-relaxed">
-            Complete the payment in ACLEDA Mobile and return here. Your order
-            will confirm automatically once verified by the bank.
-          </p>
-          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            <button
-              type="button"
-              onClick={() => void pollPaymentStatus(activePayment.transaction_id)}
-              className="rounded-full bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-3.5 py-1.5 transition-colors cursor-pointer"
-            >
-              Check status now
-            </button>
-            <button
-              type="button"
-              onClick={() => launchDeeplinkWithFallback(activePayment)}
-              className="rounded-full bg-white border border-[#ff6e20]/30 text-[#ff6e20] text-[11.5px] font-semibold px-3.5 py-1.5 transition-colors cursor-pointer"
-            >
-              Reopen app
-            </button>
-          </div>
-        </div>
-      )}
 
       {showInlineFallback && phase === 'fallback' && activePayment && (
         <div className="rounded-[14px] bg-[#ffefe6] border border-[#ff6e20]/25 px-3.5 py-3 text-left flex flex-col gap-2">
