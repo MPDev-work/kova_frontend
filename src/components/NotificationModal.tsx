@@ -1,11 +1,35 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FigmaIcon } from './FigmaIcon';
 import { RightSlideModal } from './RightSlideModal';
 import { useClientDrawer } from '../context/ClientDrawerContext';
 import { useStore } from '../context/StoreContext';
 import { formatShortDate } from '../utils/currency';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import type { UserNotificationItem } from '../types/marketplace';
+
+const DESKTOP_MEDIA_QUERY = '(min-width: 768px)';
+
+function useIsDesktopViewport(): boolean {
+  const [isDesktop, setIsDesktop] = useState<boolean>(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia(DESKTOP_MEDIA_QUERY).matches
+      : true,
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia(DESKTOP_MEDIA_QUERY);
+    const onChange = (event: MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  return isDesktop;
+}
 
 export interface GroupedNotification {
   key: string;
@@ -96,6 +120,25 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { openMessages } = useClientDrawer();
+  const isDesktop = useIsDesktopViewport();
+
+  useBodyScrollLock(open && !isDesktop);
+
+  useEffect(() => {
+    if (!open || isDesktop) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (
+        document.getElementById('kova-confirm-delete-title') ||
+        document.querySelector('[data-khqr-modal="true"]')
+      ) {
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, isDesktop, onClose]);
 
   const grouped = useMemo(
     () => groupNotifications(notifications),
@@ -193,21 +236,36 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
     void clearAllNotifications();
   };
 
-  const footer = (
-    <div className="px-3.5 py-2.5 flex flex-nowrap items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+  const subtitle =
+    unreadNotificationsCount > 0
+      ? `${unreadNotificationsCount} unread notification${
+          unreadNotificationsCount === 1 ? '' : 's'
+        }`
+      : 'You are all caught up';
+
+  const handleOpenAllMessages = () => {
+    onClose();
+    if (location.pathname.startsWith('/seller')) {
+      navigate('/seller/messages');
+    } else if (location.pathname.startsWith('/admin')) {
+      navigate('/admin/tickets');
+    } else {
+      openMessages();
+    }
+  };
+
+  const footerContent = (
+    <div
+      className={
+        isDesktop
+          ? 'px-3.5 py-2.5 flex flex-nowrap items-center justify-between gap-2 overflow-x-auto no-scrollbar'
+          : 'w-full flex flex-nowrap items-center justify-between gap-2 overflow-x-auto no-scrollbar'
+      }
+    >
       <button
         type="button"
-        onClick={() => {
-          onClose();
-          if (location.pathname.startsWith('/seller')) {
-            navigate('/seller/messages');
-          } else if (location.pathname.startsWith('/admin')) {
-            navigate('/admin/tickets');
-          } else {
-            openMessages();
-          }
-        }}
-        className="text-[12px] font-semibold text-[#ff6e20] hover:underline whitespace-nowrap shrink-0 cursor-pointer"
+        onClick={handleOpenAllMessages}
+        className="text-[12.5px] font-semibold text-[#ff6e20] hover:underline whitespace-nowrap shrink-0 cursor-pointer"
       >
         Open all messages
       </button>
@@ -225,7 +283,7 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
           <button
             type="button"
             onClick={handleClearAll}
-            className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[12px] font-semibold px-3 py-1.5 rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="bg-[#fff0f0] hover:bg-[#e5322d] text-[#e5322d] hover:text-white text-[12px] font-semibold px-3.5 py-1.5 rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             Clear all
           </button>
@@ -236,148 +294,217 @@ export function NotificationModal({ open, onClose }: NotificationModalProps) {
 
   const isFullBleedState = !isSignedIn || grouped.length === 0;
 
+  const renderNotificationCards = (variant: 'desktop' | 'mobile') =>
+    grouped.map((group) => {
+      const notif = group.latest;
+      const isUnread = group.unreadIds.length > 0;
+      const isOrder = notif.type === 'order';
+      const countBadge =
+        group.unreadIds.length > 1
+          ? group.unreadIds.length
+          : group.items.length > 1
+            ? group.items.length
+            : null;
+      const cardClasses =
+        variant === 'mobile'
+          ? `rounded-[12px] p-3.5 border transition-colors flex items-start gap-3 ${
+              isUnread
+                ? 'bg-[#fff7f2] border-[#ffdfcd]'
+                : 'bg-white border-[#ececec] hover:bg-[#fafafa]'
+            }`
+          : `rounded-[14px] p-3 border transition-colors flex items-start gap-3 ${
+              isUnread
+                ? 'bg-[#fff7f2] border-[#ffdfcd]'
+                : 'bg-[#f7f7f7] border-transparent hover:bg-[#f2f2f2]'
+            }`;
+      return (
+        <div key={group.key} className={cardClasses}>
+          <div className="relative shrink-0">
+            <span className="w-10 h-10 rounded-full border border-[#ececec] bg-white text-[#ff6e20] overflow-hidden flex items-center justify-center">
+              {notif.avatar_url ? (
+                <img
+                  src={notif.avatar_url}
+                  alt={group.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : isOrder ? (
+                <FigmaIcon name="shopping-bag" className="w-4 h-4" />
+              ) : (
+                <FigmaIcon name="message-circle" className="w-4 h-4" />
+              )}
+            </span>
+            {countBadge && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff6e20] text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
+                {countBadge}
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[13.5px] font-semibold text-black truncate flex items-center gap-1.5">
+                {isUnread && (
+                  <span className="w-2 h-2 rounded-full bg-[#ff6e20] shrink-0" />
+                )}
+                <span className="truncate">{group.title}</span>
+              </p>
+              <span className="text-[11px] text-[#8a8a8a] shrink-0">
+                {formatShortDate(notif.created_at)}
+              </span>
+            </div>
+            {notif.body && (
+              <p className="text-[12.5px] text-[#555555] line-clamp-2 mt-0.5 leading-snug">
+                {notif.body}
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-2 mt-2.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {notif.data?.order_number && !isOrder && (
+                  <span className="text-[11px] font-semibold bg-white border border-[#ececec] text-[#555555] px-2.5 py-0.5 rounded-full">
+                    Order #{notif.data.order_number}
+                  </span>
+                )}
+                {isUnread && (
+                  <button
+                    type="button"
+                    onClick={() => handleMarkGroupRead(group)}
+                    title="Mark as read"
+                    aria-label="Mark as read"
+                    className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ffdfcd] text-[#555555] hover:text-[#ff6e20] text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer"
+                  >
+                    <FigmaIcon name="check" className="w-3 h-3" />
+                    <span>Mark read</span>
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => handlePrimaryClick(group)}
+                className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-4 py-1.5 rounded-full transition-colors shrink-0 cursor-pointer"
+              >
+                {isOrder ? 'View order' : 'Reply'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    });
+
+  const signedOutEmptyState = (
+    <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-2.5">
+      <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+        <FigmaIcon name="bell" className="w-7 h-7" />
+      </span>
+      <h3 className="text-[18px] font-semibold text-black">
+        Sign in to view notifications
+      </h3>
+      <p className="text-[13px] text-[#767676] max-w-[300px]">
+        Get real-time order updates, seller replies, and support alerts.
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          onClose();
+          navigate('/login');
+        }}
+        className="mt-1 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-full transition-colors cursor-pointer"
+      >
+        Sign in
+      </button>
+    </div>
+  );
+
+  const emptyNotificationsState = (
+    <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-2.5">
+      <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
+        <FigmaIcon name="message-circle" className="w-6 h-6" />
+      </span>
+      <h3 className="text-[17px] font-semibold text-black">
+        No notifications yet
+      </h3>
+      <p className="text-[13px] text-[#767676] max-w-[300px]">
+        New orders, customer messages, seller replies, and support alerts will
+        appear here in real time.
+      </p>
+    </div>
+  );
+
+  if (!isDesktop) {
+    if (!open || typeof document === 'undefined') return null;
+
+    return createPortal(
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Notifications"
+        className="fixed inset-0 z-[60] flex items-center justify-center p-2.5 sm:p-5 bg-black/50 backdrop-blur-[3px] overflow-y-auto touch-none"
+        onClick={onClose}
+      >
+        <div
+          className="relative w-full max-w-[540px] bg-white rounded-[24px] max-h-[85dvh] shadow-[0_24px_64px_rgba(0,0,0,0.22)] flex flex-col overflow-hidden my-auto touch-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 py-3.5 border-b border-[#ececec] flex items-start justify-between gap-3 shrink-0">
+            <div className="min-w-0">
+              <h2 className="text-[18px] font-bold text-black leading-snug truncate">
+                Notifications
+              </h2>
+              <p className="text-[12.5px] text-[#767676] mt-0.5 truncate">
+                {subtitle}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close notifications"
+              className="w-8 h-8 rounded-full bg-[#e8e8e8] hover:bg-[#dcdcdc] border border-[#d4d4d4] text-[#171717] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+            >
+              <FigmaIcon name="x" className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div
+            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain ${
+              isFullBleedState ? 'p-0' : 'p-3'
+            }`}
+          >
+            {!isSignedIn ? (
+              signedOutEmptyState
+            ) : grouped.length === 0 ? (
+              emptyNotificationsState
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {renderNotificationCards('mobile')}
+              </div>
+            )}
+          </div>
+
+          <div className="px-4 py-3 border-t border-[#ececec] bg-[#fafafa] shrink-0">
+            {footerContent}
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
+
   return (
     <RightSlideModal
       open={open}
       onClose={onClose}
       title="Notifications"
-      subtitle={
-        unreadNotificationsCount > 0
-          ? `${unreadNotificationsCount} unread notification${
-              unreadNotificationsCount === 1 ? '' : 's'
-            }`
-          : 'You are all caught up'
-      }
+      subtitle={subtitle}
       bodyClassName={isFullBleedState ? 'p-0 flex flex-col bg-white' : 'p-2.5'}
-      footer={footer}
+      footer={footerContent}
       ariaLabel="Notifications"
     >
       {!isSignedIn ? (
-        <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-2.5">
-          <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-            <FigmaIcon name="bell" className="w-7 h-7" />
-          </span>
-          <h3 className="text-[19px] font-semibold text-black">
-            Sign in to view notifications
-          </h3>
-          <p className="text-[13.5px] text-[#767676] max-w-[300px]">
-            Get real-time order updates, seller replies, and support alerts.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              navigate('/login');
-            }}
-            className="mt-1 bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-full transition-colors cursor-pointer"
-          >
-            Sign in
-          </button>
-        </div>
+        signedOutEmptyState
       ) : grouped.length === 0 ? (
-        <div className="flex-1 min-h-full w-full bg-white px-6 py-10 flex flex-col items-center justify-center text-center gap-2.5">
-          <span className="w-14 h-14 rounded-full bg-[#ffefe6] text-[#ff6e20] flex items-center justify-center">
-            <FigmaIcon name="message-circle" className="w-6 h-6" />
-          </span>
-          <h3 className="text-[18px] font-semibold text-black">
-            No notifications yet
-          </h3>
-          <p className="text-[13px] text-[#767676] max-w-[300px]">
-            New orders, customer messages, seller replies, and support alerts
-            will appear here in real time.
-          </p>
-        </div>
+        emptyNotificationsState
       ) : (
         <div className="bg-white border border-[#ececec] p-2.5 flex flex-col gap-2.5 rounded-[24px]">
-          {grouped.map((group) => {
-            const notif = group.latest;
-            const isUnread = group.unreadIds.length > 0;
-            const isOrder = notif.type === 'order';
-            const countBadge =
-              group.unreadIds.length > 1
-                ? group.unreadIds.length
-                : group.items.length > 1
-                  ? group.items.length
-                  : null;
-            return (
-              <div
-                key={group.key}
-                className={`rounded-[14px] p-3 border transition-colors flex items-start gap-3 ${
-                  isUnread
-                    ? 'bg-[#fff7f2] border-[#ffdfcd]'
-                    : 'bg-[#f7f7f7] border-transparent hover:bg-[#f2f2f2]'
-                }`}
-              >
-                <div className="relative shrink-0">
-                  <span className="w-10 h-10 rounded-full border border-[#ececec] bg-white text-[#ff6e20] overflow-hidden flex items-center justify-center">
-                    {notif.avatar_url ? (
-                      <img
-                        src={notif.avatar_url}
-                        alt={group.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : isOrder ? (
-                      <FigmaIcon name="shopping-bag" className="w-4 h-4" />
-                    ) : (
-                      <FigmaIcon name="message-circle" className="w-4 h-4" />
-                    )}
-                  </span>
-                  {countBadge && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff6e20] text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
-                      {countBadge}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[13.5px] font-semibold text-black truncate flex items-center gap-1.5">
-                      {isUnread && (
-                        <span className="w-2 h-2 rounded-full bg-[#ff6e20] shrink-0" />
-                      )}
-                      <span className="truncate">{group.title}</span>
-                    </p>
-                    <span className="text-[11px] text-[#8a8a8a] shrink-0">
-                      {formatShortDate(notif.created_at)}
-                    </span>
-                  </div>
-                  {notif.body && (
-                    <p className="text-[12.5px] text-[#555555] line-clamp-2 mt-0.5 leading-snug">
-                      {notif.body}
-                    </p>
-                  )}
-                  <div className="flex items-center justify-between gap-2 mt-2.5">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {notif.data?.order_number && !isOrder && (
-                        <span className="text-[11px] font-semibold bg-white border border-[#ececec] text-[#555555] px-2.5 py-0.5 rounded-full">
-                          Order #{notif.data.order_number}
-                        </span>
-                      )}
-                      {isUnread && (
-                        <button
-                          type="button"
-                          onClick={() => handleMarkGroupRead(group)}
-                          title="Mark as read"
-                          aria-label="Mark as read"
-                          className="inline-flex items-center gap-1 bg-white hover:bg-[#ffefe6] border border-[#ececec] hover:border-[#ffdfcd] text-[#555555] hover:text-[#ff6e20] text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer"
-                        >
-                          <FigmaIcon name="check" className="w-3 h-3" />
-                          <span>Mark read</span>
-                        </button>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePrimaryClick(group)}
-                      className="bg-[#ff6e20] hover:bg-[#e85d12] text-white text-[11.5px] font-semibold px-3.5 py-1.5 rounded-full transition-colors shrink-0 cursor-pointer"
-                    >
-                      {isOrder ? 'View order' : 'Reply'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {renderNotificationCards('desktop')}
         </div>
       )}
     </RightSlideModal>

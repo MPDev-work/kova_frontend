@@ -496,7 +496,7 @@ export function CustomerSettingsLayout() {
               onClick={() => openNotifications({ toggle: true })}
               title="Notifications"
               aria-label="Notifications"
-              className={`hidden sm:inline-flex relative p-2 rounded-full transition-colors ${
+              className={`inline-flex relative p-2 rounded-full transition-colors ${
                 activeDrawer === 'notifications'
                   ? 'bg-[#ffefe6] text-[#ff6e20]'
                   : 'bg-[#f7f7f7] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#767676]'

@@ -9,8 +9,16 @@ import { ProfilePillSkeleton } from './Skeleton';
 import { VerifiedBadge } from './VerifiedBadge';
 
 export function Header() {
-  const { bootstrapping, isSignedIn, user, products, signOut } = useStore();
-  const { openWishlist, openMessages, openNotifications } = useClientDrawer();
+  const {
+    bootstrapping,
+    isSignedIn,
+    user,
+    products,
+    unreadNotificationsCount,
+    signOut,
+  } = useStore();
+  const { activeDrawer, openWishlist, openMessages, openNotifications } =
+    useClientDrawer();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
@@ -171,6 +179,28 @@ export function Header() {
               </div>
             )}
           </div>
+
+          {/* Mobile Notification Trigger */}
+          <button
+            type="button"
+            onClick={() => openNotifications({ toggle: true })}
+            aria-label="Notifications"
+            title="Notifications"
+            className={`md:hidden relative w-[42px] h-[42px] rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+              activeDrawer === 'notifications'
+                ? 'bg-[#ffefe6] border-[#ffdfcd] text-[#ff6e20]'
+                : 'bg-[#f7f7f7] border-[#ececec] hover:bg-[#ffefe6] hover:text-[#ff6e20] text-[#222222]'
+            }`}
+          >
+            <FigmaIcon name="bell" className="w-[18px] h-[18px]" />
+            {!bootstrapping && isSignedIn && unreadNotificationsCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full bg-[#ff6e20] text-white text-[10px] leading-none font-bold flex items-center justify-center border border-white">
+                {unreadNotificationsCount > 99
+                  ? '99+'
+                  : unreadNotificationsCount}
+              </span>
+            )}
+          </button>
 
           {/* Right Profile / Guest Auth (desktop only — mobile uses bottom tab bar) */}
           <div className="hidden md:flex items-center shrink-0">

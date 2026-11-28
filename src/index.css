@@ -592,7 +592,8 @@ html.kova-dashboard-dark .bg-\[\#f0f0f0\],
 html.kova-dashboard-dark .bg-\[\#EFEFEF\],
 html.kova-dashboard-dark .bg-\[\#eeeeee\],
 html.kova-dashboard-dark .bg-\[\#ececec\],
-html.kova-dashboard-dark .bg-\[\#ebebeb\] {
+html.kova-dashboard-dark .bg-\[\#ebebeb\],
+html.kova-dashboard-dark .bg-\[\#e8e8e8\] {
   background-color: var(--card) !important;
 }
 
@@ -668,7 +669,8 @@ html.kova-dashboard-dark .bg-black:not(button):not(a) {
 html.kova-dashboard-dark .hover\:bg-\[\#fafafa\]:hover,
 html.kova-dashboard-dark .hover\:bg-\[\#f7f7f7\]:hover,
 html.kova-dashboard-dark .hover\:bg-\[\#f4f4f4\]:hover,
-html.kova-dashboard-dark .hover\:bg-\[\#f0f0f0\]:hover {
+html.kova-dashboard-dark .hover\:bg-\[\#f0f0f0\]:hover,
+html.kova-dashboard-dark .hover\:bg-\[\#dcdcdc\]:hover {
   background-color: #1f1f1f !important;
 }
 
@@ -705,6 +707,7 @@ html.kova-dashboard-dark .border-\[\#f0f0f0\] {
 html.kova-dashboard-dark .border-\[\#ececec\],
 html.kova-dashboard-dark .border-\[\#e5e5e5\],
 html.kova-dashboard-dark .border-\[\#dcdcdc\],
+html.kova-dashboard-dark .border-\[\#d4d4d4\],
 html.kova-dashboard-dark .border-\[\#dfdfe7\],
 html.kova-dashboard-dark .border-\[\#cfcfcf\],
 html.kova-dashboard-dark .border-\[\#cccccc\] {
@@ -740,6 +743,7 @@ html.kova-dashboard-dark .hover\:border-\[\#cccccc\]:hover {
 /* Typography contrast */
 html.kova-dashboard-dark .text-black,
 html.kova-dashboard-dark .text-\[\#1c1c1c\],
+html.kova-dashboard-dark .text-\[\#171717\],
 html.kova-dashboard-dark .text-\[\#111111\] {
   color: var(--text-primary) !important;
 }

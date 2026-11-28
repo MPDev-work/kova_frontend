@@ -79,12 +79,15 @@ export function ClientDrawerProvider({ children }: { children: ReactNode }) {
   }, [location.pathname]);
 
   // Keep mobile responsive experience untouched if viewport shrinks below md
+  // (keep 'notifications' open since NotificationModal adapts into a mobile centered modal)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia(DESKTOP_BREAKPOINT_QUERY);
     const onChange = (event: MediaQueryListEvent) => {
       if (!event.matches) {
-        setActiveDrawer(null);
+        setActiveDrawer((prev) =>
+          prev === 'notifications' ? prev : null,
+        );
       }
     };
     mq.addEventListener('change', onChange);
@@ -182,15 +185,11 @@ export function ClientDrawerProvider({ children }: { children: ReactNode }) {
 
   const openNotifications = useCallback(
     (options?: { toggle?: boolean }) => {
-      if (!isDesktopViewport()) {
-        navigate('/notifications');
-        return;
-      }
       setActiveDrawer((prev) =>
         options?.toggle && prev === 'notifications' ? null : 'notifications',
       );
     },
-    [navigate],
+    [],
   );
 
   return (
