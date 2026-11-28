@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { FigmaIcon } from './FigmaIcon';
-import { PayWithAcledaButton } from './PayWithAcledaButton';
 import { ApiError, checkoutApi } from '../services/api';
-import { useIsMobileOrTablet } from '../utils/device';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import type { AcledaPaymentData, ChildOrderRecord } from '../types/marketplace';
+import type { ChildOrderRecord } from '../types/marketplace';
 
 interface PaidReceiptDetails {
   amount: number;
@@ -90,10 +88,251 @@ function formatReceiptAmount(amount: number, currency: 'USD' | 'KHR'): string {
   });
 }
 
+function drawRoundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    img.src = src;
+  });
+}
+
+function fitTextWithEllipsis(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let trimmed = text;
+  while (trimmed.length > 1 && ctx.measureText(`${trimmed}…`).width > maxWidth) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return `${trimmed}…`;
+}
+
+async function renderKhqrCardPngBlob(params: {
+  qrSize: number;
+  qrData: Uint8Array;
+  merchantName: string;
+  formattedAmount: string;
+  currency: 'USD' | 'KHR';
+  currencySymbol: string;
+}): Promise<Blob> {
+  const {
+    qrSize,
+    qrData,
+    merchantName,
+    formattedAmount,
+    currency,
+    currencySymbol,
+  } = params;
+
+  const pad = 48;
+  const cardW = 870;
+  const cardH = 1262;
+  const cardRadius = 72;
+  const canvasW = cardW + pad * 2;
+  const canvasH = cardH + pad * 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Canvas 2D context is unavailable.');
+  }
+
+  // Pure white outer quiet margin for reliable gallery scanning in all banking apps
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Subtle card elevation shadow
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.10)';
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  drawRoundedRectPath(ctx, pad, pad, cardW, cardH, cardRadius);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+  ctx.restore();
+
+  // Clip everything inside the rounded KHQR card
+  ctx.save();
+  drawRoundedRectPath(ctx, pad, pad, cardW, cardH, cardRadius);
+  ctx.clip();
+
+  // Card background
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(pad, pad, cardW, cardH);
+
+  // Official NBC KHQR Red Header (12% of card height)
+  const headerH = Math.round(cardH * 0.12);
+  ctx.fillStyle = '#E1232E';
+  ctx.fillRect(pad, pad, cardW, headerH);
+
+  // Official 45-degree right-side red diagonal overhang
+  const overhang = 72;
+  ctx.beginPath();
+  ctx.moveTo(pad + cardW - overhang, pad + headerH);
+  ctx.lineTo(pad + cardW, pad + headerH);
+  ctx.lineTo(pad + cardW, pad + headerH + overhang);
+  ctx.closePath();
+  ctx.fillStyle = '#E1232E';
+  ctx.fill();
+
+  // Official KHQR white logo centered in the red header
+  try {
+    const logoImg = await loadImage('/assets/KHQR - asset/KHQR Logo.svg');
+    const logoTargetH = headerH * 0.34;
+    const aspect =
+      logoImg.naturalWidth > 0 && logoImg.naturalHeight > 0
+        ? logoImg.naturalWidth / logoImg.naturalHeight
+        : 3.2;
+    const logoTargetW = logoTargetH * aspect;
+    ctx.drawImage(
+      logoImg,
+      pad + (cardW - logoTargetW) / 2,
+      pad + (headerH - logoTargetH) / 2,
+      logoTargetW,
+      logoTargetH,
+    );
+  } catch {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '800 54px Inter, system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('KHQR', pad + cardW / 2, pad + headerH / 2);
+  }
+
+  // Exact official NBC KHQR margins:
+  // QR left-right margin = 14.5% of card width, top-bottom margin = 11.6% of card width
+  const marginX = Math.round(cardW * 0.145);
+  const qrPadY = Math.round(cardW * 0.116);
+  const qrBoxSize = cardW - marginX * 2;
+  const qrSectionHeight = qrBoxSize + qrPadY * 2;
+  const dividerY = pad + cardH - qrSectionHeight;
+
+  // Merchant Name & Amount section
+  const infoTop = pad + headerH;
+  const infoCenterY = infoTop + (dividerY - infoTop) / 2;
+  const infoMaxW = cardW - marginX * 2;
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#111111';
+  ctx.font = '500 39px Inter, system-ui, -apple-system, sans-serif';
+  const safeMerchantName = fitTextWithEllipsis(ctx, merchantName, infoMaxW);
+  ctx.fillText(safeMerchantName, pad + marginX, infoCenterY - 14);
+
+  ctx.fillStyle = '#000000';
+  ctx.font = '700 78px Inter, system-ui, -apple-system, sans-serif';
+  const amountWidth = ctx.measureText(formattedAmount).width;
+  ctx.fillText(formattedAmount, pad + marginX, infoCenterY + 72);
+
+  ctx.fillStyle = '#111111';
+  ctx.font = '400 39px Inter, system-ui, -apple-system, sans-serif';
+  ctx.fillText(currency, pad + marginX + amountWidth + 18, infoCenterY + 72);
+
+  // Perforated dashed divider
+  ctx.save();
+  ctx.beginPath();
+  ctx.setLineDash([18, 18]);
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+  ctx.lineWidth = 3.5;
+  ctx.moveTo(pad, dividerY);
+  ctx.lineTo(pad + cardW, dividerY);
+  ctx.stroke();
+  ctx.restore();
+
+  // Crisp integer-aligned QR modules
+  const qrOriginX = pad + marginX;
+  const qrOriginY = dividerY + qrPadY;
+  const cell = qrBoxSize / qrSize;
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(qrOriginX, qrOriginY, qrBoxSize, qrBoxSize);
+
+  ctx.fillStyle = '#000000';
+  for (let y = 0; y < qrSize; y += 1) {
+    const y0 = Math.floor(qrOriginY + y * cell);
+    const y1 = Math.ceil(qrOriginY + (y + 1) * cell);
+    for (let x = 0; x < qrSize; x += 1) {
+      if (qrData[y * qrSize + x]) {
+        const x0 = Math.floor(qrOriginX + x * cell);
+        const x1 = Math.ceil(qrOriginX + (x + 1) * cell);
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      }
+    }
+  }
+
+  // Official center currency emblem
+  const centerX = qrOriginX + qrBoxSize / 2;
+  const centerY = qrOriginY + qrBoxSize / 2;
+  const outerRadius = 57;
+  const innerRadius = 48;
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
+  ctx.fillStyle = '#000000';
+  ctx.fill();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '700 54px Inter, system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(currencySymbol, centerX, centerY + 2);
+
+  ctx.restore();
+
+  // Crisp light border around card edge so it reads cleanly on white gallery backgrounds
+  drawRoundedRectPath(ctx, pad, pad, cardW, cardH, cardRadius);
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error('Failed to export KHQR image.'));
+      }
+    }, 'image/png');
+  });
+}
+
 interface KhqrModalProps {
   open: boolean;
   storeOrders: ChildOrderRecord[];
-  checkoutSessionToken?: string | null;
   onClose: () => void;
   onCancel?: () => Promise<void> | void;
   onTimeout?: (orderNumber?: string) => void;
@@ -104,7 +343,6 @@ interface KhqrModalProps {
 export function KhqrModal({
   open,
   storeOrders,
-  checkoutSessionToken = null,
   onClose,
   onCancel,
   onTimeout,
@@ -122,7 +360,6 @@ export function KhqrModal({
         .map((o) => `${o.khqr?.bill_number ?? ''}-${o.khqr?.expires_at ?? ''}`)
         .join('|')}
       payableOrders={payableOrders}
-      checkoutSessionToken={checkoutSessionToken}
       onClose={onClose}
       onCancel={onCancel}
       onTimeout={onTimeout}
@@ -134,7 +371,6 @@ export function KhqrModal({
 
 function KhqrModalContent({
   payableOrders,
-  checkoutSessionToken,
   onClose,
   onCancel,
   onTimeout,
@@ -142,14 +378,12 @@ function KhqrModalContent({
   allowBackdropClose,
 }: {
   payableOrders: ChildOrderRecord[];
-  checkoutSessionToken?: string | null;
   onClose: () => void;
   onCancel?: () => Promise<void> | void;
   onTimeout?: (orderNumber?: string) => void;
   onAllPaid: (orderNumber?: string) => void;
   allowBackdropClose: boolean;
 }) {
-  const isMobileOrTablet = useIsMobileOrTablet();
   const [activeIndex, setActiveIndex] = useState(0);
   const [paidMap, setPaidMap] = useState<Record<string, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<string>('');
@@ -162,6 +396,10 @@ function KhqrModalContent({
   );
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [downloadingKhqr, setDownloadingKhqr] = useState(false);
+  const [downloadedBillNumber, setDownloadedBillNumber] = useState<
+    string | null
+  >(null);
   const [nowTs, setNowTs] = useState(() => Date.now());
 
   const inFlightRef = useRef(false);
@@ -169,6 +407,7 @@ function KhqrModalContent({
   const timeoutHandledRef = useRef(false);
   const timedOutOrderRef = useRef<string | undefined>(undefined);
   const confirmedOrderRef = useRef<string | undefined>(undefined);
+  const downloadFeedbackTimerRef = useRef<number | null>(null);
 
   const currentOrder = payableOrders[activeIndex] || payableOrders[0];
   const khqr = currentOrder.khqr!;
@@ -362,60 +601,6 @@ function KhqrModalContent({
     ],
   );
 
-  const handleAcledaVerified = useCallback(
-    (acledaData: AcledaPaymentData) => {
-      if (completedRef.current || paidMap[khqr.bill_number]) return;
-
-      const confirmedOrderNumber =
-        acledaData.parent_order_number || acledaData.order_number || undefined;
-      confirmedOrderRef.current = confirmedOrderNumber;
-      const nextPaid = { ...paidMap, [khqr.bill_number]: true };
-      setPaidMap(nextPaid);
-      setCopiedOrderId(false);
-      setPaidReceipt({
-        amount: Number(acledaData.amount ?? khqr.amount ?? 0),
-        currency:
-          (acledaData.currency || khqr.currency || 'USD').toUpperCase() ===
-          'KHR'
-            ? 'KHR'
-            : 'USD',
-        verifiedAt:
-          acledaData.verified_at ||
-          acledaData.paid_at ||
-          new Date().toISOString(),
-        hash: acledaData.gateway_transaction_id ?? acledaData.transaction_id,
-        billNumber: acledaData.bill_number || khqr.bill_number,
-        transactionReference: acledaData.transaction_id,
-        fromAccountId: 'acleda@aclb',
-        toAccountId: null,
-        merchantName: (acledaData.merchant_name || merchantName).trim(),
-        payerName: null,
-        orderNumber:
-          acledaData.order_number || currentOrder.order_number || null,
-        parentOrderNumber: acledaData.parent_order_number ?? null,
-      });
-      setStatusTone('paid');
-      setStatusMessage('Payment confirmed via ACLEDA Bank!');
-
-      const allDone = payableOrders.every(
-        (o) => nextPaid[o.khqr!.bill_number],
-      );
-      if (allDone) {
-        completedRef.current = true;
-        setAllCompleted(true);
-      }
-    },
-    [
-      khqr.bill_number,
-      khqr.amount,
-      khqr.currency,
-      currentOrder.order_number,
-      merchantName,
-      paidMap,
-      payableOrders,
-    ],
-  );
-
   // Trigger final live verification as soon as countdown reaches 00:00, then transition to Awaiting Payment if still unpaid
   useEffect(() => {
     if (
@@ -475,8 +660,78 @@ function KhqrModalContent({
         }
       }
     }
-    return { size, pathData: segments.join('') };
+    return { size, data, pathData: segments.join('') };
   }, [khqr.khqr_payload]);
+
+  const downloadedKhqr = downloadedBillNumber === khqr.bill_number;
+
+  useEffect(() => {
+    return () => {
+      if (downloadFeedbackTimerRef.current !== null) {
+        window.clearTimeout(downloadFeedbackTimerRef.current);
+        downloadFeedbackTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleDownloadKhqr = useCallback(async () => {
+    if (downloadingKhqr || cancelling) return;
+    setDownloadingKhqr(true);
+    try {
+      const blob = await renderKhqrCardPngBlob({
+        qrSize: qrMatrix.size,
+        qrData: qrMatrix.data,
+        merchantName,
+        formattedAmount,
+        currency,
+        currencySymbol,
+      });
+
+      const safeMerchant = merchantName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 24);
+      const fileRef = (khqr.bill_number || currentOrder.order_number || 'payment')
+        .replace(/[^a-zA-Z0-9_-]+/g, '');
+      const filename = `Kova-KHQR-${safeMerchant || 'merchant'}-${fileRef}.png`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      setDownloadedBillNumber(khqr.bill_number);
+      if (downloadFeedbackTimerRef.current !== null) {
+        window.clearTimeout(downloadFeedbackTimerRef.current);
+      }
+      downloadFeedbackTimerRef.current = window.setTimeout(() => {
+        setDownloadedBillNumber(null);
+        downloadFeedbackTimerRef.current = null;
+      }, 2200);
+    } catch {
+      setStatusTone('error');
+      setStatusMessage('Unable to download KHQR image right now.');
+    } finally {
+      setDownloadingKhqr(false);
+    }
+  }, [
+    downloadingKhqr,
+    cancelling,
+    qrMatrix.size,
+    qrMatrix.data,
+    merchantName,
+    formattedAmount,
+    currency,
+    currencySymbol,
+    khqr.bill_number,
+    currentOrder.order_number,
+  ]);
 
   const isPaidState = statusTone === 'paid';
   const isTimeoutState = statusTone === 'timeout';
@@ -788,31 +1043,32 @@ function KhqrModalContent({
                   ) : null}
                 </div>
 
-                {/* Mobile & Tablet Only: Direct ACLEDA Mobile Deeplink Button + Equal-Sized Cancel Button */}
+                {/* Download KHQR Image + Equal-Sized Cancel Button */}
                 <div className="mt-5 w-full max-w-[260px] flex flex-col items-center gap-2.5">
-                  <PayWithAcledaButton
-                    key={khqr.bill_number}
-                    orderId={currentOrder.order_number || khqr.bill_number}
-                    billNumber={khqr.bill_number}
-                    checkoutSessionToken={checkoutSessionToken}
-                    amount={Number(khqr.amount || 0)}
-                    currency={currency}
-                    disabled={cancelling}
-                    compact
-                    onPaymentVerified={handleAcledaVerified}
-                    onPaymentFailed={(reason) => {
-                      setStatusTone('error');
-                      setStatusMessage(reason);
-                    }}
-                  />
+                  <button
+                    type="button"
+                    disabled={cancelling || downloadingKhqr}
+                    onClick={() => void handleDownloadKhqr()}
+                    className="w-full min-h-[44px] py-2.5 px-5 rounded-full bg-[#ff6e20] hover:bg-[#e85d12] active:bg-[#d9530c] disabled:opacity-60 text-white text-[13.5px] font-semibold inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors cursor-pointer"
+                  >
+                    <FigmaIcon
+                      name={downloadedKhqr ? 'check' : 'download'}
+                      className="w-4 h-4 text-white"
+                    />
+                    <span>
+                      {downloadingKhqr
+                        ? 'Downloading...'
+                        : downloadedKhqr
+                          ? 'KHQR Downloaded'
+                          : 'Download KHQR'}
+                    </span>
+                  </button>
 
                   <button
                     type="button"
                     disabled={cancelling}
                     onClick={() => void handleCancelClick()}
-                    className={`${
-                      isMobileOrTablet ? 'w-full px-5' : 'w-auto px-9'
-                    } min-h-[44px] py-2.5 rounded-full border border-[#E2E2E2] bg-white hover:bg-[#F7F7F7] active:bg-[#EFEFEF] disabled:opacity-60 text-[13.5px] font-medium text-[#333333] whitespace-nowrap transition-colors cursor-pointer`}
+                    className="w-full min-h-[44px] py-2.5 px-5 rounded-full border border-[#E2E2E2] bg-white hover:bg-[#F7F7F7] active:bg-[#EFEFEF] disabled:opacity-60 text-[13.5px] font-medium text-[#333333] whitespace-nowrap transition-colors cursor-pointer"
                   >
                     {cancelling ? 'Cancelling...' : 'Cancel'}
                   </button>
@@ -917,7 +1173,8 @@ function KhqrModalContent({
                 </div>
 
                 <p className="mt-4 text-[13px] leading-[1.45] text-[#8E8E93] text-center max-w-[260px]">
-                  Scan with Bakong or any KHQR supported banking app
+                  Scan or download KHQR to pay with Bakong, ABA, ACLEDA, or any
+                  banking app
                 </p>
               </div>
             </div>

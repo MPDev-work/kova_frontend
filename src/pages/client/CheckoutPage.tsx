@@ -1129,7 +1129,6 @@ export function CheckoutPage() {
       <KhqrModal
         open={khqrOpen}
         storeOrders={khqrOrders}
-        checkoutSessionToken={checkoutSessionToken}
         allowBackdropClose={false}
         onCancel={async () => {
           try {

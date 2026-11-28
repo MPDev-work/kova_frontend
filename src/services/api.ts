@@ -4,7 +4,6 @@ import {
   type ImageResizePreset,
 } from '../utils/mediaUpload';
 import type {
-  AcledaPaymentData,
   Address,
   AppliedCoupon,
   BakongKhqrData,
@@ -862,27 +861,6 @@ export const checkoutApi = {
       {
         method: 'POST',
       },
-    );
-  },
-
-  async createAcledaPayment(payload: {
-    order_id: string;
-    amount: number;
-    currency: 'USD' | 'KHR';
-    bill_number?: string | null;
-    checkout_session_token?: string | null;
-    return_url?: string | null;
-    return_deeplink?: string | null;
-  }) {
-    return apiRequest<AcledaPaymentData>('/payments/acleda/create', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async checkAcledaStatus(transactionId: string) {
-    return apiRequest<AcledaPaymentData>(
-      `/payments/acleda/status/${encodeURIComponent(transactionId)}`,
     );
   },
 };

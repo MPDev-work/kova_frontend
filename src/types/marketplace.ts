@@ -7,7 +7,6 @@ export interface PlatformSettings {
     google_oauth_enabled: boolean;
     cloudinary_enabled: boolean;
     bakong_environment: string;
-    acleda_enabled?: boolean;
   };
   [key: string]: unknown;
 }
@@ -196,33 +195,6 @@ export interface BakongKhqrData {
   qr_md5: string;
   expires_at: string;
   payment_status: string;
-}
-
-export interface AcledaPaymentData {
-  transaction_id: string;
-  gateway_transaction_id?: string | null;
-  order_id: string;
-  order_number?: string | null;
-  parent_order_number?: string | null;
-  bill_number?: string | null;
-  amount: number;
-  currency: 'USD' | 'KHR' | string;
-  status: 'pending' | 'successful' | 'failed' | 'expired';
-  payment_status: 'pending' | 'successful' | 'failed' | 'expired';
-  failure_reason?: string | null;
-  deeplink: string;
-  qr_string?: string | null;
-  return_url?: string | null;
-  gateway_mode?: string;
-  paid_at?: string | null;
-  verified_at?: string | null;
-  expires_at?: string | null;
-  seconds_remaining?: number;
-  merchant_name?: string | null;
-  store_links?: {
-    ios: string;
-    android: string;
-  };
 }
 
 export interface OrderItemRecord {
