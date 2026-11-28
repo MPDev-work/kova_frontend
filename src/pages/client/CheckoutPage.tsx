@@ -1105,7 +1105,7 @@ export function CheckoutPage() {
               type="button"
               disabled={submitting}
               onClick={() => void handlePurchase()}
-              className="w-full bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[14.5px] font-semibold py-3.5 px-5 rounded-full transition-colors"
+              className="w-full bg-[#ff6e20] hover:bg-[#e85d12] disabled:opacity-60 text-white text-[14.5px] font-semibold py-3.5 px-5 rounded-full transition-colors cursor-pointer"
             >
               {submitting
                 ? 'Creating order...'
@@ -1129,6 +1129,7 @@ export function CheckoutPage() {
       <KhqrModal
         open={khqrOpen}
         storeOrders={khqrOrders}
+        checkoutSessionToken={checkoutSessionToken}
         allowBackdropClose={false}
         onCancel={async () => {
           try {

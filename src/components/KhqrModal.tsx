@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { FigmaIcon } from './FigmaIcon';
+import { PayWithAcledaButton } from './PayWithAcledaButton';
 import { ApiError, checkoutApi } from '../services/api';
+import { useIsMobileOrTablet } from '../utils/device';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import type { ChildOrderRecord } from '../types/marketplace';
+import type { AcledaPaymentData, ChildOrderRecord } from '../types/marketplace';
 
 interface PaidReceiptDetails {
   amount: number;
@@ -91,6 +93,7 @@ function formatReceiptAmount(amount: number, currency: 'USD' | 'KHR'): string {
 interface KhqrModalProps {
   open: boolean;
   storeOrders: ChildOrderRecord[];
+  checkoutSessionToken?: string | null;
   onClose: () => void;
   onCancel?: () => Promise<void> | void;
   onTimeout?: (orderNumber?: string) => void;
@@ -101,6 +104,7 @@ interface KhqrModalProps {
 export function KhqrModal({
   open,
   storeOrders,
+  checkoutSessionToken = null,
   onClose,
   onCancel,
   onTimeout,
@@ -118,6 +122,7 @@ export function KhqrModal({
         .map((o) => `${o.khqr?.bill_number ?? ''}-${o.khqr?.expires_at ?? ''}`)
         .join('|')}
       payableOrders={payableOrders}
+      checkoutSessionToken={checkoutSessionToken}
       onClose={onClose}
       onCancel={onCancel}
       onTimeout={onTimeout}
@@ -129,6 +134,7 @@ export function KhqrModal({
 
 function KhqrModalContent({
   payableOrders,
+  checkoutSessionToken,
   onClose,
   onCancel,
   onTimeout,
@@ -136,12 +142,14 @@ function KhqrModalContent({
   allowBackdropClose,
 }: {
   payableOrders: ChildOrderRecord[];
+  checkoutSessionToken?: string | null;
   onClose: () => void;
   onCancel?: () => Promise<void> | void;
   onTimeout?: (orderNumber?: string) => void;
   onAllPaid: (orderNumber?: string) => void;
   allowBackdropClose: boolean;
 }) {
+  const isMobileOrTablet = useIsMobileOrTablet();
   const [activeIndex, setActiveIndex] = useState(0);
   const [paidMap, setPaidMap] = useState<Record<string, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<string>('');
@@ -351,6 +359,60 @@ function KhqrModalContent({
       payableOrders,
       cancelling,
       triggerTimeoutState,
+    ],
+  );
+
+  const handleAcledaVerified = useCallback(
+    (acledaData: AcledaPaymentData) => {
+      if (completedRef.current || paidMap[khqr.bill_number]) return;
+
+      const confirmedOrderNumber =
+        acledaData.parent_order_number || acledaData.order_number || undefined;
+      confirmedOrderRef.current = confirmedOrderNumber;
+      const nextPaid = { ...paidMap, [khqr.bill_number]: true };
+      setPaidMap(nextPaid);
+      setCopiedOrderId(false);
+      setPaidReceipt({
+        amount: Number(acledaData.amount ?? khqr.amount ?? 0),
+        currency:
+          (acledaData.currency || khqr.currency || 'USD').toUpperCase() ===
+          'KHR'
+            ? 'KHR'
+            : 'USD',
+        verifiedAt:
+          acledaData.verified_at ||
+          acledaData.paid_at ||
+          new Date().toISOString(),
+        hash: acledaData.gateway_transaction_id ?? acledaData.transaction_id,
+        billNumber: acledaData.bill_number || khqr.bill_number,
+        transactionReference: acledaData.transaction_id,
+        fromAccountId: 'acleda@aclb',
+        toAccountId: null,
+        merchantName: (acledaData.merchant_name || merchantName).trim(),
+        payerName: null,
+        orderNumber:
+          acledaData.order_number || currentOrder.order_number || null,
+        parentOrderNumber: acledaData.parent_order_number ?? null,
+      });
+      setStatusTone('paid');
+      setStatusMessage('Payment confirmed via ACLEDA Bank!');
+
+      const allDone = payableOrders.every(
+        (o) => nextPaid[o.khqr!.bill_number],
+      );
+      if (allDone) {
+        completedRef.current = true;
+        setAllCompleted(true);
+      }
+    },
+    [
+      khqr.bill_number,
+      khqr.amount,
+      khqr.currency,
+      currentOrder.order_number,
+      merchantName,
+      paidMap,
+      payableOrders,
     ],
   );
 
@@ -625,8 +687,10 @@ function KhqrModalContent({
     >
       <div
         className={`w-full ${
-          isTimeoutState ? 'max-w-[460px]' : 'max-w-[700px]'
-        } bg-white rounded-[22px] sm:rounded-[24px] shadow-[0_24px_64px_rgba(0,0,0,0.22)] px-5 py-6 sm:px-10 sm:py-9 mx-auto my-auto transition-[max-width] duration-300`}
+          isTimeoutState
+            ? 'max-w-[460px]'
+            : 'max-w-[420px] sm:max-w-[440px] lg:max-w-[740px]'
+        } bg-white rounded-[22px] sm:rounded-[24px] shadow-[0_24px_64px_rgba(0,0,0,0.22)] px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-9 mx-auto my-auto transition-[max-width] duration-300`}
         onClick={(e) => e.stopPropagation()}
       >
         {isTimeoutState ? (
@@ -686,9 +750,9 @@ function KhqrModalContent({
               </div>
             )}
 
-            <div className="flex flex-col md:flex-row items-center justify-between gap-8 md:gap-10">
-              {/* Left Column: KHQR Logo, Merchant Info, Amount, Status & Single Cancel Button */}
-              <div className="flex-1 flex flex-col items-center justify-center text-center w-full">
+            <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-6 lg:gap-9">
+              {/* Mobile/Tablet Portrait Bottom & Desktop Left Column: KHQR Logo, Merchant Info, Amount, Status & Equal-Size Action Buttons */}
+              <div className="flex-1 min-w-0 flex flex-col items-center justify-center text-center w-full">
                 <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-[#8E8E93] mb-3">
                   Pay with Bakong
                 </p>
@@ -724,18 +788,39 @@ function KhqrModalContent({
                   ) : null}
                 </div>
 
-                <button
-                  type="button"
-                  disabled={cancelling}
-                  onClick={() => void handleCancelClick()}
-                  className="mt-6 px-9 py-2.5 rounded-full border border-[#E2E2E2] bg-white hover:bg-[#F7F7F7] active:bg-[#EFEFEF] disabled:opacity-60 text-[13.5px] font-medium text-[#333333] transition-colors cursor-pointer"
-                >
-                  {cancelling ? 'Cancelling...' : 'Cancel'}
-                </button>
+                {/* Mobile & Tablet Only: Direct ACLEDA Mobile Deeplink Button + Equal-Sized Cancel Button */}
+                <div className="mt-5 w-full max-w-[260px] flex flex-col items-center gap-2.5">
+                  <PayWithAcledaButton
+                    key={khqr.bill_number}
+                    orderId={currentOrder.order_number || khqr.bill_number}
+                    billNumber={khqr.bill_number}
+                    checkoutSessionToken={checkoutSessionToken}
+                    amount={Number(khqr.amount || 0)}
+                    currency={currency}
+                    disabled={cancelling}
+                    compact
+                    onPaymentVerified={handleAcledaVerified}
+                    onPaymentFailed={(reason) => {
+                      setStatusTone('error');
+                      setStatusMessage(reason);
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    disabled={cancelling}
+                    onClick={() => void handleCancelClick()}
+                    className={`${
+                      isMobileOrTablet ? 'w-full px-5' : 'w-auto px-9'
+                    } min-h-[44px] py-2.5 rounded-full border border-[#E2E2E2] bg-white hover:bg-[#F7F7F7] active:bg-[#EFEFEF] disabled:opacity-60 text-[13.5px] font-medium text-[#333333] whitespace-nowrap transition-colors cursor-pointer`}
+                  >
+                    {cancelling ? 'Cancelling...' : 'Cancel'}
+                  </button>
+                </div>
               </div>
 
-              {/* Right Column: Official NBC KHQR Card (Strict 20:29 Ratio & Guidelines) + Helper Text */}
-              <div className="flex flex-col items-center shrink-0">
+              {/* Right Column (Top on Mobile/Portrait Tablet): Official NBC KHQR Card (Strict 20:29 Ratio & Guidelines) + Helper Text */}
+              <div className="flex flex-col items-center shrink-0 max-w-full">
                 {/*
                   Official NBC KHQR Appearance Guidelines:
                   - Ratio: 20:29 (260x377 mobile, 290x420.5 desktop)

@@ -23,6 +23,7 @@ import { VerifiedStoresPage } from './pages/client/VerifiedStoresPage';
 import { StorefrontPage } from './pages/client/StorefrontPage';
 import { CartPage } from './pages/client/CartPage';
 import { CheckoutPage } from './pages/client/CheckoutPage';
+import { AcledaReturnPage } from './pages/client/AcledaReturnPage';
 import { WishlistPage } from './pages/client/WishlistPage';
 import { NotificationsPage } from './pages/client/NotificationsPage';
 import {
@@ -198,6 +199,7 @@ export default function App() {
             {/* Standalone Cart, Checkout, Wishlist & Notifications */}
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/checkout/acleda-return" element={<AcledaReturnPage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
 
